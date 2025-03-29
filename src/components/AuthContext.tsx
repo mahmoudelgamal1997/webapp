@@ -4,7 +4,8 @@ interface AuthContextType {
   username: string | null;
   login: (username: string) => void;
   logout: () => void;
-  setUsername: (username: string | null) => void; // Add this line
+  setUsername: (username: string | null) => void;
+  isLoggedIn: () => boolean;
 }
 
 // Create a custom error for context
@@ -17,24 +18,34 @@ const defaultAuthContext: AuthContextType = {
   username: null,
   login: createAuthContextError,
   logout: createAuthContextError,
-  setUsername: createAuthContextError // Add this line
+  setUsername: createAuthContextError,
+  isLoggedIn: () => false
 };
 
 const AuthContext = createContext<AuthContextType>(defaultAuthContext);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [username, setUsername] = useState<string | null>(null);
+  const [username, setUsername] = useState<string | null>(
+    localStorage.getItem('username') || null
+  );
 
   const login = (user: string) => {
     setUsername(user);
-    // You might want to add token storage here
+    // Store username in localStorage for persistence
     localStorage.setItem('username', user);
   };
 
   const logout = () => {
     setUsername(null);
-    // Clear any stored tokens or user data
+    // Clear all stored data
     localStorage.removeItem('username');
+    localStorage.removeItem('doctorId');
+    localStorage.removeItem('token');
+  };
+  
+  const isLoggedIn = (): boolean => {
+    // Check for stored username or doctorId
+    return !!username || !!localStorage.getItem('username') || !!localStorage.getItem('doctorId');
   };
 
   return (
@@ -42,7 +53,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       username, 
       login, 
       logout,
-      setUsername // Include this in the provider value
+      setUsername,
+      isLoggedIn
     }}>
       {children}
     </AuthContext.Provider> 

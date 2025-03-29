@@ -11,7 +11,7 @@ import {
 } from 'antd';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../firebaseConfig'; 
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 
 const { Title, Text, Link } = Typography;
@@ -22,9 +22,17 @@ interface LoginFormValues {
   remember?: boolean;
 }
 
+interface LocationState {
+  from?: {
+    pathname?: string;
+  };
+}
+
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
-  const { setUsername } = useAuth();
+  const location = useLocation();
+  const state = location.state as LocationState;
+  const { login } = useAuth();
   const [loading, setLoading] = useState<boolean>(false);
 
   const onFinish = async (values: LoginFormValues) => {
@@ -38,14 +46,18 @@ const LoginPage: React.FC = () => {
       
       // Extract username from email or set a default
       const extractedUsername = values.email.split('@')[0];
-      setUsername(extractedUsername);
+      
+      // Use the login function from context instead of just setUsername
+      login(extractedUsername);
       
       // Store the user's UID as the doctorId in localStorage
-      // This assumes that the authenticated user is a doctor
       localStorage.setItem('doctorId', userCredential.user.uid);
       
       message.success('Login Successful');
-      navigate('/dashboard');
+      
+      // Navigate to the intended location or default to dashboard
+      const from = state?.from?.pathname || '/dashboard';
+      navigate(from, { replace: true });
     } catch (error: any) {
       message.error(error.message || 'Login Failed');
     } finally {
