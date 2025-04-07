@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Form, Input, Button, Modal, Select, message, Card } from 'antd';
 import axios from 'axios';
+import API from '../config/api';
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -69,8 +70,8 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
       };
 
       // Send update to backend
-      await axios.put(
-        `http://localhost:7000/api/patients/${patient._id}`, 
+     await axios.put(
+        `${API.BASE_URL}${API.ENDPOINTS.PATIENT_BY_ID(patient._id)}`, 
         payload
       );
 

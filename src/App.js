@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'r
 import LoginPage from './components/Login';
 import Dashboard from './components/Dashboard';
 import { AuthProvider, useAuth } from './components/AuthContext';
+import { PatientProvider } from './components/PatientContext'; // Add this import
 
 // Protected route component
 const ProtectedRoute = ({ children }) => {
@@ -14,7 +15,7 @@ const ProtectedRoute = ({ children }) => {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
   
-  return <>{children}</>;
+  return children;
 };
 
 // Public route - redirects to dashboard if already logged in
@@ -25,13 +26,13 @@ const PublicRoute = ({ children }) => {
     return <Navigate to="/dashboard" replace />;
   }
   
-  return <>{children}</>;
+  return children;
 };
 
 function App() {
   return (
-    <Router>
-      <AuthProvider>
+    <AuthProvider>
+      <Router>
         <Routes>
           <Route 
             path="/login" 
@@ -45,15 +46,18 @@ function App() {
             path="/dashboard/*" 
             element={
               <ProtectedRoute>
-                <Dashboard />
+                {/* Wrap Dashboard with PatientProvider */}
+                <PatientProvider>
+                  <Dashboard />
+                </PatientProvider>
               </ProtectedRoute>
             } 
           />
           <Route path="/" element={<Navigate to="/dashboard" />} />
           <Route path="*" element={<Navigate to="/login" />} />
         </Routes>
-      </AuthProvider>
-    </Router>
+      </Router>
+    </AuthProvider>
   );
 }
 

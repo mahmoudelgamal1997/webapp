@@ -667,47 +667,58 @@
 
 
 // Dashboard.tsx
-import React, { useState } from 'react';
-import { Layout } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Layout, Card, Typography, Button, Table, Tag, Space, Divider, Menu, Row, Col } from 'antd';
+import { UserOutlined, LogoutOutlined, MenuUnfoldOutlined, MenuFoldOutlined, PlusOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from './AuthContext';
+import { usePatientContext } from './PatientContext'; // Make sure this path is correct
 import moment from 'moment';
-import { Receipt } from '../components/type';
-import { PatientProvider, usePatientContext } from './PatientContext';
-import Sidebar from './Sidebar';
-import PageHeader from './PageHeader';
-import PatientsList from './PatientsList';
-import PatientDetail from './PatientDetail';
-import ReceiptDetail from '../components/ReceiptDetails';
+import { Patient, Receipt } from '../components/type';
 import ReceiptModalWrapper from './ReceiptModalWrapper';
+import ReceiptDetail from './ReceiptDetails';
 
-const { Content } = Layout;
+const { Header, Sider, Content } = Layout;
+const { Title, Text } = Typography;
 
-const DashboardContent: React.FC = () => {
+const Dashboard: React.FC = () => {
   const [collapsed, setCollapsed] = useState<boolean>(false);
   const [isReceiptModalVisible, setIsReceiptModalVisible] = useState<boolean>(false);
-  const { selectedPatient, setSelectedPatient } = usePatientContext();
+  const navigate = useNavigate();
+  const { username, logout } = useAuth();
   
-  // Create a custom handler for returning to patient list
-  const handleBackToList = () => {
-    // Use a more direct approach to return to list
-    console.log("Returning to patient list");
-    
-    // Immediately set selected patient to null
-    setSelectedPatient(null);
-    
-    // Force a re-render after state update
-    setTimeout(() => {
-      if (selectedPatient) {
-        console.log("Forcing null selection");
-        setSelectedPatient(null);
-      }
-    }, 0);
+  // Get data from patient context
+  const { 
+    patients, 
+    filteredPatients, 
+    selectedPatient, 
+    setSelectedPatient,
+    fetchPatients,
+    setSelectedReceipt,
+    setIsViewReceiptModalVisible
+  } = usePatientContext();
+
+  // Log when dashboard renders
+  useEffect(() => {
+    console.log('Dashboard rendering with', patients.length, 'patients');
+    console.log('Patients data:', patients);
+  }, [patients]);
+
+  // Manual refresh function
+  const handleRefresh = () => {
+    console.log('Manual refresh requested');
+    fetchPatients();
   };
 
-  // Print receipt
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  // Handle print receipt
   const handlePrintReceipt = (receipt: Receipt) => {
-    if (!selectedPatient) return;
-    
-    // Implement print functionality
+    console.log('Printing receipt:', receipt);
+    // Implement print functionality here
     const printWindow = window.open('', '_blank');
     if (printWindow) {
       printWindow.document.write(`
@@ -726,7 +737,7 @@ const DashboardContent: React.FC = () => {
             <div class="receipt">
               <div class="header">
                 <h2>روشتة طبية</h2>
-                <h3>${selectedPatient.patient_name}</h3>
+                <h3>${selectedPatient?.patient_name}</h3>
                 <p>تاريخ: ${moment(receipt.date).format('YYYY-MM-DD')}</p>
               </div>
               <div class="drugs">
@@ -752,23 +763,184 @@ const DashboardContent: React.FC = () => {
     }
   };
 
+  // Define columns for the simple table
+  const columns = [
+    {
+      title: 'Name',
+      dataIndex: 'patient_name',
+      key: 'name',
+    },
+    {
+      title: 'Date',
+      dataIndex: 'date',
+      key: 'date',
+      render: (text: string) => text ? moment(text).format('YYYY-MM-DD') : 'N/A',
+    },
+    {
+      title: 'Address',
+      dataIndex: 'address',
+      key: 'address',
+    },
+    {
+      title: 'Age',
+      dataIndex: 'age',
+      key: 'age',
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      render: (_: any, record: Patient) => (
+        <Button type="link" onClick={() => setSelectedPatient(record)}>
+          View Details
+        </Button>
+      ),
+    },
+  ];
+
+  // Receipt columns
+  const receiptColumns = [
+    {
+      title: 'Date',
+      dataIndex: 'date',
+      key: 'date',
+      render: (text: string) => moment(text).format('YYYY-MM-DD'),
+    },
+    {
+      title: 'Drugs',
+      key: 'drugs',
+      render: (_: any, record: Receipt) => `${record.drugs?.length || 0} medications`,
+    },
+    {
+      title: 'Notes',
+      dataIndex: 'notes',
+      key: 'notes',
+      ellipsis: true,
+    },
+  ];
+
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
+      <Sider 
+        collapsible 
+        collapsed={collapsed} 
+        onCollapse={(value) => setCollapsed(value)}
+        trigger={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+      >
+        <div 
+          className="logo" 
+          style={{ 
+            height: '32px', 
+            background: 'rgba(255, 255, 255, 0.2)', 
+            margin: '16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: collapsed ? 'center' : 'flex-start',
+            paddingLeft: collapsed ? 0 : '10px',
+          }}
+        >
+          <UserOutlined style={{ color: 'white', marginRight: collapsed ? 0 : '10px' }} />
+          {!collapsed && (
+            <span style={{ color: 'white', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+              {username || 'User'}
+            </span>
+          )}
+        </div>
+        <Menu theme="dark" mode="inline" defaultSelectedKeys={['patients']}>
+          <Menu.Item key="patients" icon={<UserOutlined />}>
+            Patients
+          </Menu.Item>
+          <Menu.Item key="logout" icon={<LogoutOutlined />} onClick={handleLogout}>
+            Logout
+          </Menu.Item>
+        </Menu>
+      </Sider>
       
       <Layout>
-        <PageHeader />
+        <Header style={{ 
+          padding: 0, 
+          background: 'white', 
+          display: 'flex', 
+          justifyContent: 'flex-end', 
+          alignItems: 'center' 
+        }}>
+          <Button 
+            type="text" 
+            icon={<LogoutOutlined />} 
+            onClick={handleLogout}
+            style={{ marginRight: '16px' }}
+          >
+            Logout
+          </Button>
+        </Header>
         
         <Content style={{ margin: '24px 16px', padding: 24, background: 'white' }}>
+          {/* Debug info */}
+          <Card style={{ marginBottom: 16 }}>
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <Title level={4}>Patient Management Dashboard</Title>
+              <Space>
+                <Button type="primary" onClick={handleRefresh}>
+                  Refresh Data
+                </Button>
+              </Space>
+            </Space>
+          </Card>
+
+          {/* Patient data section */}
           {!selectedPatient ? (
-            <PatientsList />
+            <Card title="Patients List">
+              <Table 
+                columns={columns}
+                dataSource={filteredPatients}
+                rowKey="_id"
+                pagination={{ pageSize: 10 }}
+                loading={filteredPatients.length === 0}
+              />
+            </Card>
           ) : (
-            <PatientDetail 
-              isReceiptModalVisible={isReceiptModalVisible}
-              setIsReceiptModalVisible={setIsReceiptModalVisible}
-              onPrintReceipt={handlePrintReceipt}
-              onBackToList={handleBackToList}
-            />
+            <Card 
+              title={`Patient Details: ${selectedPatient.patient_name}`}
+              extra={
+                <Space>
+                  <Button 
+                    type="primary" 
+                    icon={<PlusOutlined />} 
+                    onClick={() => setIsReceiptModalVisible(true)}
+                  >
+                    Add Receipt
+                  </Button>
+                  <Button type="link" onClick={() => setSelectedPatient(null)}>Back to List</Button>
+                </Space>
+              }
+            >
+              <Divider>Personal Information</Divider>
+              <p><strong>Name:</strong> {selectedPatient.patient_name}</p>
+              <p><strong>Age:</strong> {selectedPatient.age}</p>
+              <p><strong>Address:</strong> {selectedPatient.address}</p>
+              <p><strong>Date:</strong> {selectedPatient.date ? moment(selectedPatient.date).format('YYYY-MM-DD') : 'N/A'}</p>
+              
+              {selectedPatient.receipts && selectedPatient.receipts.length > 0 ? (
+                <>
+                  <Divider>Receipts</Divider>
+                  <Table 
+                    dataSource={selectedPatient.receipts}
+                    rowKey="_id"
+                    columns={receiptColumns}
+                    pagination={false}
+                    onRow={(record) => ({
+                      onClick: () => {
+                        // Show receipt details when a row is clicked
+                        setSelectedReceipt(record);
+                        setIsViewReceiptModalVisible(true);
+                      },
+                      style: { cursor: 'pointer' }
+                    })}
+                  />
+                </>
+              ) : (
+                <p>No receipts available</p>
+              )}
+            </Card>
           )}
         </Content>
       </Layout>
@@ -778,19 +950,10 @@ const DashboardContent: React.FC = () => {
         visible={isReceiptModalVisible}
         onCancel={() => setIsReceiptModalVisible(false)}
       />
-      
+
       {/* Modal for viewing receipt details */}
       <ReceiptDetail onPrintReceipt={handlePrintReceipt} />
     </Layout>
-  );
-};
-
-// Dashboard component wrapped with PatientProvider
-const Dashboard: React.FC = () => {
-  return (
-    <PatientProvider>
-      <DashboardContent />
-    </PatientProvider>
   );
 };
 

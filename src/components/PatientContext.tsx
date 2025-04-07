@@ -4,6 +4,7 @@ import axios from 'axios';
 import { message } from 'antd';
 import { Patient, Receipt } from '../components/type';
 import dayjs from 'dayjs';
+import API from '../config/api';
 
 interface PatientContextType {
   patients: Patient[];
@@ -38,6 +39,7 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
   const [isViewReceiptModalVisible, setIsViewReceiptModalVisible] = useState<boolean>(false);
   const [forceRender, setForceRender] = useState<number>(0);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const userId = localStorage.getItem('doctorId');
 
@@ -80,50 +82,65 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
   };
 
   // Fetch patients from API
-  const fetchPatients = async () => {
-    try {
-      // Use the doctor-specific endpoint if userId is available
-      let endpoint = 'http://localhost:7000/api/patients';
-      if (userId) {
-        endpoint = `http://localhost:7000/api/patients/doctor/${userId}`;
-      }
-      
-      const response = await axios.get(endpoint);
-      const updatedPatients = response.data;
-      
-      // Always sort by date (newest first)
-      const sortedPatients = sortByLatestDate(updatedPatients);
-      
-      setPatients(sortedPatients);
-      setFilteredPatients(sortedPatients);
-      
-      // If there's a selected patient, update it with fresh data
-      if (selectedPatient) {
-        const freshPatient = updatedPatients.find((p: Patient) => p._id === selectedPatient._id);
-        if (freshPatient) {
-          // Sort receipts with the newest first if they exist
-          if (freshPatient.receipts && freshPatient.receipts.length > 0) {
-            freshPatient.receipts = [...freshPatient.receipts].sort((a: Receipt, b: Receipt) => 
-              new Date(b.date).getTime() - new Date(a.date).getTime()
-            );
-          }
-          setSelectedPatient(freshPatient);
-        }
-      }
-      
-      // Force re-render of the table to maintain sort order
-      setForceRender(prev => prev + 1);
-      
-      return sortedPatients;
-    } catch (error) {
-      console.error('Error fetching patients', error);
-      message.error('Failed to fetch patients');
-      return [];
+
+const fetchPatients = async () => {
+  setIsLoading(true);
+  try {
+    // Use the doctor-specific endpoint if userId is available
+    let endpoint = `${API.BASE_URL}${API.ENDPOINTS.PATIENTS}`;
+    
+    if (userId) {
+      endpoint = `${API.BASE_URL}${API.ENDPOINTS.DOCTOR_PATIENTS(userId)}`;
+      console.log('Fetching from endpoint:', endpoint);
     }
-  };
+    
+    const response = await axios.get(endpoint);
+    console.log('API Response received');
+
+    const updatedPatients = response.data;
+    console.log('Raw patients data:', updatedPatients);
+    
+    // Always sort by date (newest first)
+    const sortedPatients = sortByLatestDate(updatedPatients);
+    console.log('About to update state with:', sortedPatients);
+
+    // Update state with new data
+    setPatients([...sortedPatients]);
+    setFilteredPatients([...sortedPatients]);
+    console.log('State updated with patient data');
+    
+    // If there's a selected patient, update it with fresh data
+    if (selectedPatient) {
+      const freshPatient = updatedPatients.find((p: Patient) => p._id === selectedPatient._id);
+      if (freshPatient) {
+        // Sort receipts with the newest first if they exist
+        if (freshPatient.receipts && freshPatient.receipts.length > 0) {
+          freshPatient.receipts = [...freshPatient.receipts].sort((a: Receipt, b: Receipt) => 
+            new Date(b.date).getTime() - new Date(a.date).getTime()
+          );
+        }
+        setSelectedPatient(freshPatient);
+      }
+    }
+    
+    // Force re-render of the table to maintain sort order
+    setForceRender(prev => prev + 1);
+    
+    return sortedPatients;
+  } catch (error) {
+    console.error('Error fetching patients', error);
+    message.error('Failed to fetch patients');
+    return [];
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   // Apply all filters: search term and date range
   const applyFilters = () => {
+    console.log('Applying filters to', patients.length, 'patients');
+    if (patients.length === 0) return;
+    
     let filtered = [...patients];
     
     // Apply search filter
@@ -152,41 +169,66 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
     
     // Maintain the sort for filtered results
     setFilteredPatients(sortByLatestDate(filtered));
+    console.log('Filtered patients updated:', filtered.length);
   };
 
   // Clear all filters
   const clearFilters = () => {
     setSearchTerm('');
     setDateRange([null, null]);
-    setFilteredPatients(sortByLatestDate([...patients]));
+    setFilteredPatients([...patients]);
   };
 
-  // Initial fetch and search effect with interval to maintain sort
+  // Add this effect to log state changes
   useEffect(() => {
-    fetchPatients();
+    console.log('PATIENTS STATE CHANGED:', patients.length, 'patients');
+    console.log('FILTERED PATIENTS STATE CHANGED:', filteredPatients.length, 'filtered patients');
+  }, [patients, filteredPatients]);
+
+  // Initial fetch when component mounts
+  useEffect(() => {
+    console.log('Initial fetch effect running');
+    const loadData = async () => {
+      try {
+        const result = await fetchPatients();
+        console.log('Initial fetch completed with', result.length, 'patients');
+        // Force component update
+        setForceRender(prev => prev + 1);
+      } catch (error) {
+        console.error('Error in initial fetch:', error);
+      }
+    };
+    
+    loadData();
     
     // Set up interval to re-sort data every few seconds
     const sortInterval = setInterval(() => {
       if (patients.length > 0 && !selectedPatient) {
+        console.log('Auto-sorting patients');
         setPatients(prev => sortByLatestDate([...prev]));
         setFilteredPatients(prev => sortByLatestDate([...prev]));
       }
-    }, 2000);
+    }, 5000); // Changed to 5 seconds to reduce overhead
     
     return () => clearInterval(sortInterval);
-  }, []);
+  }, []); // Empty dependency array means this only runs once on mount
   
-  // Apply filters whenever search term or date range changes
+  // Apply filters effect with dependencies
   useEffect(() => {
+    console.log('Filter effect running, searchTerm:', searchTerm, 'patients:', patients.length);
     applyFilters();
-  }, [searchTerm, dateRange, patients]);
+  }, [searchTerm, dateRange, patients]); // Include all dependencies
   
-  // Sort receipts by date (newest first) when selected patient changes
+  // Sort receipts by date when selected patient changes
   useEffect(() => {
-    if (selectedPatient && selectedPatient.receipts && selectedPatient.receipts.length > 0) {
+    if (!selectedPatient) return;
+    
+    if (selectedPatient.receipts && selectedPatient.receipts.length > 0) {
+      console.log('Sorting receipts for selected patient');
       const sortedReceipts = [...selectedPatient.receipts].sort((a: Receipt, b: Receipt) => 
         new Date(b.date).getTime() - new Date(a.date).getTime()
       );
+      
       // Avoid unnecessary re-renders by checking if the order has actually changed
       const currentReceiptIds = selectedPatient.receipts.map(r => r._id).join(',');
       const sortedReceiptIds = sortedReceipts.map(r => r._id).join(',');
@@ -200,6 +242,7 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
     }
   }, [selectedPatient?._id]);
 
+  // Create value object for context
   const value = {
     patients,
     filteredPatients,
@@ -221,7 +264,11 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
     setForceRender
   };
 
-  return <PatientContext.Provider value={value}>{children}</PatientContext.Provider>;
+  return (
+    <PatientContext.Provider value={value}>
+      {children}
+    </PatientContext.Provider>
+  );
 };
 
 export const usePatientContext = () => {

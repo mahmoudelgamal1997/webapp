@@ -9,6 +9,8 @@ import { usePatientContext } from './PatientContext';
 
 const PatientsList: React.FC = () => {
   const { filteredPatients, setSelectedPatient, forceRender } = usePatientContext();
+console.log('PatientsList rendering with filteredPatients:', filteredPatients);
+
 
   // Define columns for the patient table
   const columns = [
