@@ -32,6 +32,7 @@ export interface Patient {
   receipt?: string;
   receipts?: Receipt[];
   doctor_id?: string;
+  fcmToken?: string;
 }
 
 // Filter state interface
@@ -39,4 +40,17 @@ export interface FilterState {
   searchTerm: string;
   dateRange: [Dayjs | null, Dayjs | null];
   isDateFilterVisible: boolean;
+}
+
+export interface NextVisit {
+  _id: string;
+  patientId: string;
+  patientName: string;
+  doctorId: string;
+  doctorName: string;
+  visitDate: string;
+  notes: string;
+  notificationSent: boolean;
+  createdAt: string;
+  fcmToken?: string;
 }

@@ -5,7 +5,8 @@ import Dashboard from './components/Dashboard';
 import DoctorSettings from './components/DoctorSetting';
 import { AuthProvider, useAuth } from './components/AuthContext';
 import { PatientProvider } from './components/PatientContext';
-import { DoctorProvider } from './components/DoctorContext'; // Path fixed
+import { DoctorProvider } from './components/DoctorContext';
+import { NextVisitProvider } from './components/NextVisitContext'; // Import NextVisitProvider
 
 // Protected route component
 const ProtectedRoute = ({ children }) => {
@@ -35,41 +36,41 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        {/* Wrap everything in DoctorProvider */}
         <DoctorProvider>
-          <Routes>
-            <Route 
-              path="/login" 
-              element={
-                <PublicRoute>
-                  <LoginPage />
-                </PublicRoute>
-              } 
-            />
-            <Route 
-              path="/dashboard/*" 
-              element={
-                <ProtectedRoute>
-                  {/* Wrap Dashboard with PatientProvider */}
-                  <PatientProvider>
-                    <Dashboard />
-                  </PatientProvider>
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/settings" 
-              element={
-                <ProtectedRoute>
-                  <PatientProvider>
-                    <DoctorSettings />
-                  </PatientProvider>
-                </ProtectedRoute>
-              } 
-            />
-            <Route path="/" element={<Navigate to="/dashboard" />} />
-            <Route path="*" element={<Navigate to="/login" />} />
-          </Routes>
+          <NextVisitProvider> {/* Add NextVisitProvider */}
+            <Routes>
+              <Route 
+                path="/login" 
+                element={
+                  <PublicRoute>
+                    <LoginPage />
+                  </PublicRoute>
+                } 
+              />
+              <Route 
+                path="/dashboard/*" 
+                element={
+                  <ProtectedRoute>
+                    <PatientProvider>
+                      <Dashboard />
+                    </PatientProvider>
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/settings" 
+                element={
+                  <ProtectedRoute>
+                    <PatientProvider>
+                      <DoctorSettings />
+                    </PatientProvider>
+                  </ProtectedRoute>
+                } 
+              />
+              <Route path="/" element={<Navigate to="/dashboard" />} />
+              <Route path="*" element={<Navigate to="/login" />} />
+            </Routes>
+          </NextVisitProvider>
         </DoctorProvider>
       </AuthProvider>
     </Router>
