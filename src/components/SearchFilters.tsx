@@ -1,7 +1,7 @@
 // SearchFilters.tsx
 import React from 'react';
 import { Row, Col, Input, Button, Space, Tag, DatePicker } from 'antd';
-import { CalendarOutlined } from '@ant-design/icons';
+import { CalendarOutlined, SearchOutlined } from '@ant-design/icons';
 import { Typography } from 'antd';
 import { usePatientContext } from './PatientContext';
 
@@ -30,10 +30,11 @@ const SearchFilters: React.FC = () => {
       <Row gutter={[16, 16]} align="middle">
         <Col xs={24} md={8}>
           <Input.Search 
-            placeholder="Search patients by name, email, phone, or city" 
+            placeholder="Search by name, phone, email or address" 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             allowClear
+            enterButton={<SearchOutlined />}
           />
         </Col>
         <Col xs={24} md={13}>
@@ -70,6 +71,14 @@ const SearchFilters: React.FC = () => {
         <div style={{ marginTop: 8, marginBottom: 8 }}>
           <Tag color="blue">
             <CalendarOutlined /> Date range: {dateRange[0].format('YYYY-MM-DD')} to {dateRange[1].format('YYYY-MM-DD')}
+          </Tag>
+        </div>
+      )}
+      
+      {searchTerm && (
+        <div style={{ marginTop: 8, marginBottom: 8 }}>
+          <Tag color="green">
+            <SearchOutlined /> Searching for: "{searchTerm}"
           </Tag>
         </div>
       )}

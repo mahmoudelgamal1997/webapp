@@ -2,7 +2,7 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import axios from 'axios';
 import { message } from 'antd';
-import { Patient, Receipt } from '../components/type';
+import { Patient, Receipt } from './type';
 import dayjs from 'dayjs';
 import API from '../config/api';
 
@@ -82,59 +82,58 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
   };
 
   // Fetch patients from API
-
-const fetchPatients = async () => {
-  setIsLoading(true);
-  try {
-    // Use the doctor-specific endpoint if userId is available
-    let endpoint = `${API.BASE_URL}${API.ENDPOINTS.PATIENTS}`;
-    
-    if (userId) {
-      endpoint = `${API.BASE_URL}${API.ENDPOINTS.DOCTOR_PATIENTS(userId)}`;
-      console.log('Fetching from endpoint:', endpoint);
-    }
-    
-    const response = await axios.get(endpoint);
-    console.log('API Response received');
-
-    const updatedPatients = response.data;
-    console.log('Raw patients data:', updatedPatients);
-    
-    // Always sort by date (newest first)
-    const sortedPatients = sortByLatestDate(updatedPatients);
-    console.log('About to update state with:', sortedPatients);
-
-    // Update state with new data
-    setPatients([...sortedPatients]);
-    setFilteredPatients([...sortedPatients]);
-    console.log('State updated with patient data');
-    
-    // If there's a selected patient, update it with fresh data
-    if (selectedPatient) {
-      const freshPatient = updatedPatients.find((p: Patient) => p._id === selectedPatient._id);
-      if (freshPatient) {
-        // Sort receipts with the newest first if they exist
-        if (freshPatient.receipts && freshPatient.receipts.length > 0) {
-          freshPatient.receipts = [...freshPatient.receipts].sort((a: Receipt, b: Receipt) => 
-            new Date(b.date).getTime() - new Date(a.date).getTime()
-          );
-        }
-        setSelectedPatient(freshPatient);
+  const fetchPatients = async () => {
+    setIsLoading(true);
+    try {
+      // Use the doctor-specific endpoint if userId is available
+      let endpoint = `${API.BASE_URL}${API.ENDPOINTS.PATIENTS}`;
+      
+      if (userId) {
+        endpoint = `${API.BASE_URL}${API.ENDPOINTS.DOCTOR_PATIENTS(userId)}`;
+        console.log('Fetching from endpoint:', endpoint);
       }
+      
+      const response = await axios.get(endpoint);
+      console.log('API Response received');
+
+      const updatedPatients = response.data;
+      console.log('Raw patients data:', updatedPatients);
+      
+      // Always sort by date (newest first)
+      const sortedPatients = sortByLatestDate(updatedPatients);
+      console.log('About to update state with:', sortedPatients);
+
+      // Update state with new data
+      setPatients([...sortedPatients]);
+      setFilteredPatients([...sortedPatients]);
+      console.log('State updated with patient data');
+      
+      // If there's a selected patient, update it with fresh data
+      if (selectedPatient) {
+        const freshPatient = updatedPatients.find((p: Patient) => p._id === selectedPatient._id);
+        if (freshPatient) {
+          // Sort receipts with the newest first if they exist
+          if (freshPatient.receipts && freshPatient.receipts.length > 0) {
+            freshPatient.receipts = [...freshPatient.receipts].sort((a: Receipt, b: Receipt) => 
+              new Date(b.date).getTime() - new Date(a.date).getTime()
+            );
+          }
+          setSelectedPatient(freshPatient);
+        }
+      }
+      
+      // Force re-render of the table to maintain sort order
+      setForceRender(prev => prev + 1);
+      
+      return sortedPatients;
+    } catch (error) {
+      console.error('Error fetching patients', error);
+      message.error('Failed to fetch patients');
+      return [];
+    } finally {
+      setIsLoading(false);
     }
-    
-    // Force re-render of the table to maintain sort order
-    setForceRender(prev => prev + 1);
-    
-    return sortedPatients;
-  } catch (error) {
-    console.error('Error fetching patients', error);
-    message.error('Failed to fetch patients');
-    return [];
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
   // Apply all filters: search term and date range
   const applyFilters = () => {
@@ -145,11 +144,12 @@ const fetchPatients = async () => {
     
     // Apply search filter
     if (searchTerm.trim()) {
+      const lowerSearchTerm = searchTerm.toLowerCase();
       filtered = filtered.filter(patient => 
-        patient.patient_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        patient.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        patient.patient_phone?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        patient.address?.toLowerCase().includes(searchTerm.toLowerCase()) 
+        (patient.patient_name?.toLowerCase().includes(lowerSearchTerm)) ||
+        (patient.patient_phone?.toLowerCase().includes(lowerSearchTerm)) ||
+        (patient.email?.toLowerCase().includes(lowerSearchTerm)) ||
+        (patient.address?.toLowerCase().includes(lowerSearchTerm))
       );
     }
     
@@ -179,12 +179,6 @@ const fetchPatients = async () => {
     setFilteredPatients([...patients]);
   };
 
-  // Add this effect to log state changes
-  useEffect(() => {
-    console.log('PATIENTS STATE CHANGED:', patients.length, 'patients');
-    console.log('FILTERED PATIENTS STATE CHANGED:', filteredPatients.length, 'filtered patients');
-  }, [patients, filteredPatients]);
-
   // Initial fetch when component mounts
   useEffect(() => {
     console.log('Initial fetch effect running');
@@ -208,7 +202,7 @@ const fetchPatients = async () => {
         setPatients(prev => sortByLatestDate([...prev]));
         setFilteredPatients(prev => sortByLatestDate([...prev]));
       }
-    }, 5000); // Changed to 5 seconds to reduce overhead
+    }, 5000); // Every 5 seconds to reduce overhead
     
     return () => clearInterval(sortInterval);
   }, []); // Empty dependency array means this only runs once on mount

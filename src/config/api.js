@@ -5,6 +5,7 @@ const API = {
     PATIENTS: '/api/patients',
     DOCTOR_PATIENTS: (doctorId) => `/api/patients/doctor/${doctorId}`,
     PATIENT_BY_ID: (patientId) => `/api/patients/${patientId}`,
+    DOCTOR_SETTINGS: (doctorId) => `/api/doctors/${doctorId}/settings`,
 
     // Add other endpoints as needed
   }
