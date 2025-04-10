@@ -1,13 +1,12 @@
-import React, { useState } from 'react';
-import { Card, Row, Col, Typography, Button, Divider, Tag, Table } from 'antd';
-import { PlusOutlined, CalendarOutlined } from '@ant-design/icons';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { Card, Row, Col, Typography, Button, Divider, Table, Modal, Space, List } from 'antd';
+import { PlusOutlined, FileTextOutlined } from '@ant-design/icons';
 import moment from 'moment';
 import ReceiptsList from './ReceiptsList';
-import { Receipt } from '../components/type';
+import { Receipt, Patient, Visit } from '../components/type';
 import { usePatientContext } from './PatientContext';
-import { useNextVisits } from './NextVisitContext';
-import NextVisitForm from './NextVisitForm';
-import dayjs from 'dayjs';
+import API from '../config/api';
 
 const { Title, Text } = Typography;
 
@@ -18,6 +17,21 @@ interface PatientDetailProps {
   onBackToList: () => void;
 }
 
+interface PatientHistoryResponse {
+  patient_info: {
+    name: string;
+    phone: string;
+    age: string;
+    address: string;
+  };
+  pagination: {
+    currentPage: number;
+    totalPages: number;
+    totalVisits: number;
+  };
+  visits: Visit[];
+}
+
 const PatientDetail: React.FC<PatientDetailProps> = ({ 
   isReceiptModalVisible, 
   setIsReceiptModalVisible,
@@ -25,142 +39,246 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
   onBackToList
 }) => {
   const { selectedPatient } = usePatientContext();
-  const { nextVisits } = useNextVisits();
-  const [isNextVisitModalVisible, setIsNextVisitModalVisible] = useState(false);
+  
+  const [patientHistory, setPatientHistory] = useState<PatientHistoryResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [visitDetailsVisible, setVisitDetailsVisible] = useState(false);
+  const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
+
+  useEffect(() => {
+    const fetchPatientHistory = async () => {
+      if (selectedPatient) {
+        try {
+          setLoading(true);
+          setError(null);
+
+          const response = await axios.get<PatientHistoryResponse>(`${API.BASE_URL}/api/patients/visits`, {
+            params: {
+              patient_id: selectedPatient.patient_id,
+              doctor_id: selectedPatient.doctor_id
+            }
+          });
+
+          setPatientHistory(response.data);
+        } catch (error) {
+          console.error('Error fetching patient history:', error);
+          setError('Failed to fetch patient history');
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchPatientHistory();
+  }, [selectedPatient]);
 
   if (!selectedPatient) {
     return null;
   }
 
-  // Filter next visits for the current patient
-  const patientNextVisits = nextVisits.filter(
-    visit => visit.patientId === selectedPatient._id
-  );
+  const allReceipts = patientHistory?.visits.flatMap((visit: Visit) => 
+    visit.receipts?.map(receipt => ({
+      ...receipt,
+      visit_type: visit.visit_type // Add visit_type to each receipt for display
+    })) || []
+  ) || [];
 
-  // Improved handler for back to list
-  const handleBackClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation(); // Prevent event bubbling
-    
-    // Call the provided handler
-    onBackToList();
-    
-    // Return false to prevent default behavior
-    return false;
+  // Function to show visit details modal
+  const showVisitDetails = (visit: Visit) => {
+    setSelectedVisit(visit);
+    setVisitDetailsVisible(true);
   };
 
-  // Columns for next visits table
-  const nextVisitColumns = [
+  // Column definitions for the receipts table
+  const receiptsColumns = [
     {
-      title: 'Visit Date',
-      dataIndex: 'visitDate',
-      key: 'visitDate',
-      render: (date: string) => {
-        const visitDate = dayjs(date);
-        const today = dayjs().startOf('day');
-        const daysUntil = visitDate.diff(today, 'day');
-        
-        let color = 'green';
-        if (daysUntil < 0) color = 'red';
-        else if (daysUntil === 0) color = 'orange';
-        else if (daysUntil <= 3) color = 'blue';
-        
-        return (
-          <>
-            {visitDate.format('YYYY-MM-DD')}
-            <Tag color={color} style={{ marginLeft: 8 }}>
-              {daysUntil < 0 ? 'Overdue' : 
-               daysUntil === 0 ? 'Today' : 
-               `In ${daysUntil} days`}
-            </Tag>
-          </>
-        );
-      },
+      title: 'Date',
+      dataIndex: 'date',
+      key: 'date',
+      render: (date: string) => moment(date).format('YYYY-MM-DD HH:mm')
+    },
+    {
+      title: 'Drugs',
+      dataIndex: 'drugs',
+      key: 'drugs',
+      render: (drugs: any[]) => drugs && drugs.length > 0 ? 
+        drugs.map(drug => `${drug.drug} - ${drug.frequency}`).join(', ') : 
+        'No drugs'
     },
     {
       title: 'Notes',
       dataIndex: 'notes',
-      key: 'notes',
+      key: 'notes'
+    },
+    {
+      title: 'Visit Type',
+      dataIndex: 'visit_type',
+      key: 'visit_type'
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      render: (_: any, record: Receipt) => (
+        <Button type="link" onClick={() => onPrintReceipt(record)}>
+          Print
+        </Button>
+      )
     }
   ];
 
-  return (
-    <>
-      <Card 
-        title={
-          <Row justify="space-between" align="middle">
-            <Col><span>Patient Details: {selectedPatient.patient_name}</span></Col>
-            <Col>
-              <Button 
-                type="primary" 
-                icon={<PlusOutlined />} 
-                onClick={() => setIsReceiptModalVisible(true)}
-                style={{ marginRight: 8 }}
-              >
-                Add Receipt
-              </Button>
-              <Button 
-                icon={<CalendarOutlined />} 
-                onClick={() => setIsNextVisitModalVisible(true)}
-              >
-                Schedule Visit
-              </Button>
-            </Col>
-          </Row>
-        }
-        extra={
-          <Button 
-            type="link"
-            onClick={handleBackClick}
-            style={{ padding: 0 }}
-          >
-            Back to List
-          </Button>
-        }
-      >
-        <Title level={4}>Personal Information</Title>
-        <Row gutter={[16, 8]}>
-          <Col span={8}><Text strong>Name: </Text><Text>{selectedPatient.patient_name}</Text></Col>
-          <Col span={8}><Text strong>Date: </Text><Text>{selectedPatient.date ? moment(selectedPatient.date).format('YYYY-MM-DD') : 'N/A'}</Text></Col>
-          <Col span={8}><Text strong>Age: </Text><Text>{selectedPatient.age}</Text></Col>
-        </Row>
-        
-        <Title level={4} style={{ marginTop: '16px' }}>Address</Title>
-        <Row gutter={[16, 8]}>
-          <Col span={24}><Text strong>City: </Text><Text>{selectedPatient.address}</Text></Col>
-        </Row>
-        
-        <Divider />
-        
-        <Title level={4}>Upcoming Visits</Title>
-        {patientNextVisits.length > 0 ? (
-          <Table 
-            columns={nextVisitColumns}
-            dataSource={patientNextVisits}
-            rowKey="_id"
-            pagination={false}
-            size="small"
-          />
-        ) : (
-          <Text type="secondary">No upcoming visits scheduled</Text>
-        )}
-        
-        <Divider />
-        
-        <Title level={4}>Receipts History</Title>
-        <ReceiptsList 
-          receipts={selectedPatient.receipts || []} 
-          onPrintReceipt={onPrintReceipt} 
-        />
-      </Card>
+  if (loading) {
+    return <div>Loading patient history...</div>;
+  }
 
-      {/* Next Visit Modal */}
-      <NextVisitForm
-        visible={isNextVisitModalVisible}
-        onCancel={() => setIsNextVisitModalVisible(false)}
-        patient={selectedPatient}
+  if (error) {
+    return <div>Error: {error}</div>;
+  }
+
+  return (
+    <Card 
+      title={
+        <Row justify="space-between" align="middle">
+          <Col>Patient Details: {selectedPatient.patient_name}</Col>
+          <Col>
+            <Button 
+              type="primary" 
+              icon={<PlusOutlined />} 
+              onClick={() => setIsReceiptModalVisible(true)}
+            >
+              Add Receipt
+            </Button>
+          </Col>
+        </Row>
+      }
+      extra={
+        <Button onClick={onBackToList}>
+          Back to List
+        </Button>
+      }
+    >
+      {/* Personal Information Section */}
+      <Title level={4}>Personal Information</Title>
+      <Row gutter={[16, 8]}>
+        <Col span={6}><Text strong>Name: </Text>{selectedPatient.patient_name}</Col>
+        <Col span={6}><Text strong>Phone: </Text>{selectedPatient.patient_phone}</Col>
+        <Col span={6}><Text strong>Age: </Text>{selectedPatient.age}</Col>
+        <Col span={6}><Text strong>Address: </Text>{selectedPatient.address}</Col>
+      </Row>
+
+      <Divider />
+
+      {/* Receipts History - Updated with Visit Type instead of Drug Model */}
+      <Title level={4}>Receipts History</Title>
+      <Table 
+        dataSource={allReceipts} 
+        columns={receiptsColumns}
+        rowKey="receipt_id"
+        onRow={(record) => {
+          return {
+            onClick: () => {
+              // Find the visit that contains this receipt
+              const visit = patientHistory?.visits.find(v => 
+                v.receipts?.some(r => r._id === record._id)
+              );
+              if (visit) {
+                showVisitDetails(visit);
+              }
+            }
+          };
+        }}
+        pagination={{
+          pageSize: 10
+        }}
       />
-    </>
+
+      {/* Visit Details Modal */}
+      <Modal
+        title={`Visit Details - ${moment(selectedVisit?.date).format('YYYY-MM-DD HH:mm')}`}
+        open={visitDetailsVisible}
+        onCancel={() => setVisitDetailsVisible(false)}
+        footer={[
+          <Button key="back" onClick={() => setVisitDetailsVisible(false)}>
+            Close
+          </Button>
+        ]}
+        width={700}
+      >
+        {selectedVisit && (
+          <div>
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <div>
+                <Text strong>Visit Date: </Text>
+                {moment(selectedVisit.date).format('YYYY-MM-DD HH:mm')}
+              </div>
+              <div>
+                <Text strong>Visit Type: </Text>
+                {selectedVisit.visit_type || 'Not specified'}
+              </div>
+              <div>
+                <Text strong>Complaint: </Text>
+                {selectedVisit.complaint || 'None recorded'}
+              </div>
+              <div>
+                <Text strong>Diagnosis: </Text>
+                {selectedVisit.diagnosis || 'None recorded'}
+              </div>
+              
+              <Divider />
+              
+              <Title level={5}>Prescriptions</Title>
+              {selectedVisit.receipts && selectedVisit.receipts.length > 0 ? (
+                <List
+                  itemLayout="vertical"
+                  dataSource={selectedVisit.receipts}
+                  renderItem={(receipt) => (
+                    <List.Item
+                      extra={
+                        <Button 
+                          type="primary" 
+                          icon={<FileTextOutlined />} 
+                          onClick={() => onPrintReceipt(receipt)}
+                        >
+                          Print
+                        </Button>
+                      }
+                    >
+                      <List.Item.Meta
+                        title={`Receipt - ${moment(receipt.date).format('YYYY-MM-DD HH:mm')}`}
+                      />
+                      <div>
+                        <Title level={5}>Medications</Title>
+                        {receipt.drugs && receipt.drugs.length > 0 ? (
+                          <List
+                            dataSource={receipt.drugs}
+                            renderItem={(drug) => (
+                              <List.Item>
+                                <Text strong>{drug.drug}</Text> - {drug.frequency}, {drug.period}, {drug.timing}
+                              </List.Item>
+                            )}
+                          />
+                        ) : (
+                          <Text>No medications prescribed</Text>
+                        )}
+                        
+                        {receipt.notes && (
+                          <div style={{ marginTop: 16 }}>
+                            <Text strong>Notes: </Text>
+                            {receipt.notes}
+                          </div>
+                        )}
+                      </div>
+                    </List.Item>
+                  )}
+                />
+              ) : (
+                <Text>No prescriptions for this visit</Text>
+              )}
+            </Space>
+          </div>
+        )}
+      </Modal>
+    </Card>
   );
 };
 

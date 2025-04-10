@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Form, Input, Button, Modal, Select, message, Card } from 'antd';
 import axios from 'axios';
 import API from '../config/api';
+import dayjs from 'dayjs';
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -25,6 +26,7 @@ interface Patient {
   _id: string;
   patient_name: string;
   patient_phone: string;
+  visit_type?: string;
   age: string;
   address: string;
   receipts?: Receipt[];
@@ -66,7 +68,8 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
       const payload = {
         drugModel: values.drugModel || 'new',
         drugs: values.drugs || [],
-        notes: values.notes || ''
+        notes: values.notes || '',
+        date: dayjs().format('YYYY-MM-DD')
       };
 
       // Send update to backend
@@ -160,6 +163,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
                       rules={[{ required: true, message: 'الرجاء اختيار التكرار' }]}
                     >
                       <Select placeholder="التكرار">
+                
                         <Option value="مرة">مرة</Option>
                         <Option value="مرتين">مرتين</Option>
                         <Option value="3 مرات">3 مرات</Option>
@@ -173,8 +177,16 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
                       rules={[{ required: true, message: 'الرجاء اختيار المدة' }]}
                     >
                       <Select placeholder="المدة">
+                      <Option value="يوميًا">يوميًا</Option>
+                      <Option value="1 يوم">1 يوم</Option>
+                      <Option value="2 يوم">2 يوم</Option>
+                      <Option value="3 يوم">3 يوم</Option>
+                      <Option value="4 يوم">4 يوم</Option>
+                      <Option value="5 يوم">5 يوم</Option>
+                      <Option value="6 يوم">6 يوم</Option>
                         <Option value="أسبوع">أسبوع</Option>
                         <Option value="أسبوعين">أسبوعين</Option>
+                        <Option value="3 اسابيع">3 اسابيع</Option>
                         <Option value="شهر">شهر</Option>
                       </Select>
                     </Form.Item>
@@ -185,6 +197,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
                       rules={[{ required: true, message: 'الرجاء اختيار توقيت الدواء' }]}
                     >
                       <Select placeholder="توقيت الدواء">
+                       <Option value="_">_</Option>
                         <Option value="قبل النوم">قبل النوم</Option>
                         <Option value="بعد الأكل">بعد الأكل</Option>
                         <Option value="قبل الأكل">قبل الأكل</Option>

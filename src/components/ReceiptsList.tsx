@@ -1,82 +1,73 @@
 // ReceiptsList.tsx
 import React from 'react';
-import { Table, Space, Button, Empty } from 'antd';
-import { PrinterOutlined } from '@ant-design/icons';
-import moment from 'moment';
+import { Table, Typography, Tag, Space } from 'antd';
 import { Receipt } from '../components/type';
-import { usePatientContext } from './PatientContext';
+import moment from 'moment';
 
 interface ReceiptsListProps {
   receipts: Receipt[];
-  onPrintReceipt: (receipt: Receipt) => void;
+  onPrintReceipt?: (receipt: Receipt) => void;
 }
 
 const ReceiptsList: React.FC<ReceiptsListProps> = ({ receipts, onPrintReceipt }) => {
-  const { setSelectedReceipt, setIsViewReceiptModalVisible } = usePatientContext();
+  // If no receipts, show a message
+  if (!receipts || receipts.length === 0) {
+    return <Typography.Text type="secondary">No receipts available</Typography.Text>;
+  }
 
-  // View receipt details
-  const handleViewReceipt = (receipt: Receipt) => {
-    setSelectedReceipt(receipt);
-    setIsViewReceiptModalVisible(true);
-  };
-
-  // Receipt table columns
-  const receiptColumns = [
+  // Columns for receipts table
+  const columns = [
     {
       title: 'Date',
+      dataIndex: 'date',
       key: 'date',
-      render: (text: string, record: Receipt) => (
-        <span>{moment(record.date).format('YYYY-MM-DD')}</span>
-      ),
+      render: (date: string) => moment(date).format('YYYY-MM-DD HH:mm')
     },
     {
       title: 'Drugs',
+      dataIndex: 'drugs',
       key: 'drugs',
-      render: (text: string, record: Receipt) => (
-        <span>{record.drugs.length} medications</span>
-      ),
+      render: (drugs: any[]) => (
+        <Space direction="vertical">
+          {drugs.map((drug, index) => (
+            <div key={index}>
+              <Typography.Text strong>{drug.drug}</Typography.Text>
+              <Typography.Text type="secondary"> - {drug.frequency}, {drug.period}, {drug.timing}</Typography.Text>
+            </div>
+          ))}
+        </Space>
+      )
     },
     {
       title: 'Notes',
-      key: 'notes',
-      ellipsis: true,
-      render: (text: string, record: Receipt) => (
-        <span>{record.notes || 'No notes'}</span>
-      ),
+      dataIndex: 'notes',
+      key: 'notes'
+    },
+    {
+      title: 'Drug Model',
+      dataIndex: 'drugModel',
+      key: 'drugModel',
+      render: (drugModel: string) => <Tag>{drugModel}</Tag>
     },
     {
       title: 'Actions',
       key: 'actions',
-      render: (text: string, record: Receipt) => (
-        <Space size="small">
-          <Button type="link" onClick={() => handleViewReceipt(record)}>View</Button>
-          <Button 
-            type="link" 
-            icon={<PrinterOutlined />} 
-            onClick={() => onPrintReceipt(record)}
-          >
-            Print
-          </Button>
-        </Space>
-      ),
+      render: (text: any, record: Receipt) => (
+        onPrintReceipt ? (
+          <a onClick={() => onPrintReceipt(record)}>Print</a>
+        ) : null
+      )
     }
   ];
 
-  if (!receipts || receipts.length === 0) {
-    return (
-      <Empty 
-        description="No receipts available" 
-        image={Empty.PRESENTED_IMAGE_SIMPLE} 
-      />
-    );
-  }
-
   return (
     <Table 
-      columns={receiptColumns} 
-      dataSource={receipts}
+      dataSource={receipts} 
+      columns={columns} 
       rowKey="_id"
-      pagination={false}
+      locale={{
+        emptyText: 'No receipts available'
+      }}
     />
   );
 };

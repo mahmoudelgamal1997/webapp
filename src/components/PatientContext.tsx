@@ -5,6 +5,7 @@ import { message } from 'antd';
 import { Patient, Receipt } from './type';
 import dayjs from 'dayjs';
 import API from '../config/api';
+import { useClinicContext } from './ClinicContext';
 
 interface PatientContextType {
   patients: Patient[];
@@ -25,6 +26,7 @@ interface PatientContextType {
   setIsViewReceiptModalVisible: (visible: boolean) => void;
   forceRender: number;
   setForceRender: (value: number) => void;
+  setFilteredPatients: (patients: Patient[]) => void; // Add this line
 }
 
 const PatientContext = createContext<PatientContextType | undefined>(undefined);
@@ -42,7 +44,8 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const userId = localStorage.getItem('doctorId');
-
+  const { selectedClinicId } = useClinicContext(); 
+  
   // Sort function to sort by date (newest first) and then by _id for same dates
   const sortByLatestDate = (data: Patient[]) => {
     return [...data].sort((a: Patient, b: Patient) => {
@@ -255,7 +258,8 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
     isViewReceiptModalVisible,
     setIsViewReceiptModalVisible,
     forceRender,
-    setForceRender
+    setForceRender,
+    setFilteredPatients,
   };
 
   return (

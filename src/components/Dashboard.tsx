@@ -1,10 +1,11 @@
 // src/components/Dashboard.tsx
 import React, { useState, useEffect } from 'react';
-import { Layout, Card, Typography, Button, Space } from 'antd';
+import { Layout, Card, Typography, Button, Space, Alert, Row, Col } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { usePatientContext } from './PatientContext';
 import { useDoctorContext } from './DoctorContext';
+import { useClinicContext } from './ClinicContext';
 import { Receipt } from './type';
 import moment from 'moment';
 
@@ -15,15 +16,23 @@ import PatientsList from './PatientsList';
 import PatientDetail from './PatientDetail';
 import ReceiptModal from './ReceiptPatient';
 import ReceiptDetail from './ReceiptDetails';
+import ClinicSelector from './ClinicSelector';
+import SidebarWaitingList from './SidebarWaitingList';
+
 import { 
-  SettingOutlined 
+  SettingOutlined,
+  WarningOutlined,
+  ItalicOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined
 } from '@ant-design/icons';
-const { Content } = Layout;
-const { Title } = Typography;
+const { Content, Sider } = Layout;
+const { Title, Text } = Typography;
 
 const Dashboard: React.FC = () => {
   const [collapsed, setCollapsed] = useState<boolean>(false);
   const [isReceiptModalVisible, setIsReceiptModalVisible] = useState<boolean>(false);
+  const [waitingListVisible, setWaitingListVisible] = useState<boolean>(true);
   const navigate = useNavigate();
   
   // Get data from contexts
@@ -36,6 +45,9 @@ const Dashboard: React.FC = () => {
   
   // Get doctor settings for receipt customization
   const { settings: doctorSettings, fetchSettings } = useDoctorContext();
+  
+  // Get clinic context
+  const { selectedClinicId, selectedClinic, setSelectedClinicId, clinics } = useClinicContext();
 
   // Load data on component mount
   useEffect(() => {
@@ -44,6 +56,13 @@ const Dashboard: React.FC = () => {
     // Fetch doctor settings on component mount
     fetchSettings();
   }, [selectedPatient, fetchSettings]);
+
+  // Handle clinic selection
+  const handleClinicSelect = (clinicId: string) => {
+    setSelectedClinicId(clinicId);
+    // After clinic selection, fetch patients for this clinic
+    fetchPatients();
+  };
 
   // Manual refresh function
   const handleRefresh = () => {
@@ -56,12 +75,30 @@ const Dashboard: React.FC = () => {
     navigate('/settings');
   };
 
+  // Toggle waiting list sidebar
+  const toggleWaitingList = () => {
+    setWaitingListVisible(!waitingListVisible);
+  };
+
   // Handle print receipt with dynamic header
   const handlePrintReceipt = (receipt: Receipt) => {
     console.log('Printing receipt:', receipt);
     
     // Format the clinic information for the header
     const clinicInfo = [];
+    
+    // First try to use clinic from context if available
+    if (selectedClinic) {
+      clinicInfo.push(`<h1>${selectedClinic.name || 'عيادة'}</h1>`);
+      if (selectedClinic.address) {
+        clinicInfo.push(`<p>${selectedClinic.address}</p>`);
+      }
+      if (selectedClinic.phone) {
+        clinicInfo.push(`<p>هاتف: ${selectedClinic.phone}</p>`);
+      }
+    }
+    
+    // Then override with doctor settings if available
     if (doctorSettings.clinicName) clinicInfo.push(`<h1>${doctorSettings.clinicName}</h1>`);
     if (doctorSettings.doctorTitle) clinicInfo.push(`<h3>${doctorSettings.doctorTitle}</h3>`);
     if (doctorSettings.clinicAddress) clinicInfo.push(`<p>${doctorSettings.clinicAddress}</p>`);
@@ -134,43 +171,92 @@ const Dashboard: React.FC = () => {
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      {/* Use the extracted sidebar component */}
+      {/* Left sidebar */}
       <DashboardSidebar collapsed={collapsed} setCollapsed={setCollapsed} />
       
       <Layout>
-        {/* Use the extracted header component */}
+        {/* Header */}
         <DashboardHeader onSettingsClick={handleSettingsClick} />
         
-        <Content style={{ margin: '24px 16px', padding: 24, background: 'white' }}>
-          {/* Dashboard Controls */}
-          <Card style={{ marginBottom: 16 }}>
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <Title level={4}>Patient Management Dashboard</Title>
-              <Space>
-                <Button type="primary" onClick={handleRefresh}>
-                  Refresh Data
-                </Button>
-                <Button onClick={handleSettingsClick} icon={<SettingOutlined />}>
-                  Receipt Settings
-                </Button>
+        {/* Main content and right sidebar */}
+        <Layout>
+          {/* Main content area */}
+          <Content style={{ margin: '24px 16px', padding: 24, background: 'white' }}>
+            {/* Clinic Selector */}
+            <ClinicSelector onClinicSelect={handleClinicSelect} />
+            
+            {/* Show warning if no clinic is selected */}
+            {/* {!selectedClinicId && (
+              <Alert
+                message="No Clinic Selected"
+                description="Please select a clinic to view patients and waiting list."
+                type="warning"
+                showIcon
+                icon={<WarningOutlined />}
+                style={{ marginBottom: 16 }}
+              />
+            )} */}
+            
+            {/* Removed the Card with clinic info and icon that was here */}
+            
+            {/* Dashboard Controls */}
+            <Card style={{ marginBottom: 16 }}>
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Title level={4}>No waiting Dashboard</Title>
+                <Space>
+                  <Button type="primary" onClick={handleRefresh} disabled={!selectedClinicId}>
+                    Refresh Data
+                  </Button>
+                  {/* <Button onClick={handleSettingsClick} icon={<SettingOutlined />}>
+                    Receipt Settings
+                  </Button> */}
+                  <Button 
+                    icon={waitingListVisible ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />}
+                    onClick={toggleWaitingList}
+                  >
+                    {waitingListVisible ? 'Hide Waiting List' : 'Show Waiting List'}
+                  </Button>
+                </Space>
               </Space>
-            </Space>
-          </Card>
-
-          {/* Patient data section */}
-          {!selectedPatient ? (
-            <Card title="Patients List">
-              <PatientsList />
             </Card>
-          ) : (
-            <PatientDetail 
-              isReceiptModalVisible={isReceiptModalVisible}
-              setIsReceiptModalVisible={setIsReceiptModalVisible}
-              onPrintReceipt={handlePrintReceipt}
-              onBackToList={() => setSelectedPatient(null)}
-            />
+
+            {/* Patient data section */}
+            {selectedClinicId && !selectedPatient ? (
+              <Card title="Patients List">
+                <PatientsList />
+              </Card>
+            ) : selectedPatient ? (
+              <PatientDetail 
+                isReceiptModalVisible={isReceiptModalVisible}
+                setIsReceiptModalVisible={setIsReceiptModalVisible}
+                onPrintReceipt={handlePrintReceipt}
+                onBackToList={() => setSelectedPatient(null)}
+              />
+            ) : (
+              <Card>
+                <div style={{ textAlign: 'center', padding: '40px 0' }}>
+                  <Title level={4}>Select a clinic to view patients</Title>
+                </div>
+              </Card>
+            )}
+          </Content>
+          
+          {/* Right sidebar for waiting list */}
+          {waitingListVisible && selectedClinicId && (
+            <Sider 
+              width={280} 
+              theme="light"
+              style={{ 
+                background: '#fff',
+                margin: '24px 16px 24px 0',
+                borderRadius: '4px',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+              }}
+            >
+              <SidebarWaitingList />
+            </Sider>
           )}
-        </Content>
+        </Layout>
       </Layout>
 
       {/* Receipt Modal for adding new receipt */}
