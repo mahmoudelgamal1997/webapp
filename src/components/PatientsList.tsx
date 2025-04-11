@@ -1,6 +1,6 @@
 // PatientsList.tsx
 import React, { useState, useEffect } from 'react';
-import { Table, Tag, Typography, Space } from 'antd';
+import { Table, Tag, Typography, Space, message } from 'antd';
 import { SortOrder } from 'antd/lib/table/interface';
 import moment from 'moment';
 import axios from 'axios';
@@ -27,12 +27,17 @@ interface VisitWithPatientInfo {
   _original_patient_id: string; // To reference back to original patient
 }
 
-const PatientsList: React.FC = () => {
+interface PatientsListProps {
+  refreshTrigger?: number; // Add prop to receive refresh triggers from parent
+}
+
+const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
   const { 
     patients,
     filteredPatients,
     setSelectedPatient, 
-    setFilteredPatients 
+    setFilteredPatients,
+    fetchPatients 
   } = usePatientContext();
   
   const [loading, setLoading] = useState(false);
@@ -42,76 +47,76 @@ const PatientsList: React.FC = () => {
     pageSize: 10,
     total: 0
   });
+  const [lastRefreshTime, setLastRefreshTime] = useState<number>(Date.now());
 
   // Extract and flatten all visits from patients
-  // Reversed sort function - oldest first, newest last
-const extractVisits = (patientData: Patient[]): VisitWithPatientInfo[] => {
-  const allVisits: VisitWithPatientInfo[] = [];
-  
-  patientData.forEach(patient => {
-    if (patient.visits && patient.visits.length > 0) {
-      patient.visits.forEach(visit => {
-        // Create a new object with explicit properties
-        allVisits.push({
-          _id: visit._id || '',
-          visit_id: visit.visit_id || '',
-          date: visit.date || '',
-          time: visit.time || '',
-          visit_type: visit.visit_type || '',
-          complaint: visit.complaint || '',
-          diagnosis: visit.diagnosis || '',
-          receipts: visit.receipts || [],
-          // Add patient info
-          patient_name: patient.patient_name,
-          patient_phone: patient.patient_phone,
-          patient_id: patient.patient_id,
-          age: patient.age,
-          address: patient.address,
-          _original_patient_id: patient.patient_id
-        });
-      });
-    }
-  });
-  
-  // Sort by date and time, newest first
-  return allVisits.sort((a, b) => {
-    // Parse dates properly
-    const dateTimeA = parseDateAndTime(a.date, a.time);
-    const dateTimeB = parseDateAndTime(b.date, b.time);
+  // Reversed sort function - newest first
+  const extractVisits = (patientData: Patient[]): VisitWithPatientInfo[] => {
+    const allVisits: VisitWithPatientInfo[] = [];
     
-    // Sort newest first
-    return dateTimeB - dateTimeA;
-  });
-};
+    patientData.forEach(patient => {
+      if (patient.visits && patient.visits.length > 0) {
+        patient.visits.forEach(visit => {
+          // Create a new object with explicit properties
+          allVisits.push({
+            _id: visit._id || '',
+            visit_id: visit.visit_id || '',
+            date: visit.date || '',
+            time: visit.time || '',
+            visit_type: visit.visit_type || '',
+            complaint: visit.complaint || '',
+            diagnosis: visit.diagnosis || '',
+            receipts: visit.receipts || [],
+            // Add patient info
+            patient_name: patient.patient_name,
+            patient_phone: patient.patient_phone,
+            patient_id: patient.patient_id,
+            age: patient.age,
+            address: patient.address,
+            _original_patient_id: patient.patient_id
+          });
+        });
+      }
+    });
+    
+    // Sort by date and time, newest first
+    return allVisits.sort((a, b) => {
+      // Parse dates properly
+      const dateTimeA = parseDateAndTime(a.date, a.time);
+      const dateTimeB = parseDateAndTime(b.date, b.time);
+      
+      // Sort newest first
+      return dateTimeB - dateTimeA;
+    });
+  };
 
-// Helper function to properly parse dates with times
-const parseDateAndTime = (dateStr: string, timeStr: string): number => {
-  if (!dateStr) return 0;
-  
-  // First try to parse with time
-  if (timeStr) {
-    const fullDateStr = `${dateStr} ${timeStr}`;
-    const momentDate = moment(fullDateStr, [
-      'YYYY-MM-DD HH:mm',
-      'YYYY-M-D HH:mm',
-      'YYYY-MM-DD H:mm',
-      'YYYY-M-D H:mm'
+  // Helper function to properly parse dates with times
+  const parseDateAndTime = (dateStr: string, timeStr: string): number => {
+    if (!dateStr) return 0;
+    
+    // First try to parse with time
+    if (timeStr) {
+      const fullDateStr = `${dateStr} ${timeStr}`;
+      const momentDate = moment(fullDateStr, [
+        'YYYY-MM-DD HH:mm',
+        'YYYY-M-D HH:mm',
+        'YYYY-MM-DD H:mm',
+        'YYYY-M-D H:mm'
+      ]);
+      
+      if (momentDate.isValid()) {
+        return momentDate.valueOf();
+      }
+    }
+    
+    // Fallback to just date
+    const momentDate = moment(dateStr, [
+      'YYYY-MM-DD',
+      'YYYY-M-D'
     ]);
     
-    if (momentDate.isValid()) {
-      return momentDate.valueOf();
-    }
-  }
-  
-  // Fallback to just date
-  const momentDate = moment(dateStr, [
-    'YYYY-MM-DD',
-    'YYYY-M-D'
-  ]);
-  
-  return momentDate.isValid() ? momentDate.valueOf() : 0;
-};
-
+    return momentDate.isValid() ? momentDate.valueOf() : 0;
+  };
 
   // Fetch visits data (actually fetching patients and extracting visits)
   const fetchVisits = async (page = 1, pageSize = 10) => {
@@ -120,13 +125,16 @@ const parseDateAndTime = (dateStr: string, timeStr: string): number => {
       // Get doctor ID from context or storage
       const doctorId = localStorage.getItem('doctor_id');
       
-      const response = await axios.get(`${API.BASE_URL}/api/patients/doctor/${doctorId}`);
+      console.log('Fetching patients data for PatientsList component');
       
-      // Process the patient data to extract all visits
-      const patientsData = response.data;
+      // Use fetchPatients from context to ensure consistent data
+      await fetchPatients();
       
-      // Store original patients data
-      setFilteredPatients(patientsData);
+      // Update timestamp of last refresh
+      setLastRefreshTime(Date.now());
+      
+      // Get the latest patients data from context - no need for separate axios call
+      const patientsData = filteredPatients;
       
       // Extract visits for display
       const visits = extractVisits(patientsData);
@@ -140,6 +148,7 @@ const parseDateAndTime = (dateStr: string, timeStr: string): number => {
       });
     } catch (error) {
       console.error('Error fetching visits data:', error);
+      message.error('Failed to refresh patients data. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -149,6 +158,20 @@ const parseDateAndTime = (dateStr: string, timeStr: string): number => {
   useEffect(() => {
     fetchVisits();
   }, []);
+  
+  // Listen for refresh triggers from parent component
+  useEffect(() => {
+    if (refreshTrigger > 0) {
+      const currentTime = Date.now();
+      // Implement debouncing - only refresh if more than 2 seconds since last refresh
+      if (currentTime - lastRefreshTime > 2000) {
+        console.log('PatientsList refreshing due to trigger:', refreshTrigger);
+        fetchVisits(pagination.current, pagination.pageSize);
+      } else {
+        console.log('Ignoring refresh trigger - too soon since last refresh');
+      }
+    }
+  }, [refreshTrigger, lastRefreshTime]);
   
   // Get paginated visits
   const getPaginatedVisits = () => {
@@ -176,21 +199,21 @@ const parseDateAndTime = (dateStr: string, timeStr: string): number => {
         </Space>
       )
     },
-   {
-  title: 'Visit Date',
-  dataIndex: 'date',
-  key: 'date',
-  render: (text: string) => (
-    <span>{text ? moment(text).format('YYYY-MM-DD') : 'N/A'}</span>
-  ),
-  sorter: (a: VisitWithPatientInfo, b: VisitWithPatientInfo) => {
-    const dateTimeA = parseDateAndTime(a.date, a.time);
-    const dateTimeB = parseDateAndTime(b.date, b.time);
-    return dateTimeB - dateTimeA; // Newest first
-  },
-  defaultSortOrder: 'ascend' as SortOrder, // Set default to ascend (newest first)
-  sortDirections: ['descend', 'ascend'] as SortOrder[]
-},
+    {
+      title: 'Visit Date',
+      dataIndex: 'date',
+      key: 'date',
+      render: (text: string) => (
+        <span>{text ? moment(text).format('YYYY-MM-DD') : 'N/A'}</span>
+      ),
+      sorter: (a: VisitWithPatientInfo, b: VisitWithPatientInfo) => {
+        const dateTimeA = parseDateAndTime(a.date, a.time);
+        const dateTimeB = parseDateAndTime(b.date, b.time);
+        return dateTimeB - dateTimeA; // Newest first
+      },
+      defaultSortOrder: 'ascend' as SortOrder, // Set default to ascend (newest first)
+      sortDirections: ['descend', 'ascend'] as SortOrder[]
+    },
     {
       title: 'Time',
       dataIndex: 'time',
