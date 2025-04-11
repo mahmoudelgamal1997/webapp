@@ -1,7 +1,7 @@
 // src/components/DashboardHeader.tsx
 import React from 'react';
 import { Layout, Button, Space } from 'antd';
-import { SettingOutlined, LogoutOutlined } from '@ant-design/icons';
+import { SettingOutlined, LogoutOutlined, FileOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 
@@ -20,6 +20,10 @@ const DashboardHeader: React.FC<HeaderProps> = ({ onSettingsClick }) => {
     navigate('/login');
   };
 
+  const handleReportsClick = () => {
+    navigate('/reports');
+  };
+
   return (
     <Header 
       style={{ 
@@ -31,6 +35,13 @@ const DashboardHeader: React.FC<HeaderProps> = ({ onSettingsClick }) => {
       }}
     >
       <Space style={{ marginRight: '16px' }}>
+        <Button 
+          type="text" 
+          icon={<FileOutlined />} 
+          onClick={handleReportsClick}
+        >
+          Reports
+        </Button>
         <Button 
           type="text" 
           icon={<SettingOutlined />} 

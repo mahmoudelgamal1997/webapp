@@ -1,73 +1,102 @@
 // src/components/DashboardSidebar.tsx
 import React from 'react';
 import { Layout, Menu } from 'antd';
-import { 
-  UserOutlined, 
-  LogoutOutlined, 
-  MenuUnfoldOutlined, 
-  MenuFoldOutlined, 
-  SettingOutlined 
+import { useNavigate, useLocation } from 'react-router-dom';
+import {
+  HomeOutlined,
+  UserOutlined,
+  FileTextOutlined,
+  MedicineBoxOutlined,
+  CalendarOutlined,
+  SettingOutlined
 } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from './AuthContext';
 
 const { Sider } = Layout;
 
-interface SidebarProps {
+interface DashboardSidebarProps {
   collapsed: boolean;
-  setCollapsed: (value: boolean) => void;
+  setCollapsed: (collapsed: boolean) => void;
 }
 
-const DashboardSidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) => {
+const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ collapsed, setCollapsed }) => {
   const navigate = useNavigate();
-  const { username, logout } = useAuth();
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const location = useLocation();
+  
+  // Determine which menu item should be active
+  const getSelectedKeys = () => {
+    const path = location.pathname;
+    if (path.includes('/settings')) return ['settings'];
+    if (path.includes('/dashboard/reports')) return ['reports'];
+    if (path.includes('/dashboard')) return ['dashboard'];
+    return ['dashboard']; // Default
   };
 
-  const handleSettingsClick = () => {
-    navigate('/settings');
-  };
+  // Navigation menu items
+  const menuItems = [
+    {
+      key: 'dashboard',
+      icon: <HomeOutlined />,
+      label: 'Dashboard',
+      onClick: () => navigate('/dashboard')
+    },
+    {
+      key: 'patients',
+      icon: <UserOutlined />,
+      label: 'Patients',
+      onClick: () => navigate('/dashboard')
+    },
+    {
+      key: 'visits',
+      icon: <MedicineBoxOutlined />,
+      label: 'Visits',
+      onClick: () => navigate('/dashboard')
+    },
+    {
+      key: 'reports',
+      icon: <FileTextOutlined />,
+      label: 'Reports',
+      onClick: () => navigate('/dashboard/reports')
+    },
+    {
+      key: 'settings',
+      icon: <SettingOutlined />,
+      label: 'Settings',
+      onClick: () => navigate('/settings')
+    }
+  ];
 
   return (
-    <Sider 
-      collapsible 
-      collapsed={collapsed} 
-      onCollapse={(value) => setCollapsed(value)}
-      trigger={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+    <Sider
+      collapsible
+      collapsed={collapsed}
+      onCollapse={setCollapsed}
+      style={{
+        overflow: 'auto',
+        height: '100vh',
+        position: 'sticky',
+        top: 0,
+        left: 0,
+      }}
     >
-      <div 
-        className="logo" 
-        style={{ 
-          height: '32px', 
-          background: 'rgba(255, 255, 255, 0.2)', 
-          margin: '16px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: collapsed ? 'center' : 'flex-start',
-          paddingLeft: collapsed ? 0 : '10px',
-        }}
-      >
-        <UserOutlined style={{ color: 'white', marginRight: collapsed ? 0 : '10px' }} />
-        {!collapsed && (
-          <span style={{ color: 'white', whiteSpace: 'nowrap', overflow: 'hidden' }}>
-            {username || 'User'}
-          </span>
-        )}
+      <div className="logo" style={{ 
+        height: '32px', 
+        margin: '16px', 
+        background: 'rgba(255, 255, 255, 0.2)',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        color: 'white',
+        fontSize: collapsed ? '12px' : '16px'
+      }}>
+        {collapsed ? 'CM' : 'Clinic Manager'}
       </div>
-      <Menu theme="dark" mode="inline" defaultSelectedKeys={['patients']}>
-        <Menu.Item key="patients" icon={<UserOutlined />}>
-          Patients
-        </Menu.Item>
-        <Menu.Item key="settings" icon={<SettingOutlined />} onClick={handleSettingsClick}>
-          Receipt Settings
-        </Menu.Item>
-        <Menu.Item key="logout" icon={<LogoutOutlined />} onClick={handleLogout}>
-          Logout
-        </Menu.Item>
-      </Menu>
+      
+      <Menu
+        theme="dark"
+        mode="inline"
+        selectedKeys={getSelectedKeys()}
+        items={menuItems}
+      />
     </Sider>
   );
 };

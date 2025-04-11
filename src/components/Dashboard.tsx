@@ -1,7 +1,7 @@
 // src/components/Dashboard.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { Layout, Card, Typography, Button, Space, Alert, Row, Col } from 'antd';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Routes, Route, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { usePatientContext } from './PatientContext';
 import { useDoctorContext } from './DoctorContext';
@@ -19,6 +19,7 @@ import ReceiptModal from './ReceiptPatient';
 import ReceiptDetail from './ReceiptDetails';
 import ClinicSelector from './ClinicSelector';
 import SidebarWaitingList from './SidebarWaitingList';
+import Report from './Report';  // Import the Report component
 
 import { 
   SettingOutlined,
@@ -41,6 +42,10 @@ const Dashboard: React.FC = () => {
   const [lastRefreshTimestamp, setLastRefreshTimestamp] = useState<number>(0);
   
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Determine if we're on the reports page
+  const isReportsPage = location.pathname.includes('/reports');
   
   // Get data from contexts
   const { username } = useAuth();
@@ -295,6 +300,92 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  // Main dashboard content based on current path
+  const renderMainContent = () => {
+    // If we're on the reports page, render the Reports component
+    if (isReportsPage) {
+      return (
+        <Content style={{ margin: '24px 16px', padding: 24, background: 'white' }}>
+          <Title level={3}>Report Center</Title>
+          <Report />
+        </Content>
+      );
+    }
+    
+    // Otherwise render the normal dashboard content
+    return (
+      <Layout>
+        {/* Main content area */}
+        <Content style={{ margin: '24px 16px', padding: 24, background: 'white' }}>
+          {/* Clinic Selector */}
+          <ClinicSelector onClinicSelect={handleClinicSelect} />
+          
+          {/* Dashboard Controls */}
+          <Card style={{ marginBottom: 16 }}>
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <Title level={4}>No waiting Dashboard</Title>
+              <Space>
+                <Button 
+                  type="primary" 
+                  onClick={handleRefresh} 
+                  disabled={!selectedClinicId}
+                  loading={patientsNeedRefresh} // Show loading state when auto-refresh is pending
+                >
+                  Refresh Data
+                </Button>
+                <Button 
+                  icon={waitingListVisible ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />}
+                  onClick={toggleWaitingList}
+                >
+                  {waitingListVisible ? 'Hide Waiting List' : 'Show Waiting List'}
+                </Button>
+              </Space>
+            </Space>
+          </Card>
+
+          {/* Patient data section */}
+          {selectedClinicId && !selectedPatient ? (
+            <Card title="Patients List">
+              <PatientsList refreshTrigger={waitingListRefreshTrigger} />
+            </Card>
+          ) : selectedPatient ? (
+            <PatientDetail 
+              isReceiptModalVisible={isReceiptModalVisible}
+              setIsReceiptModalVisible={setIsReceiptModalVisible}
+              onPrintReceipt={handlePrintReceipt}
+              onBackToList={() => setSelectedPatient(null)}
+            />
+          ) : (
+            <Card>
+              <div style={{ textAlign: 'center', padding: '40px 0' }}>
+                <Title level={4}>Select a clinic to view patients</Title>
+              </div>
+            </Card>
+          )}
+        </Content>
+        
+        {/* Right sidebar for waiting list - only shown in patient view */}
+        {waitingListVisible && selectedClinicId && !isReportsPage && (
+          <Sider 
+            width={280} 
+            theme="light"
+            style={{ 
+              background: '#fff',
+              margin: '24px 16px 24px 0',
+              borderRadius: '4px',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+            }}
+          >
+            <SidebarWaitingList 
+              ref={sidebarWaitingListRef}
+              refreshTrigger={waitingListRefreshTrigger}
+            />
+          </Sider>
+        )}
+      </Layout>
+    );
+  };
+
   return (
     <Layout style={{ minHeight: '100vh' }}>
       {/* Left sidebar */}
@@ -304,76 +395,8 @@ const Dashboard: React.FC = () => {
         {/* Header */}
         <DashboardHeader onSettingsClick={handleSettingsClick} />
         
-        {/* Main content and right sidebar */}
-        <Layout>
-          {/* Main content area */}
-          <Content style={{ margin: '24px 16px', padding: 24, background: 'white' }}>
-            {/* Clinic Selector */}
-            <ClinicSelector onClinicSelect={handleClinicSelect} />
-            
-            {/* Dashboard Controls */}
-            <Card style={{ marginBottom: 16 }}>
-              <Space direction="vertical" style={{ width: '100%' }}>
-                <Title level={4}>No waiting Dashboard</Title>
-                <Space>
-                  <Button 
-                    type="primary" 
-                    onClick={handleRefresh} 
-                    disabled={!selectedClinicId}
-                    loading={patientsNeedRefresh} // Show loading state when auto-refresh is pending
-                  >
-                    Refresh Data
-                  </Button>
-                  <Button 
-                    icon={waitingListVisible ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />}
-                    onClick={toggleWaitingList}
-                  >
-                    {waitingListVisible ? 'Hide Waiting List' : 'Show Waiting List'}
-                  </Button>
-                </Space>
-              </Space>
-            </Card>
-
-            {/* Patient data section */}
-            {selectedClinicId && !selectedPatient ? (
-              <Card title="Patients List">
-                <PatientsList refreshTrigger={waitingListRefreshTrigger} />
-              </Card>
-            ) : selectedPatient ? (
-              <PatientDetail 
-                isReceiptModalVisible={isReceiptModalVisible}
-                setIsReceiptModalVisible={setIsReceiptModalVisible}
-                onPrintReceipt={handlePrintReceipt}
-                onBackToList={() => setSelectedPatient(null)}
-              />
-            ) : (
-              <Card>
-                <div style={{ textAlign: 'center', padding: '40px 0' }}>
-                  <Title level={4}>Select a clinic to view patients</Title>
-                </div>
-              </Card>
-            )}
-          </Content>
-          
-          {/* Right sidebar for waiting list */}
-          {waitingListVisible && selectedClinicId && (
-            <Sider 
-              width={280} 
-              theme="light"
-              style={{ 
-                background: '#fff',
-                margin: '24px 16px 24px 0',
-                borderRadius: '4px',
-                boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
-              }}
-            >
-              <SidebarWaitingList 
-                ref={sidebarWaitingListRef}
-                refreshTrigger={waitingListRefreshTrigger}
-              />
-            </Sider>
-          )}
-        </Layout>
+        {/* Dynamic main content */}
+        {renderMainContent()}
       </Layout>
 
       {/* Receipt Modal for adding new receipt */}

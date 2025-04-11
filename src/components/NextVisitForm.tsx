@@ -63,10 +63,13 @@ const NextVisitForm: React.FC<NextVisitFormProps> = ({ visible, onCancel, patien
           label="Next Visit Date"
           rules={[{ required: true, message: 'Please select a date' }]}
         >
-          <DatePicker
-            style={{ width: '100%' }}
-            disabledDate={(current) => current && current < dayjs().startOf('day')}
-          />
+        <DatePicker
+  style={{ width: '100%' }}
+  disabledDate={(current) => {
+    // Ensure we always return a boolean, not null
+    return Boolean(current && current < dayjs().startOf('day'));
+  }}
+/>
         </Form.Item>
 
         <Form.Item

@@ -160,10 +160,18 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
       {/* Personal Information Section */}
       <Title level={4}>Personal Information</Title>
       <Row gutter={[16, 8]}>
-        <Col span={6}><Text strong>Name: </Text>{selectedPatient.patient_name}</Col>
-        <Col span={6}><Text strong>Phone: </Text>{selectedPatient.patient_phone}</Col>
-        <Col span={6}><Text strong>Age: </Text>{selectedPatient.age}</Col>
-        <Col span={6}><Text strong>Address: </Text>{selectedPatient.address}</Col>
+        <Col span={6}>
+          <Text strong>Name: </Text>{selectedPatient.patient_name}
+        </Col>
+        <Col span={6}>
+          <Text strong>Phone: </Text>{selectedPatient.patient_phone}
+        </Col>
+        <Col span={6}>
+          <Text strong>Age: </Text>{selectedPatient.age}
+        </Col>
+        <Col span={6}>
+          <Text strong>Address: </Text>{selectedPatient.address}
+        </Col>
       </Row>
 
       <Divider />
