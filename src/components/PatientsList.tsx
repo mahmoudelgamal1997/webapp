@@ -119,59 +119,57 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
   };
 
   // Fetch visits data (actually fetching patients and extracting visits)
-  const fetchVisits = async (page = 1, pageSize = 10) => {
-    setLoading(true);
-    try {
-      // Get doctor ID from context or storage
-      const doctorId = localStorage.getItem('doctor_id');
-      
-      console.log('Fetching patients data for PatientsList component');
-      
-      // Use fetchPatients from context to ensure consistent data
-      await fetchPatients();
-      
-      // Update timestamp of last refresh
-      setLastRefreshTime(Date.now());
-      
-      // Get the latest patients data from context - no need for separate axios call
-      const patientsData = filteredPatients;
-      
-      // Extract visits for display
-      const visits = extractVisits(patientsData);
-      setVisitsToDisplay(visits);
-      
-      // Update pagination
-      setPagination({
-        current: page,
-        pageSize: pageSize,
-        total: visits.length
-      });
-    } catch (error) {
-      console.error('Error fetching visits data:', error);
-      message.error('Failed to refresh patients data. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
+ const fetchVisits = async (page = 1, pageSize = 10) => {
+  setLoading(true);
+  try {
+    // Get doctor ID from context or storage
+    const doctorId = localStorage.getItem('doctor_id');
+    
+    console.log('fetchVisits: Fetching patients data for PatientsList component');
+    
+    // First get fresh data to ensure we have the latest
+    await fetchPatients();
+    console.log('fetchVisits: Fresh patient data fetched');
+    
+    // Update timestamp of last refresh
+    setLastRefreshTime(Date.now());
+    
+    // Now get the updated filtered patients from context
+    const patientsData = filteredPatients;
+    console.log('fetchVisits: Using filtered patients for display, count:', patientsData.length);
+    
+    // Extract visits for display
+    const visits = extractVisits(patientsData);
+    console.log('fetchVisits: Extracted visits count:', visits.length);
+    setVisitsToDisplay(visits);
+    
+    // Update pagination
+    setPagination({
+      current: page,
+      pageSize: pageSize,
+      total: visits.length
+    });
+  } catch (error) {
+    console.error('Error fetching visits data:', error);
+    message.error('Failed to refresh patients data. Please try again.');
+  } finally {
+    setLoading(false);
+  }
+};
   // Initial fetch
   useEffect(() => {
     fetchVisits();
   }, []);
   
   // Listen for refresh triggers from parent component
-  useEffect(() => {
-    if (refreshTrigger > 0) {
-      const currentTime = Date.now();
-      // Implement debouncing - only refresh if more than 2 seconds since last refresh
-      if (currentTime - lastRefreshTime > 2000) {
-        console.log('PatientsList refreshing due to trigger:', refreshTrigger);
-        fetchVisits(pagination.current, pagination.pageSize);
-      } else {
-        console.log('Ignoring refresh trigger - too soon since last refresh');
-      }
-    }
-  }, [refreshTrigger, lastRefreshTime]);
+useEffect(() => {
+  if (refreshTrigger > 0) {
+    console.log('PatientsList refreshing due to trigger:', refreshTrigger);
+    // Always refresh when trigger changes - no debouncing for waiting list changes
+    fetchVisits(pagination.current, pagination.pageSize);
+  }
+}, [refreshTrigger]); // Only depend on refreshTrigger to ensure it always runs
+
   
   // Get paginated visits
   const getPaginatedVisits = () => {

@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'r
 import LoginPage from './components/Login';
 import Dashboard from './components/Dashboard';
 import DoctorSettings from './components/DoctorSetting';
-import Reports from './components/report';
+import Reports from './components/Report';
 import { AuthProvider, useAuth } from './components/AuthContext';
 import { PatientProvider } from './components/PatientContext';
 import { DoctorProvider } from './components/DoctorContext';

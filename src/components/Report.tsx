@@ -1395,9 +1395,6 @@ const generateAnalyticalReport = async () => {
                     }}
                   />
                 </TabPane>
-                <TabPane tab="Enhanced Reports" key="2">
-                  {/* Similar content for enhanced reports tab */}
-                </TabPane>
               </Tabs>
             </Card>
           </div>
