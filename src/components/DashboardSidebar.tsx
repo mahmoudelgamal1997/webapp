@@ -6,7 +6,8 @@ import {
   LogoutOutlined, 
   MenuUnfoldOutlined, 
   MenuFoldOutlined, 
-  SettingOutlined 
+  SettingOutlined,
+  FileTextOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
@@ -29,6 +30,10 @@ const DashboardSidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) =
 
   const handleSettingsClick = () => {
     navigate('/settings');
+  };
+
+  const handleReportsClick = () => {
+    navigate('/reports');
   };
 
   return (
@@ -58,8 +63,11 @@ const DashboardSidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) =
         )}
       </div>
       <Menu theme="dark" mode="inline" defaultSelectedKeys={['patients']}>
-        <Menu.Item key="patients" icon={<UserOutlined />}>
+        <Menu.Item key="patients" icon={<UserOutlined />} onClick={() => navigate('/dashboard')}>
           Patients
+        </Menu.Item>
+        <Menu.Item key="reports" icon={<FileTextOutlined />} onClick={handleReportsClick}>
+          Reports
         </Menu.Item>
         <Menu.Item key="settings" icon={<SettingOutlined />} onClick={handleSettingsClick}>
           Receipt Settings

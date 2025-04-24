@@ -1,5 +1,5 @@
 // components/DoctorContext.tsx
-import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+import React, { createContext, useState, useContext, useEffect, ReactNode ,useCallback} from 'react';
 import axios from 'axios';
 import { message } from 'antd';
 import API from '../config/api';
@@ -44,32 +44,21 @@ export const DoctorProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const doctorId = localStorage.getItem('doctorId');
 
   // Fetch doctor's settings
-  const fetchSettings = async (): Promise<void> => {
-    if (!doctorId) {
-      console.log('No doctor ID found in localStorage');
-      return;
-    }
-    
-    try {
-      setLoading(true);
-      console.log(`Fetching doctor settings for ${doctorId}`);
-      const response = await axios.get(`${API.BASE_URL}${API.ENDPOINTS.DOCTOR_SETTINGS(doctorId)}`);
-
-      // The API returns { message, settings }
-      if (response.data && response.data.settings) {
-        console.log('Doctor settings retrieved:', response.data.settings);
-        setSettings(response.data.settings);
-      } else {
-        console.log('No settings found or unexpected response format');
+ // In your DoctorContext.tsx
+const fetchSettings = useCallback(async () => {
+  try {
+    const response = await axios.get(API.ENDPOINTS.DOCTOR_SETTINGS(doctorId));
+    // Only update if settings actually changed
+    setSettings(prev => {
+      if (JSON.stringify(prev) !== JSON.stringify(response.data)) {
+        return response.data;
       }
-    } catch (error) {
-      console.error('Error fetching doctor settings:', error);
-      // Don't show error message to user as this is likely first-time access
-      // and we don't want to confuse them
-    } finally {
-      setLoading(false);
-    }
-  };
+      return prev;
+    });
+  } catch (error) {
+    console.error('Error fetching settings:', error);
+  }
+}, [doctorId]);
 
   // Update doctor's settings
   const updateSettings = async (newSettings: DoctorSettings): Promise<boolean> => {

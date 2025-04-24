@@ -1,5 +1,5 @@
 // components/DoctorSettings.tsx
-import React, { useState } from 'react';
+import React, { useState , useEffect} from 'react';
 import { Form, Input, Button, Card, message, Typography, Divider, Space, Layout } from 'antd';
 import { SaveOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
@@ -44,6 +44,12 @@ const DoctorSettings: React.FC = () => {
     navigate('/dashboard');
   };
 
+  useEffect(() => {
+  if (settings) {
+    form.setFieldsValue(settings);
+  }
+}, [form, settings]);
+
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Layout>
@@ -75,7 +81,7 @@ const DoctorSettings: React.FC = () => {
               form={form}
               layout="vertical"
               onFinish={handleSubmit}
-              initialValues={settings}
+              // initialValues={settings}
             >
               <Title level={4}>Clinic Information</Title>
               <Form.Item
