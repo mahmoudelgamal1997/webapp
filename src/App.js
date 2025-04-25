@@ -50,16 +50,17 @@ function App() {
       </PublicRoute>
     } 
   />
-  <Route 
-    path="/dashboard" 
-    element={
-      <ProtectedRoute>
-        <PatientProvider>
-          <Dashboard />
-        </PatientProvider>
-      </ProtectedRoute>
-    } 
-  />
+ <Route 
+  path="/dashboard/*" 
+  element={
+    <ProtectedRoute>
+      <PatientProvider>
+        <Dashboard />
+      </PatientProvider>
+    </ProtectedRoute>
+  }
+/>
+
   <Route 
     path="/reports" 
     element={

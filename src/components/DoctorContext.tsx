@@ -1,5 +1,5 @@
 // components/DoctorContext.tsx
-import React, { createContext, useState, useContext, useEffect, ReactNode ,useCallback} from 'react';
+import React, { createContext, useState, useContext, useEffect, ReactNode, useCallback } from 'react';
 import axios from 'axios';
 import { message } from 'antd';
 import API from '../config/api';
@@ -28,15 +28,10 @@ const defaultSettings: DoctorSettings = {
   doctorTitle: '',
   clinicAddress: '',
   clinicPhone: '',
+  logoUrl: '',
 };
 
 const DoctorContext = createContext<DoctorContextType | undefined>(undefined);
-
-// API endpoints
-let endpoint = `${API.BASE_URL}${API.ENDPOINTS.DOCTOR_SETTINGS}`;
-
-// const API_BASE_URL = process.env.REACT_APP_API_URL || `'http://localhost:7000'`;
-// const DOCTOR_SETTINGS_ENDPOINT = (doctorId: string) => `/api/doctors/${doctorId}/settings`;
 
 export const DoctorProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [settings, setSettings] = useState<DoctorSettings>(defaultSettings);
@@ -44,21 +39,41 @@ export const DoctorProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const doctorId = localStorage.getItem('doctorId');
 
   // Fetch doctor's settings
- // In your DoctorContext.tsx
-const fetchSettings = useCallback(async () => {
-  try {
-    const response = await axios.get(API.ENDPOINTS.DOCTOR_SETTINGS(doctorId));
-    // Only update if settings actually changed
-    setSettings(prev => {
-      if (JSON.stringify(prev) !== JSON.stringify(response.data)) {
-        return response.data;
+  const fetchSettings = useCallback(async () => {
+    if (!doctorId) {
+      console.warn('No doctor ID found in localStorage');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      console.log(`Fetching settings from: ${API.BASE_URL}${API.ENDPOINTS.DOCTOR_SETTINGS(doctorId)}`);
+      
+      const response = await axios.get(`${API.BASE_URL}${API.ENDPOINTS.DOCTOR_SETTINGS(doctorId)}`, {
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+      
+      console.log('Raw settings received:', response.data);
+      
+      if (response.data && response.data.settings) {
+        // Clean the address if it has the double quotes issue
+        const cleanedSettings = {
+          ...response.data.settings,
+          clinicAddress: response.data.settings.clinicAddress === '""' ? '' : response.data.settings.clinicAddress
+        };
+        
+        console.log('Cleaned settings:', cleanedSettings);
+        setSettings(cleanedSettings);
       }
-      return prev;
-    });
-  } catch (error) {
-    console.error('Error fetching settings:', error);
-  }
-}, [doctorId]);
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+      message.error('Failed to load settings');
+    } finally {
+      setLoading(false);
+    }
+  }, [doctorId]);
 
   // Update doctor's settings
   const updateSettings = async (newSettings: DoctorSettings): Promise<boolean> => {
@@ -71,13 +86,27 @@ const fetchSettings = useCallback(async () => {
       setLoading(true);
       console.log(`Updating doctor settings for ${doctorId}:`, newSettings);
       
-     const response = await axios.post(
-          `${API.BASE_URL}${API.ENDPOINTS.DOCTOR_SETTINGS(doctorId)}`, 
-          newSettings
-      );      
+      // Send all fields explicitly, even if they're empty strings
+      const response = await axios.put(
+        `${API.BASE_URL}${API.ENDPOINTS.DOCTOR_SETTINGS(doctorId)}`, 
+        newSettings,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          }
+        }
+      );
+      
+      console.log('Update response:', response.data);
+      
       if (response.data && response.data.settings) {
-        setSettings(response.data.settings);
-        message.success('Settings saved successfully');
+        const updatedSettings = {
+          ...response.data.settings,
+          clinicAddress: response.data.settings.clinicAddress === '""' ? '' : response.data.settings.clinicAddress
+        };
+        
+        setSettings(updatedSettings);
         return true;
       } else {
         throw new Error('Unexpected response format');
@@ -94,7 +123,7 @@ const fetchSettings = useCallback(async () => {
   // Load settings on initial mount
   useEffect(() => {
     fetchSettings();
-  }, [doctorId]);
+  }, [fetchSettings]);
 
   const value = {
     settings,

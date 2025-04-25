@@ -149,31 +149,37 @@ const ClinicSelector: React.FC<ClinicSelectorProps> = ({ onClinicSelect }) => {
     return clinic ? clinic.name : 'Select a clinic';
   };
 
-  return (
-    <Card title="Select Clinic" style={{ marginBottom: 16 }}>
-      {clinics.length > 0 ? (
-        <Space direction="vertical" style={{ width: '100%' }}>
-          <Select
-            style={{ width: '100%' }}
-            placeholder="Select a clinic"
-            value={selectedClinic || undefined}
-            onChange={handleClinicChange}
-          >
-            {clinics.map(clinic => (
-              <Option key={clinic._id} value={clinic._id}>{clinic.name}</Option>
-            ))}
-          </Select>
-          {selectedClinic && (
-            <Text type="secondary">
-              You are currently viewing: {clinics.find(c => c._id === selectedClinic)?.name}
-            </Text>
-          )}
-        </Space>
-      ) : (
-        <Text type="secondary">No clinics found. Please contact an administrator to assign you to a clinic.</Text>
-      )}
-    </Card>
-  );
+return (
+  <Card style={{ marginBottom: 12, padding: 12 }}>
+    {clinics.length > 0 ? (
+      <Space direction="vertical" size="small" style={{ width: '100%' }}>
+        <Select
+          size="small"
+          style={{ width: '100%' }}
+          placeholder="Select a clinic"
+          value={selectedClinic || undefined}
+          onChange={handleClinicChange}
+        >
+          {clinics.map(clinic => (
+            <Option key={clinic._id} value={clinic._id}>{clinic.name}</Option>
+          ))}
+        </Select>
+        {selectedClinic && (
+          <Text type="secondary" style={{ fontSize: '12px' }}>
+            You are currently viewing: <span style={{ fontWeight: 500 }}>
+              {clinics.find(c => c._id === selectedClinic)?.name}
+            </span>
+          </Text>
+        )}
+      </Space>
+    ) : (
+      <Text type="secondary" style={{ fontSize: '12px' }}>
+        No clinics found. Please contact an administrator.
+      </Text>
+    )}
+  </Card>
+);
+
 };
 
 export default ClinicSelector;

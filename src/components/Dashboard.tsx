@@ -9,6 +9,7 @@ import { useClinicContext } from './ClinicContext';
 import { Receipt } from './type';
 import moment from 'moment';
 import { getFirestore, collection, query, onSnapshot, doc } from 'firebase/firestore';
+import { Routes, Route, useParams  } from 'react-router-dom';
 
 // Import extracted components
 import DashboardSidebar from './DashboardSidebar';
@@ -19,6 +20,7 @@ import ReceiptModal from './ReceiptPatient';
 import ReceiptDetail from './ReceiptDetails';
 import ClinicSelector from './ClinicSelector';
 import SidebarWaitingList from './SidebarWaitingList';
+
 
 import { 
   SettingOutlined,
@@ -380,24 +382,35 @@ const Dashboard: React.FC = () => {
             </Card>
 
             {/* Patient data section */}
-            {selectedClinicId && !selectedPatient ? (
-              <Card title="Patients List">
-                <PatientsList refreshTrigger={waitingListRefreshTrigger} />
-              </Card>
-            ) : selectedPatient ? (
-              <PatientDetail 
-                isReceiptModalVisible={isReceiptModalVisible}
-                setIsReceiptModalVisible={setIsReceiptModalVisible}
-                onPrintReceipt={handlePrintReceipt}
-                onBackToList={() => setSelectedPatient(null)}
-              />
-            ) : (
-              <Card>
-                <div style={{ textAlign: 'center', padding: '40px 0' }}>
-                  <Title level={4}>Select a clinic to view patients</Title>
-                </div>
-              </Card>
-            )}
+          <Routes>
+  <Route
+    path=""
+    element={
+      selectedClinicId ? (
+        <Card title="Patients List">
+          <PatientsList refreshTrigger={waitingListRefreshTrigger} />
+        </Card>
+      ) : (
+        <Card>
+          <div style={{ textAlign: 'center', padding: '40px 0' }}>
+            <Title level={4}>Select a clinic to view patients</Title>
+          </div>
+        </Card>
+      )
+    }
+  />
+ <Route
+  path="patient/:id"
+  element={
+    <PatientDetail
+      isReceiptModalVisible={isReceiptModalVisible}
+      setIsReceiptModalVisible={setIsReceiptModalVisible}
+      onPrintReceipt={handlePrintReceipt}
+      onBackToList={() => navigate('/dashboard')}
+    />
+  }
+/>
+</Routes>
           </Content>
           
           {/* Right sidebar for waiting list */}

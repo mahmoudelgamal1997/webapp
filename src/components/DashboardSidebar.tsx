@@ -11,7 +11,7 @@ import {
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
-
+import { useLocation } from 'react-router-dom'; 
 const { Sider } = Layout;
 
 interface SidebarProps {
@@ -22,7 +22,14 @@ interface SidebarProps {
 const DashboardSidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) => {
   const navigate = useNavigate();
   const { username, logout } = useAuth();
+  const location = useLocation();
 
+const getSelectedKey = () => {
+  if (location.pathname.startsWith('/reports')) return 'reports';
+  if (location.pathname.startsWith('/settings')) return 'settings';
+  if (location.pathname.startsWith('/dashboard')) return 'patients';
+  return '';
+};
   const handleLogout = () => {
     logout();
     navigate('/login');
@@ -62,7 +69,8 @@ const DashboardSidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) =
           </span>
         )}
       </div>
-      <Menu theme="dark" mode="inline" defaultSelectedKeys={['patients']}>
+      <Menu theme="dark" mode="inline" selectedKeys={[getSelectedKey()]}>
+
         <Menu.Item key="patients" icon={<UserOutlined />} onClick={() => navigate('/dashboard')}>
           Patients
         </Menu.Item>
