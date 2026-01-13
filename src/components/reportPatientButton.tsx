@@ -76,26 +76,34 @@ const generatePDF = () => {
     // doc.setR2L(true);
     
     // Add clinic/doctor info to header
-    // First try to use clinic from context if available
-    if (selectedClinic) {
+    // Prioritize doctor settings, then fall back to selected clinic
+    const displayClinicName = doctorSettings.clinicName || selectedClinic?.name || 'عيادة';
+    const displayClinicAddress = doctorSettings.clinicAddress || selectedClinic?.address || '';
+    const displayClinicPhone = doctorSettings.clinicPhone || selectedClinic?.phone || '';
+    
+    // Only show clinic name if it's not "Unnamed Clinic"
+    if (displayClinicName && displayClinicName !== 'Unnamed Clinic') {
       doc.setFontSize(18);
-      doc.text(selectedClinic.name || 'عيادة', 105, 15, { align: 'center' });
-      
-      if (selectedClinic.address) {
-        doc.setFontSize(12);
-        doc.text(selectedClinic.address, 105, 25, { align: 'center' });
-      }
-      
-      if (selectedClinic.phone) {
-        doc.setFontSize(12);
-        doc.text(`هاتف: ${selectedClinic.phone}`, 105, 32, { align: 'center' });
-      }
+      doc.text(displayClinicName, 105, 15, { align: 'center' });
     }
     
-    // Then override with doctor settings if available
-    if (doctorSettings.clinicName) {
-      doc.setFontSize(18);
-      doc.text(doctorSettings.clinicName, 105, 15, { align: 'center' });
+    // Add doctor title if available
+    if (doctorSettings.doctorTitle) {
+      doc.setFontSize(14);
+      doc.text(doctorSettings.doctorTitle, 105, 25, { align: 'center' });
+    }
+    
+    // Add address if available
+    if (displayClinicAddress) {
+      doc.setFontSize(12);
+      doc.text(displayClinicAddress, 105, displayClinicAddress ? 32 : 25, { align: 'center' });
+    }
+    
+    // Add phone if available
+    if (displayClinicPhone) {
+      doc.setFontSize(12);
+      const yPos = displayClinicAddress ? 38 : (displayClinicAddress ? 32 : 25);
+      doc.text(`هاتف: ${displayClinicPhone}`, 105, yPos, { align: 'center' });
     }
     
     if (doctorSettings.doctorTitle) {

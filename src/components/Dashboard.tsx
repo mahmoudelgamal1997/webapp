@@ -260,22 +260,30 @@ const Dashboard: React.FC = () => {
     // Format the clinic information for the header
     const clinicInfo = [];
     
-    // First try to use clinic from context if available
-    if (selectedClinic) {
-      clinicInfo.push(`<h1>${selectedClinic.name || 'عيادة'}</h1>`);
-      if (selectedClinic.address) {
-        clinicInfo.push(`<p>${selectedClinic.address}</p>`);
-      }
-      if (selectedClinic.phone) {
-        clinicInfo.push(`<p>هاتف: ${selectedClinic.phone}</p>`);
-      }
+    // Prioritize doctor settings, then fall back to selected clinic
+    const displayClinicName = doctorSettings.clinicName || selectedClinic?.name || 'عيادة';
+    const displayClinicAddress = doctorSettings.clinicAddress || selectedClinic?.address || '';
+    const displayClinicPhone = doctorSettings.clinicPhone || selectedClinic?.phone || '';
+    
+    // Add clinic name
+    if (displayClinicName && displayClinicName !== 'Unnamed Clinic') {
+      clinicInfo.push(`<h1>${displayClinicName}</h1>`);
     }
     
-    // Then override with doctor settings if available
-    if (doctorSettings.clinicName) clinicInfo.push(`<h1>${doctorSettings.clinicName}</h1>`);
-    if (doctorSettings.doctorTitle) clinicInfo.push(`<h3>${doctorSettings.doctorTitle}</h3>`);
-    if (doctorSettings.clinicAddress) clinicInfo.push(`<p>${doctorSettings.clinicAddress}</p>`);
-    if (doctorSettings.clinicPhone) clinicInfo.push(`<p>هاتف: ${doctorSettings.clinicPhone}</p>`);
+    // Add doctor title if available
+    if (doctorSettings.doctorTitle) {
+      clinicInfo.push(`<h3>${doctorSettings.doctorTitle}</h3>`);
+    }
+    
+    // Add address if available
+    if (displayClinicAddress) {
+      clinicInfo.push(`<p>${displayClinicAddress}</p>`);
+    }
+    
+    // Add phone if available
+    if (displayClinicPhone) {
+      clinicInfo.push(`<p>هاتف: ${displayClinicPhone}</p>`);
+    }
     
     // Implement print functionality here
     const printWindow = window.open('', '_blank');

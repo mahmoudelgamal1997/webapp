@@ -48,25 +48,89 @@ const ClinicSelector: React.FC<ClinicSelectorProps> = ({ onClinicSelect }) => {
       const db = getFirestore();
       const clinicsList: Clinic[] = [];
       
+      console.log('ClinicSelector: Fetching clinics for user:', userId);
+      
       // First, check if user is a doctor with direct clinic assignments
       const clinicsRef = collection(db, 'clinics');
       const doctorClinicsQuery = query(clinicsRef, where('doctors', 'array-contains', userId));
       
       const doctorClinicsSnapshot = await getDocs(doctorClinicsQuery);
+      console.log(`ClinicSelector: Found ${doctorClinicsSnapshot.size} clinics with direct doctor assignment`);
       
       doctorClinicsSnapshot.forEach((doc) => {
+        const clinicData = doc.data();
+        // Check multiple possible field names for clinic name
+        const clinicName = clinicData.location_ar || 
+                          clinicData.name || 
+                          clinicData.clinic_name || 
+                          clinicData.title || 
+                          clinicData.location ||
+                          'Unnamed Clinic';
+        
+        console.log(`ClinicSelector: Adding clinic from direct assignment: ${doc.id} - ${clinicName}`);
         clinicsList.push({
           _id: doc.id,
-          name: doc.data().location_ar || doc.data().name || 'Unnamed Clinic',
-          location_ar: doc.data().location_ar,
-          address: doc.data().address,
-          phone: doc.data().phone
+          name: clinicName,
+          location_ar: clinicData.location_ar,
+          address: clinicData.address,
+          phone: clinicData.phone
         });
       });
       
-      // Next, check if user is an assistant with clinic assignments via doctor_clinic_assistant collection
-      // This handles the case where an assistant is assigned to multiple clinics
+      // Next, check if user is a doctor with clinic assignments via doctor_clinic_assistant collection
       const doctorClinicAssistantRef = collection(db, 'doctor_clinic_assistant');
+      const doctorAssignmentsQuery = query(doctorClinicAssistantRef, where('doctor_id', '==', userId));
+      
+      const doctorAssignmentsSnapshot = await getDocs(doctorAssignmentsQuery);
+      
+      // If we found doctor assignments via doctor_clinic_assistant
+      if (!doctorAssignmentsSnapshot.empty) {
+        console.log(`Found ${doctorAssignmentsSnapshot.size} clinic assignments for doctor ${userId}`);
+        
+        // Get all clinic IDs assigned to this doctor
+        const clinicIds: string[] = [];
+        
+        doctorAssignmentsSnapshot.forEach((doc) => {
+          const clinicId = doc.data().clinic_id;
+          if (clinicId && !clinicIds.includes(clinicId)) {
+            clinicIds.push(clinicId);
+          }
+        });
+        
+        console.log('Doctor is assigned to these clinics:', clinicIds);
+        
+        // Fetch each clinic's details
+        for (const clinicId of clinicIds) {
+          // Skip if we already added this clinic (from the direct doctor query)
+          if (clinicsList.some(c => c._id === clinicId)) {
+            continue;
+          }
+          
+          const clinicDocRef = doc(db, 'clinics', clinicId);
+          const clinicDocSnap = await getDoc(clinicDocRef);
+          
+          if (clinicDocSnap.exists()) {
+            const clinicData = clinicDocSnap.data();
+            // Check multiple possible field names for clinic name
+            const clinicName = clinicData.location_ar || 
+                              clinicData.name || 
+                              clinicData.clinic_name || 
+                              clinicData.title || 
+                              clinicData.location ||
+                              'Unnamed Clinic';
+            
+            clinicsList.push({
+              _id: clinicDocSnap.id,
+              name: clinicName,
+              location_ar: clinicData.location_ar,
+              address: clinicData.address,
+              phone: clinicData.phone
+            });
+          }
+        }
+      }
+      
+      // Also check if user is an assistant with clinic assignments via doctor_clinic_assistant collection
       const assistantAssignmentsQuery = query(doctorClinicAssistantRef, where('assistant_id', '==', userId));
       
       const assistantAssignmentsSnapshot = await getDocs(assistantAssignmentsQuery);
@@ -89,7 +153,7 @@ const ClinicSelector: React.FC<ClinicSelectorProps> = ({ onClinicSelect }) => {
         
         // Fetch each clinic's details
         for (const clinicId of clinicIds) {
-          // Skip if we already added this clinic (from the doctor query)
+          // Skip if we already added this clinic
           if (clinicsList.some(c => c._id === clinicId)) {
             continue;
           }
@@ -98,18 +162,27 @@ const ClinicSelector: React.FC<ClinicSelectorProps> = ({ onClinicSelect }) => {
           const clinicDocSnap = await getDoc(clinicDocRef);
           
           if (clinicDocSnap.exists()) {
+            const clinicData = clinicDocSnap.data();
+            // Check multiple possible field names for clinic name
+            const clinicName = clinicData.location_ar || 
+                              clinicData.name || 
+                              clinicData.clinic_name || 
+                              clinicData.title || 
+                              clinicData.location ||
+                              'Unnamed Clinic';
+            
             clinicsList.push({
               _id: clinicDocSnap.id,
-              name: clinicDocSnap.data().location_ar || clinicDocSnap.data().name || 'Unnamed Clinic',
-              location_ar: clinicDocSnap.data().location_ar,
-              address: clinicDocSnap.data().address,
-              phone: clinicDocSnap.data().phone
+              name: clinicName,
+              location_ar: clinicData.location_ar,
+              address: clinicData.address,
+              phone: clinicData.phone
             });
           }
         }
       }
       
-      console.log('Final clinics list:', clinicsList);
+      console.log(`ClinicSelector: Total clinics found: ${clinicsList.length}`, clinicsList);
       setClinics(clinicsList);
       
       // Set first clinic as selected if nothing is selected yet

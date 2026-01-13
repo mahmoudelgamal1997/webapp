@@ -156,9 +156,28 @@ export const DoctorProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       } else {
         throw new Error('Unexpected response format');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving settings:', error);
-      message.error('Failed to save settings. Please try again.');
+      
+      // Provide more specific error messages
+      if (error.response) {
+        // Server responded with error status
+        if (error.response.status === 404) {
+          message.error('Settings endpoint not found. Please check the API configuration.');
+        } else if (error.response.status === 401 || error.response.status === 403) {
+          message.error('Authentication failed. Please log in again.');
+        } else if (error.response.status >= 500) {
+          message.error('Server error. Please try again later.');
+        } else {
+          message.error(`Failed to save settings: ${error.response.data?.message || error.response.statusText || 'Unknown error'}`);
+        }
+      } else if (error.request) {
+        // Request was made but no response received
+        message.error('Network error. Please check your connection and try again.');
+      } else {
+        // Something else happened
+        message.error(`Failed to save settings: ${error.message || 'Unknown error'}`);
+      }
       return false;
     } finally {
       setLoading(false);
