@@ -51,22 +51,57 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
   });
   const [lastRefreshTime, setLastRefreshTime] = useState<number>(Date.now());
 
+  // Helper function to convert Arabic numerals to English
+  const convertArabicNumerals = (str: string): string => {
+    if (!str) return str;
+    const arabicToEnglish: { [key: string]: string } = {
+      '٠': '0', '١': '1', '٢': '2', '٣': '3', '٤': '4',
+      '٥': '5', '٦': '6', '٧': '7', '٨': '8', '٩': '9'
+    };
+    return str.split('').map(char => arabicToEnglish[char] || char).join('');
+  };
+
   // Helper function to properly parse dates with times
   const parseDateAndTime = (dateStr: string, timeStr: string): number => {
     if (!dateStr) return 0;
     
+    // Convert Arabic numerals to English in time string
+    let normalizedTime = timeStr || '';
+    if (normalizedTime) {
+      normalizedTime = convertArabicNumerals(normalizedTime);
+    }
+    
     // First try to parse with time
-    if (timeStr) {
-      const fullDateStr = `${dateStr} ${timeStr}`;
-      const momentDate = moment(fullDateStr, [
-        'YYYY-MM-DD HH:mm',
-        'YYYY-M-D HH:mm',
-        'YYYY-MM-DD H:mm',
-        'YYYY-M-D H:mm'
-      ]);
+    if (normalizedTime) {
+      // Try multiple time formats
+      const timeFormats = [
+        'HH:mm', 'H:mm', 'HH:mm:ss', 'H:mm:ss'
+      ];
       
-      if (momentDate.isValid()) {
-        return momentDate.valueOf();
+      for (const timeFormat of timeFormats) {
+        const fullDateStr = `${dateStr} ${normalizedTime}`;
+        const momentDate = moment(fullDateStr, [
+          `YYYY-MM-DD ${timeFormat}`,
+          `YYYY-M-D ${timeFormat}`,
+          `YYYY-MM-DD ${timeFormat.replace(':', '')}`,
+          `YYYY-M-D ${timeFormat.replace(':', '')}`
+        ], true); // strict mode
+        
+        if (momentDate.isValid()) {
+          return momentDate.valueOf();
+        }
+      }
+      
+      // Try parsing time separately and combining
+      const timeMoment = moment(normalizedTime, ['HH:mm', 'H:mm', 'HH:mm:ss', 'H:mm:ss'], true);
+      if (timeMoment.isValid()) {
+        const dateMoment = moment(dateStr, ['YYYY-MM-DD', 'YYYY-M-D'], true);
+        if (dateMoment.isValid()) {
+          dateMoment.hour(timeMoment.hour());
+          dateMoment.minute(timeMoment.minute());
+          dateMoment.second(timeMoment.second());
+          return dateMoment.valueOf();
+        }
       }
     }
     
@@ -74,7 +109,7 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
     const momentDate = moment(dateStr, [
       'YYYY-MM-DD',
       'YYYY-M-D'
-    ]);
+    ], true); // strict mode
     
     return momentDate.isValid() ? momentDate.valueOf() : 0;
   };
@@ -83,7 +118,7 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
   const processPatients = (patientData: Patient[]): PatientWithLatestVisit[] => {
     return patientData.map(patient => {
       // Default values for patients with no visits
-      let latestVisitDate = Infinity; // Use Infinity for patients with no visits to sort them first
+      let latestVisitDate = 0; // Use 0 for patients with no visits to sort them last
       let latestVisitDateStr = '';
       let latestVisitTime = '';
       let latestVisitType = '';
@@ -159,13 +194,14 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
       // Process patients with latest visit information
       const processedPatients = processPatients(patientsData);
       
-      // Sort patients: new patients without visits first, then by latest visit date (newest first)
+      // Sort patients: by latest visit date and time (newest first), then patients without visits at the end
       const sortedPatients = processedPatients.sort((a, b) => {
-        // If one has visits and the other doesn't, put the one without visits first
-        if (a.hasVisits && !b.hasVisits) return 1;
-        if (!a.hasVisits && b.hasVisits) return -1;
+        // If one has visits and the other doesn't, put the one WITH visits first (newest visits should be at top)
+        if (a.hasVisits && !b.hasVisits) return -1;
+        if (!a.hasVisits && b.hasVisits) return 1;
         
         // Both have visits or both don't have visits, sort by latestVisitDate (newest first)
+        // For patients without visits (Infinity), they'll be sorted to the end
         return b.latestVisitDate - a.latestVisitDate;
       });
       
@@ -211,13 +247,14 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
   useEffect(() => {
     if (filteredPatients && filteredPatients.length > 0) {
       const processed = processPatients(filteredPatients);
-      // Sort patients: new patients without visits first, then by latest visit date (newest first)
+      // Sort patients: by latest visit date and time (newest first), then patients without visits at the end
       const sorted = processed.sort((a, b) => {
-        // If one has visits and the other doesn't, put the one without visits first
-        if (a.hasVisits && !b.hasVisits) return 1;
-        if (!a.hasVisits && b.hasVisits) return -1;
+        // If one has visits and the other doesn't, put the one WITH visits first (newest visits should be at top)
+        if (a.hasVisits && !b.hasVisits) return -1;
+        if (!a.hasVisits && b.hasVisits) return 1;
         
         // Both have visits or both don't have visits, sort by latestVisitDate (newest first)
+        // For patients without visits (Infinity), they'll be sorted to the end
         return b.latestVisitDate - a.latestVisitDate;
       });
       setPatientsToDisplay(sorted);
@@ -245,14 +282,14 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
           <Tag color="volcano">New Patient</Tag>
       ),
       sorter: (a: PatientWithLatestVisit, b: PatientWithLatestVisit) => {
-        // Sort by hasVisits first (new patients first)
-        if (a.hasVisits && !b.hasVisits) return 1;
-        if (!a.hasVisits && b.hasVisits) return -1;
+        // Sort by hasVisits first (patients with visits first, then new patients)
+        if (a.hasVisits && !b.hasVisits) return -1;
+        if (!a.hasVisits && b.hasVisits) return 1;
         
         // Then by latest visit date (newest first)
         return b.latestVisitDate - a.latestVisitDate;
       },
-      defaultSortOrder: 'ascend' as SortOrder,
+      defaultSortOrder: 'descend' as SortOrder,
       sortDirections: ['descend', 'ascend'] as SortOrder[]
     },
     {

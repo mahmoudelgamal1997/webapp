@@ -61,11 +61,18 @@ const SidebarWaitingList = forwardRef<{ refreshData: () => Promise<void> }, Side
         const data = doc.data();
         console.log('Patient doc:', doc.id, 'data:', data);
         
+        // Only include patients with status 'waiting' or 'WAITING'
+        const status = (data.status || 'WAITING').toLowerCase();
+        if (status !== 'waiting') {
+          console.log(`Skipping patient ${doc.id} - status is ${data.status}, not waiting`);
+          return; // Skip this patient
+        }
+        
         patients.push({
           patient_id: data.patient_id || doc.id,
           patient_name: data.patient_name || 'Unknown Patient',
           arrivalTime: data.arrivalTime,
-          status: data.status || 'WAITING',
+          status: 'waiting', // Ensure it's lowercase
           position: data.position || 0,
           doctor_id: data.doctor_id || doctorId,
           visit_type: data.visit_type || 'كشف',
@@ -112,22 +119,52 @@ const SidebarWaitingList = forwardRef<{ refreshData: () => Promise<void> }, Side
         
         // Try multiple path variations
         const pathVariations = [
-          // Variation 1: Your most recently updated structure
+          // Variation 1: Your most recently updated structure - filter by waiting status
           { 
             path: `clinics/${selectedClinicId}/waiting_list/${currentDate}/patients`,
-            collFn: () => collection(db, 'clinics', selectedClinicId, 'waiting_list', currentDate, 'patients')
+            collFn: () => {
+              const patientsRef = collection(db, 'clinics', selectedClinicId, 'waiting_list', currentDate, 'patients');
+              return query(patientsRef, where('status', '==', 'waiting'));
+            }
           },
-          // Variation 2: Alternative collection name
+          // Variation 1b: Try with uppercase WAITING
+          { 
+            path: `clinics/${selectedClinicId}/waiting_list/${currentDate}/patients`,
+            collFn: () => {
+              const patientsRef = collection(db, 'clinics', selectedClinicId, 'waiting_list', currentDate, 'patients');
+              return query(patientsRef, where('status', '==', 'WAITING'));
+            }
+          },
+          // Variation 2: Alternative collection name - filter by waiting status
           { 
             path: `clinics/${selectedClinicId}/waitingList/${currentDate}/patients`,
-            collFn: () => collection(db, 'clinics', selectedClinicId, 'waitingList', currentDate, 'patients')
+            collFn: () => {
+              const patientsRef = collection(db, 'clinics', selectedClinicId, 'waitingList', currentDate, 'patients');
+              return query(patientsRef, where('status', '==', 'waiting'));
+            }
+          },
+          // Variation 2b: Try with uppercase WAITING
+          { 
+            path: `clinics/${selectedClinicId}/waitingList/${currentDate}/patients`,
+            collFn: () => {
+              const patientsRef = collection(db, 'clinics', selectedClinicId, 'waitingList', currentDate, 'patients');
+              return query(patientsRef, where('status', '==', 'WAITING'));
+            }
           },
           // Variation 3: From WaitingListContext.tsx - patients directly under clinic
           { 
             path: `clinics/${selectedClinicId}/patients`,
             collFn: () => {
               const patientsRef = collection(db, 'clinics', selectedClinicId, 'patients');
-              // Filter to only waiting patients with status WAITING
+              // Filter to only waiting patients - try both 'waiting' and 'WAITING'
+              return query(patientsRef, where('status', '==', 'waiting'));
+            }
+          },
+          // Variation 3b: Try with uppercase WAITING
+          { 
+            path: `clinics/${selectedClinicId}/patients`,
+            collFn: () => {
+              const patientsRef = collection(db, 'clinics', selectedClinicId, 'patients');
               return query(patientsRef, where('status', '==', 'WAITING'));
             }
           }
@@ -166,22 +203,26 @@ const SidebarWaitingList = forwardRef<{ refreshData: () => Promise<void> }, Side
             const clinicPatientsRef = collection(db, 'clinics', selectedClinicId, 'patients');
             const allPatientsSnapshot = await getDocs(clinicPatientsRef);
             
-            // Manually filter waiting patients
+            // Manually filter waiting patients - ONLY show 'waiting' status
             const waitingPatients: WaitingPatient[] = [];
             allPatientsSnapshot.forEach(doc => {
               const data = doc.data();
-              if (data.status === 'WAITING' || (data.date === currentDate)) {
+              // Only include patients with status 'waiting' or 'WAITING'
+              const status = (data.status || '').toLowerCase();
+              if (status === 'waiting') {
                 waitingPatients.push({
                   patient_id: data.patient_id || doc.id,
                   patient_name: data.patient_name || 'Unknown Patient',
                   arrivalTime: data.arrivalTime,
-                  status: data.status || 'WAITING',
+                  status: 'waiting', // Ensure it's lowercase
                   position: data.position || 0,
                   doctor_id: data.doctor_id || doctorId,
                   visit_type: data.visit_type || 'كشف',
                   date: data.date,
                   time: data.time
                 });
+              } else {
+                console.log(`Skipping patient ${doc.id} - status is ${data.status}, not waiting`);
               }
             });
             
