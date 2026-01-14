@@ -121,9 +121,14 @@ const SidebarWaitingList = forwardRef<{ refreshData: () => Promise<void> }, Side
         
         console.log('Fetching from path: clinics/' + selectedClinicId + '/waiting_list/' + currentDate + '/patients');
         
-        // Get all patients from waiting_list collection (no filters needed, all are WAITING)
-        const querySnapshot = await getDocs(waitingListRef);
-        console.log(`✅ Found ${querySnapshot.size} patients in waiting_list for date ${currentDate}`);
+        // Filter to only get WAITING patients
+        const waitingQuery = query(
+          waitingListRef,
+          where('status', '==', 'WAITING')
+        );
+        
+        const querySnapshot = await getDocs(waitingQuery);
+        console.log(`✅ Found ${querySnapshot.size} WAITING patients in waiting_list for date ${currentDate}`);
         
         // Sort by position in memory after fetching (to avoid needing composite index)
         if (querySnapshot.size > 0) {
@@ -200,9 +205,15 @@ const SidebarWaitingList = forwardRef<{ refreshData: () => Promise<void> }, Side
       console.log('Setting up real-time listener for waiting list - Clinic:', selectedClinicId, 'Date:', currentDate);
       console.log('Path: clinics/' + selectedClinicId + '/waiting_list/' + currentDate + '/patients');
       
-      // Set up real-time listener on waiting_list collection (no query needed, all are WAITING)
-      const unsubscribe = onSnapshot(waitingListRef, (snapshot: any) => {
-        console.log('Waiting list updated in real-time:', snapshot.size, 'patients');
+      // Filter to only listen to WAITING patients
+      const waitingQuery = query(
+        waitingListRef,
+        where('status', '==', 'WAITING')
+      );
+      
+      // Set up real-time listener on waiting_list collection with WAITING filter
+      const unsubscribe = onSnapshot(waitingQuery, (snapshot: any) => {
+        console.log('Waiting list updated in real-time:', snapshot.size, 'WAITING patients');
         
         // Sort by position in memory
         if (snapshot.size > 0) {
