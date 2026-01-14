@@ -7,6 +7,17 @@ import dayjs from 'dayjs';
 import API from '../config/api';
 import { useClinicContext } from './ClinicContext';
 
+interface PaginationInfo {
+  currentPage: number;
+  totalPages: number;
+  totalItems: number;
+  itemsPerPage: number;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
+  nextPage: number | null;
+  prevPage: number | null;
+}
+
 interface PatientContextType {
   patients: Patient[];
   filteredPatients: Patient[];
@@ -18,7 +29,16 @@ interface PatientContextType {
   setDateRange: (range: [dayjs.Dayjs | null, dayjs.Dayjs | null]) => void;
   isDateFilterVisible: boolean;
   setIsDateFilterVisible: (visible: boolean) => void;
-  fetchPatients: () => Promise<Patient[]>;
+  fetchPatients: (options?: {
+    search?: string;
+    startDate?: string;
+    endDate?: string;
+    status?: string;
+    page?: number;
+    limit?: number;
+    sortBy?: string;
+    sortOrder?: string;
+  }) => Promise<{ patients: Patient[]; pagination?: PaginationInfo | null }>;
   clearFilters: () => void;
   selectedReceipt: Receipt | null;
   setSelectedReceipt: (receipt: Receipt | null) => void;
@@ -26,7 +46,8 @@ interface PatientContextType {
   setIsViewReceiptModalVisible: (visible: boolean) => void;
   forceRender: number;
   setForceRender: (value: number) => void;
-  setFilteredPatients: (patients: Patient[]) => void; // Add this line
+  setFilteredPatients: (patients: Patient[]) => void;
+  pagination: PaginationInfo | null;
 }
 
 const PatientContext = createContext<PatientContextType | undefined>(undefined);
@@ -42,6 +63,7 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [isViewReceiptModalVisible, setIsViewReceiptModalVisible] = useState<boolean>(false);
   const [forceRender, setForceRender] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [pagination, setPagination] = useState<PaginationInfo | null>(null);
 
   const userId = localStorage.getItem('doctorId');
   const { selectedClinicId } = useClinicContext(); 
@@ -133,28 +155,33 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
         params.sortOrder = options.sortOrder;
       }
 
-      // If no pagination is specified, don't send page/limit to get all results
-      // This maintains backward compatibility
-      const usePagination = options?.page !== undefined || options?.limit !== undefined;
-      
+      // Always send params (backend handles pagination only when page/limit are provided)
+      // This maintains backward compatibility - if no pagination params, backend returns all results
       console.log('Fetching from endpoint:', endpoint, 'with params:', params);
       
-      const response = await axios.get(endpoint, { params: usePagination ? params : {} });
+      const response = await axios.get(endpoint, { params });
       console.log('API Response received');
 
       // Handle both old format (array) and new format (object with data property)
       let updatedPatients: Patient[];
+      let paginationInfo: PaginationInfo | null = null;
+      
       if (Array.isArray(response.data)) {
         // Old format - backward compatibility
         updatedPatients = response.data;
       } else if (response.data.data && Array.isArray(response.data.data)) {
         // New format with pagination/filters
         updatedPatients = response.data.data;
+        // Extract pagination info if available
+        if (response.data.pagination) {
+          paginationInfo = response.data.pagination;
+        }
       } else {
         updatedPatients = [];
       }
 
       console.log('Raw patients data:', updatedPatients);
+      console.log('Pagination info:', paginationInfo);
       
       // Always sort by date (newest first) for display
       const sortedPatients = sortByLatestDate(updatedPatients);
@@ -163,6 +190,7 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
       // Update state with new data
       setPatients([...sortedPatients]);
       setFilteredPatients([...sortedPatients]);
+      setPagination(paginationInfo);
       console.log('State updated with patient data');
       
       // If there's a selected patient, update it with fresh data
@@ -182,11 +210,11 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
       // Force re-render of the table to maintain sort order
       setForceRender(prev => prev + 1);
       
-      return sortedPatients;
+      return { patients: sortedPatients, pagination: paginationInfo };
     } catch (error) {
       console.error('Error fetching patients', error);
       message.error('Failed to fetch patients');
-      return [];
+      return { patients: [], pagination: null };
     } finally {
       setIsLoading(false);
     }
@@ -242,7 +270,7 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
     const loadData = async () => {
       try {
         const result = await fetchPatients();
-        console.log('Initial fetch completed with', result.length, 'patients');
+        console.log('Initial fetch completed with', result.patients.length, 'patients');
         // Force component update
         setForceRender(prev => prev + 1);
       } catch (error) {
@@ -314,6 +342,7 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
     forceRender,
     setForceRender,
     setFilteredPatients,
+    pagination,
   };
 
   return (

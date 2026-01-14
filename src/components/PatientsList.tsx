@@ -37,14 +37,15 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
     filteredPatients,
     setSelectedPatient, 
     setFilteredPatients,
-    fetchPatients 
+    fetchPatients,
+    pagination: contextPagination
   } = usePatientContext();
   
   const [loading, setLoading] = useState(false);
   const [visitsToDisplay, setVisitsToDisplay] = useState<VisitWithPatientInfo[]>([]);
   const [pagination, setPagination] = useState({
     current: 1,
-    pageSize: 10,
+    pageSize: 20,
     total: 0
   });
   const [lastRefreshTime, setLastRefreshTime] = useState<number>(Date.now());
@@ -119,33 +120,44 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
   };
 
   // Fetch visits data (actually fetching patients and extracting visits)
-  const fetchVisits = async (page = 1, pageSize = 10) => {
+  const fetchVisits = async (page = 1, pageSize = 20) => {
     setLoading(true);
     try {
-      // Get doctor ID from context or storage
-      const doctorId = localStorage.getItem('doctor_id');
+      console.log('Fetching patients data for PatientsList component with pagination:', { page, pageSize });
       
-      console.log('Fetching patients data for PatientsList component');
-      
-      // Use fetchPatients from context to ensure consistent data
-      await fetchPatients();
+      // Use fetchPatients from context with pagination params for server-side pagination
+      const result = await fetchPatients({
+        page,
+        limit: pageSize,
+        sortBy: 'date',
+        sortOrder: 'desc'
+      });
       
       // Update timestamp of last refresh
       setLastRefreshTime(Date.now());
       
-      // Get the latest patients data from context - no need for separate axios call
-      const patientsData = filteredPatients;
+      // Get the latest patients data from context
+      const patientsData = result.patients;
       
       // Extract visits for display
       const visits = extractVisits(patientsData);
       setVisitsToDisplay(visits);
       
-      // Update pagination
-      setPagination({
-        current: page,
-        pageSize: pageSize,
-        total: visits.length
-      });
+      // Update pagination from API response if available
+      if (result.pagination) {
+        setPagination({
+          current: result.pagination.currentPage,
+          pageSize: result.pagination.itemsPerPage,
+          total: result.pagination.totalItems
+        });
+      } else {
+        // Fallback to client-side pagination if no pagination info
+        setPagination({
+          current: page,
+          pageSize: pageSize,
+          total: visits.length
+        });
+      }
     } catch (error) {
       console.error('Error fetching visits data:', error);
       message.error('Failed to refresh patients data. Please try again.');
@@ -173,11 +185,17 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
     }
   }, [refreshTrigger, lastRefreshTime]);
   
-  // Get paginated visits
+  // Get paginated visits - no need for client-side pagination if server-side is used
   const getPaginatedVisits = () => {
-    const startIndex = (pagination.current - 1) * pagination.pageSize;
-    const endIndex = startIndex + pagination.pageSize;
-    return visitsToDisplay.slice(startIndex, endIndex);
+    // If we have server-side pagination, return all visits (already paginated by server)
+    // Otherwise, use client-side pagination as fallback
+    if (contextPagination) {
+      return visitsToDisplay;
+    } else {
+      const startIndex = (pagination.current - 1) * pagination.pageSize;
+      const endIndex = startIndex + pagination.pageSize;
+      return visitsToDisplay.slice(startIndex, endIndex);
+    }
   };
   
   // Update visits when filtered patients change
@@ -272,11 +290,19 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
 
   // Handle table changes (pagination, filters, sort)
   const handleTableChange = (newPagination: any) => {
-    setPagination({
-      ...newPagination,
-      current: newPagination.current,
-      pageSize: newPagination.pageSize
-    });
+    const newPage = newPagination.current || pagination.current;
+    const newPageSize = newPagination.pageSize || pagination.pageSize;
+    
+    // If page or page size changed, fetch new data from server
+    if (newPage !== pagination.current || newPageSize !== pagination.pageSize) {
+      fetchVisits(newPage, newPageSize);
+    } else {
+      // Just update local state if only other table properties changed
+      setPagination({
+        ...pagination,
+        ...newPagination
+      });
+    }
   };
 
   return (
@@ -289,10 +315,17 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
         rowKey={record => `${record._id || ''}-${record.visit_id || ''}`}
         loading={loading}
         pagination={{
-          ...pagination,
+          current: pagination.current,
+          pageSize: pagination.pageSize,
+          total: pagination.total,
           showSizeChanger: true,
           pageSizeOptions: ['10', '20', '50', '100'],
-          showTotal: (total) => `Total ${total} visits`
+          showTotal: (total, range) => {
+            if (contextPagination) {
+              return `Showing ${range[0]}-${range[1]} of ${total} visits`;
+            }
+            return `Total ${total} visits`;
+          }
         }}
         onChange={handleTableChange}
         style={{ marginTop: 16 }}
