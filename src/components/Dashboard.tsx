@@ -1,6 +1,13 @@
 // src/components/Dashboard.tsx
 import React, { useState, useEffect, useRef } from 'react';
-import { Layout, Card, Typography, Button, Space, Alert, Row, Col } from 'antd';
+import { Layout, Card, Typography, Button, Space, Alert, Row, Col, Drawer, Grid } from 'antd';
+import { 
+  SettingOutlined,
+  WarningOutlined,
+  ItalicOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined
+} from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { usePatientContext } from './PatientContext';
@@ -9,8 +16,6 @@ import { useClinicContext } from './ClinicContext';
 import { Receipt } from './type';
 import moment from 'moment';
 import { getFirestore, collection, query, onSnapshot, doc } from 'firebase/firestore';
-
-// Import extracted components
 import DashboardSidebar from './DashboardSidebar';
 import DashboardHeader from './DashboardHeader';
 import PatientsList from './PatientsList';
@@ -20,13 +25,7 @@ import ReceiptDetail from './ReceiptDetails';
 import ClinicSelector from './ClinicSelector';
 import SidebarWaitingList from './SidebarWaitingList';
 
-import { 
-  SettingOutlined,
-  WarningOutlined,
-  ItalicOutlined,
-  MenuFoldOutlined,
-  MenuUnfoldOutlined
-} from '@ant-design/icons';
+const { useBreakpoint } = Grid;
 const { Content, Sider } = Layout;
 const { Title, Text } = Typography;
 
@@ -34,11 +33,18 @@ const Dashboard: React.FC = () => {
   const [collapsed, setCollapsed] = useState<boolean>(false);
   const [isReceiptModalVisible, setIsReceiptModalVisible] = useState<boolean>(false);
   const [waitingListVisible, setWaitingListVisible] = useState<boolean>(true);
+  const [sidebarDrawerVisible, setSidebarDrawerVisible] = useState<boolean>(false);
+  const [waitingListDrawerVisible, setWaitingListDrawerVisible] = useState<boolean>(false);
   const waitingListUnsubscribe = useRef<any>(null);
   const [waitingListRefreshTrigger, setWaitingListRefreshTrigger] = useState<number>(0);
   const sidebarWaitingListRef = useRef<any>(null);
   const [patientsNeedRefresh, setPatientsNeedRefresh] = useState<boolean>(false);
   const [lastRefreshTimestamp, setLastRefreshTimestamp] = useState<number>(0);
+  
+  // Responsive breakpoints using Ant Design Grid
+  const screens = useBreakpoint();
+  const isMobile = !screens.md; // md breakpoint is 768px
+  const isTablet = screens.md && !screens.lg; // lg breakpoint is 992px
   
   const navigate = useNavigate();
   
@@ -201,10 +207,29 @@ const Dashboard: React.FC = () => {
     navigate('/settings');
   };
 
-  // Toggle waiting list sidebar
+  // Toggle waiting list sidebar/drawer
   const toggleWaitingList = () => {
-    setWaitingListVisible(!waitingListVisible);
+    if (isMobile) {
+      setWaitingListDrawerVisible(!waitingListDrawerVisible);
+    } else {
+      setWaitingListVisible(!waitingListVisible);
+    }
   };
+
+  // Update button text based on visibility
+  const getWaitingListButtonText = () => {
+    if (isMobile) {
+      return waitingListDrawerVisible ? 'Hide Waiting List' : 'Show Waiting List';
+    }
+    return waitingListVisible ? 'Hide Waiting List' : 'Show Waiting List';
+  };
+
+  // Auto-collapse sidebar on mobile
+  useEffect(() => {
+    if (isMobile) {
+      setCollapsed(true);
+    }
+  }, [isMobile]);
 
   // Handle print receipt with dynamic header
   const handlePrintReceipt = (receipt: Receipt) => {
@@ -297,38 +322,61 @@ const Dashboard: React.FC = () => {
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      {/* Left sidebar */}
-      <DashboardSidebar collapsed={collapsed} setCollapsed={setCollapsed} />
+      {/* Left sidebar - Drawer on mobile, Sidebar on desktop */}
+      {isMobile ? (
+        <Drawer
+          title="Menu"
+          placement="left"
+          onClose={() => setSidebarDrawerVisible(false)}
+          open={sidebarDrawerVisible}
+          bodyStyle={{ padding: 0 }}
+          width={256}
+        >
+          <DashboardSidebar collapsed={false} setCollapsed={() => {}} />
+        </Drawer>
+      ) : (
+        <DashboardSidebar collapsed={collapsed} setCollapsed={setCollapsed} />
+      )}
       
       <Layout>
         {/* Header */}
-        <DashboardHeader onSettingsClick={handleSettingsClick} />
+        <DashboardHeader 
+          onSettingsClick={handleSettingsClick}
+          onMenuClick={() => isMobile && setSidebarDrawerVisible(true)}
+          isMobile={isMobile}
+        />
         
         {/* Main content and right sidebar */}
         <Layout>
           {/* Main content area */}
-          <Content style={{ margin: '24px 16px', padding: 24, background: 'white' }}>
+          <Content style={{ 
+            margin: isMobile ? '16px 8px' : '24px 16px', 
+            padding: isMobile ? 12 : 24, 
+            background: 'white' 
+          }}>
             {/* Clinic Selector */}
             <ClinicSelector onClinicSelect={handleClinicSelect} />
             
             {/* Dashboard Controls */}
             <Card style={{ marginBottom: 16 }}>
               <Space direction="vertical" style={{ width: '100%' }}>
-                <Title level={4}>No waiting Dashboard</Title>
-                <Space>
+                <Title level={isMobile ? 5 : 4}>No waiting Dashboard</Title>
+                <Space direction={isMobile ? 'vertical' : 'horizontal'} style={{ width: '100%' }}>
                   <Button 
                     type="primary" 
                     onClick={handleRefresh} 
                     disabled={!selectedClinicId}
-                    loading={patientsNeedRefresh} // Show loading state when auto-refresh is pending
+                    loading={patientsNeedRefresh}
+                    block={isMobile}
                   >
                     Refresh Data
                   </Button>
                   <Button 
-                    icon={waitingListVisible ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />}
+                    icon={isMobile ? (waitingListDrawerVisible ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />) : (waitingListVisible ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />)}
                     onClick={toggleWaitingList}
+                    block={isMobile}
                   >
-                    {waitingListVisible ? 'Hide Waiting List' : 'Show Waiting List'}
+                    {getWaitingListButtonText()}
                   </Button>
                 </Space>
               </Space>
@@ -355,23 +403,43 @@ const Dashboard: React.FC = () => {
             )}
           </Content>
           
-          {/* Right sidebar for waiting list */}
-          {waitingListVisible && selectedClinicId && (
-            <Sider 
-              width={280} 
-              theme="light"
-              style={{ 
-                background: '#fff',
-                margin: '24px 16px 24px 0',
-                borderRadius: '4px',
-                boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
-              }}
-            >
-              <SidebarWaitingList 
-                ref={sidebarWaitingListRef}
-                refreshTrigger={waitingListRefreshTrigger}
-              />
-            </Sider>
+          {/* Right sidebar for waiting list - Drawer on mobile, Sidebar on desktop */}
+          {selectedClinicId && (
+            <>
+              {isMobile ? (
+                <Drawer
+                  title="Waiting List"
+                  placement="right"
+                  onClose={() => setWaitingListDrawerVisible(false)}
+                  open={waitingListDrawerVisible}
+                  width={280}
+                  bodyStyle={{ padding: 0 }}
+                >
+                  <SidebarWaitingList 
+                    ref={sidebarWaitingListRef}
+                    refreshTrigger={waitingListRefreshTrigger}
+                  />
+                </Drawer>
+              ) : (
+                waitingListVisible && (
+                  <Sider 
+                    width={280} 
+                    theme="light"
+                    style={{ 
+                      background: '#fff',
+                      margin: '24px 16px 24px 0',
+                      borderRadius: '4px',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                    }}
+                  >
+                    <SidebarWaitingList 
+                      ref={sidebarWaitingListRef}
+                      refreshTrigger={waitingListRefreshTrigger}
+                    />
+                  </Sider>
+                )
+              )}
+            </>
           )}
         </Layout>
       </Layout>

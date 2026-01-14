@@ -309,37 +309,40 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
     <>
       <SearchFilters />
       
-      <Table 
-        columns={columns} 
-        dataSource={getPaginatedVisits()}
-        rowKey={record => `${record._id || ''}-${record.visit_id || ''}`}
-        loading={loading}
-        pagination={{
-          current: pagination.current,
-          pageSize: pagination.pageSize,
-          total: pagination.total,
-          showSizeChanger: true,
-          pageSizeOptions: ['10', '20', '50', '100'],
-          showTotal: (total, range) => {
-            if (contextPagination) {
-              return `Showing ${range[0]}-${range[1]} of ${total} visits`;
-            }
-            return `Total ${total} visits`;
-          }
-        }}
-        onChange={handleTableChange}
-        style={{ marginTop: 16 }}
-        onRow={(record) => ({
-          onClick: () => {
-            // Find the original patient
-            const patient = patients.find(p => p.patient_id === record._original_patient_id);
-            if (patient) {
-              setSelectedPatient(patient);
-            }
-          },
-          style: { cursor: 'pointer' }
-        })}
-      />
+      <div style={{ overflowX: 'auto', marginTop: 16 }}>
+        <Table 
+          columns={columns} 
+          dataSource={getPaginatedVisits()}
+          rowKey={record => `${record._id || ''}-${record.visit_id || ''}`}
+          loading={loading}
+          pagination={{
+            current: pagination.current,
+            pageSize: pagination.pageSize,
+            total: pagination.total,
+            showSizeChanger: true,
+            pageSizeOptions: ['10', '20', '50', '100'],
+            showTotal: (total, range) => {
+              if (contextPagination) {
+                return `Showing ${range[0]}-${range[1]} of ${total} visits`;
+              }
+              return `Total ${total} visits`;
+            },
+            responsive: true
+          }}
+          onChange={handleTableChange}
+          scroll={{ x: 'max-content' }}
+          onRow={(record) => ({
+            onClick: () => {
+              // Find the original patient
+              const patient = patients.find(p => p.patient_id === record._original_patient_id);
+              if (patient) {
+                setSelectedPatient(patient);
+              }
+            },
+            style: { cursor: 'pointer' }
+          })}
+        />
+      </div>
     </>
   );
 };
