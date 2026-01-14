@@ -213,10 +213,10 @@ const SidebarWaitingList = forwardRef<{ refreshData: () => Promise<void> }, Side
           where('date', '==', currentDate),
           orderBy('position', 'asc')
         );
-        unsubscribe = onSnapshot(waitingQuery, (snapshot) => {
+        unsubscribe = onSnapshot(waitingQuery, (snapshot: any) => {
           console.log('Waiting list updated in real-time:', snapshot.size, 'WAITING patients');
           loadData(snapshot);
-        }, (error) => {
+        }, (error: any) => {
           console.error('Error in waiting list real-time listener (with orderBy):', error);
           // Try without orderBy
           console.log('Retrying listener without orderBy');
@@ -225,17 +225,17 @@ const SidebarWaitingList = forwardRef<{ refreshData: () => Promise<void> }, Side
             where('status', '==', 'WAITING'),
             where('date', '==', currentDate)
           );
-          const fallbackUnsubscribe = onSnapshot(simpleQuery, (snapshot) => {
+          const fallbackUnsubscribe = onSnapshot(simpleQuery, (snapshot: any) => {
             console.log('Waiting list updated in real-time (no orderBy):', snapshot.size, 'patients');
             loadData(snapshot);
-          }, (fallbackError) => {
+          }, (fallbackError: any) => {
             console.error('Error in waiting list real-time listener (without orderBy):', fallbackError);
             // If listener fails completely, try fetching once
             fetchData();
           });
           unsubscribe = fallbackUnsubscribe;
         });
-      } catch (error) {
+      } catch (error: any) {
         console.log('Failed to create query with orderBy, using simple query:', error);
         // Fallback to query without orderBy
         const simpleQuery = query(
