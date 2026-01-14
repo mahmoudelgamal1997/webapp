@@ -136,8 +136,13 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
       if (options?.startDate) {
         params.startDate = options.startDate;
       }
-      if (options?.endDate) {
+      // If endDate is not explicitly provided, default to today to exclude future dates
+      if (options?.endDate !== undefined) {
         params.endDate = options.endDate;
+      } else {
+        // Default to today's date to exclude future dates
+        const today = dayjs().format('YYYY-MM-DD');
+        params.endDate = today;
       }
       if (options?.status) {
         params.status = options.status;
@@ -183,8 +188,18 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
       console.log('Raw patients data:', updatedPatients);
       console.log('Pagination info:', paginationInfo);
       
+      // Filter out patients with future dates (only show up to today)
+      const today = dayjs().startOf('day');
+      const filteredPatients = updatedPatients.filter(patient => {
+        if (!patient.date) return true; // Include patients without date
+        // Parse patient date and compare with today
+        const patientDate = dayjs(patient.date).startOf('day');
+        // Only include patients with date <= today
+        return patientDate.isBefore(today) || patientDate.isSame(today);
+      });
+      
       // Always sort by date (newest first) for display
-      const sortedPatients = sortByLatestDate(updatedPatients);
+      const sortedPatients = sortByLatestDate(filteredPatients);
       console.log('About to update state with:', sortedPatients);
 
       // Update state with new data

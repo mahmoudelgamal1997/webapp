@@ -52,30 +52,39 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
 
   // Extract and flatten all visits from patients
   // Reversed sort function - newest first
+  // Filter out visits with future dates
   const extractVisits = (patientData: Patient[]): VisitWithPatientInfo[] => {
     const allVisits: VisitWithPatientInfo[] = [];
+    const today = moment().startOf('day'); // Get today's date at start of day
     
     patientData.forEach(patient => {
       if (patient.visits && patient.visits.length > 0) {
         patient.visits.forEach(visit => {
-          // Create a new object with explicit properties
-          allVisits.push({
-            _id: visit._id || '',
-            visit_id: visit.visit_id || '',
-            date: visit.date || '',
-            time: visit.time || '',
-            visit_type: visit.visit_type || '',
-            complaint: visit.complaint || '',
-            diagnosis: visit.diagnosis || '',
-            receipts: visit.receipts || [],
-            // Add patient info
-            patient_name: patient.patient_name,
-            patient_phone: patient.patient_phone,
-            patient_id: patient.patient_id,
-            age: patient.age,
-            address: patient.address,
-            _original_patient_id: patient.patient_id
-          });
+          // Parse visit date to check if it's in the future
+          const visitDate = parseDateAndTime(visit.date || '', visit.time || '');
+          const visitMoment = moment(visitDate).startOf('day');
+          
+          // Only include visits up to today (exclude future dates)
+          if (visitMoment.isBefore(today, 'day') || visitMoment.isSame(today, 'day')) {
+            // Create a new object with explicit properties
+            allVisits.push({
+              _id: visit._id || '',
+              visit_id: visit.visit_id || '',
+              date: visit.date || '',
+              time: visit.time || '',
+              visit_type: visit.visit_type || '',
+              complaint: visit.complaint || '',
+              diagnosis: visit.diagnosis || '',
+              receipts: visit.receipts || [],
+              // Add patient info
+              patient_name: patient.patient_name,
+              patient_phone: patient.patient_phone,
+              patient_id: patient.patient_id,
+              age: patient.age,
+              address: patient.address,
+              _original_patient_id: patient.patient_id
+            });
+          }
         });
       }
     });
