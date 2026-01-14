@@ -84,8 +84,17 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
     }
   };
 
-  // Fetch patients from API
-  const fetchPatients = async () => {
+  // Fetch patients from API with optional filters
+  const fetchPatients = async (options?: {
+    search?: string;
+    startDate?: string;
+    endDate?: string;
+    status?: string;
+    page?: number;
+    limit?: number;
+    sortBy?: string;
+    sortOrder?: string;
+  }) => {
     setIsLoading(true);
     try {
       // Use the doctor-specific endpoint if userId is available
@@ -93,16 +102,61 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
       
       if (userId) {
         endpoint = `${API.BASE_URL}${API.ENDPOINTS.DOCTOR_PATIENTS(userId)}`;
-        console.log('Fetching from endpoint:', endpoint);
       }
+
+      // Build query parameters
+      const params: any = {};
       
-      const response = await axios.get(endpoint);
+      // Add optional filters
+      if (options?.search) {
+        params.search = options.search;
+      }
+      if (options?.startDate) {
+        params.startDate = options.startDate;
+      }
+      if (options?.endDate) {
+        params.endDate = options.endDate;
+      }
+      if (options?.status) {
+        params.status = options.status;
+      }
+      if (options?.page) {
+        params.page = options.page;
+      }
+      if (options?.limit) {
+        params.limit = options.limit;
+      }
+      if (options?.sortBy) {
+        params.sortBy = options.sortBy;
+      }
+      if (options?.sortOrder) {
+        params.sortOrder = options.sortOrder;
+      }
+
+      // If no pagination is specified, don't send page/limit to get all results
+      // This maintains backward compatibility
+      const usePagination = options?.page !== undefined || options?.limit !== undefined;
+      
+      console.log('Fetching from endpoint:', endpoint, 'with params:', params);
+      
+      const response = await axios.get(endpoint, { params: usePagination ? params : {} });
       console.log('API Response received');
 
-      const updatedPatients = response.data;
+      // Handle both old format (array) and new format (object with data property)
+      let updatedPatients: Patient[];
+      if (Array.isArray(response.data)) {
+        // Old format - backward compatibility
+        updatedPatients = response.data;
+      } else if (response.data.data && Array.isArray(response.data.data)) {
+        // New format with pagination/filters
+        updatedPatients = response.data.data;
+      } else {
+        updatedPatients = [];
+      }
+
       console.log('Raw patients data:', updatedPatients);
       
-      // Always sort by date (newest first)
+      // Always sort by date (newest first) for display
       const sortedPatients = sortByLatestDate(updatedPatients);
       console.log('About to update state with:', sortedPatients);
 

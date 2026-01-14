@@ -133,6 +133,8 @@ const DashboardWaitingList: React.FC<DashboardWaitingListProps> = ({ onSelectPat
       </div>
 
       {/* Waiting List Table */}
+      console.log("mmmmmmmmm"+waitingPatients);
+      
       <Table 
         columns={columns}
         dataSource={waitingPatients}

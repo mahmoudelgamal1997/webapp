@@ -6,12 +6,11 @@ import {
   LogoutOutlined, 
   MenuUnfoldOutlined, 
   MenuFoldOutlined, 
-  SettingOutlined,
-  FileTextOutlined
+  SettingOutlined 
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
-import { useLocation } from 'react-router-dom'; 
+
 const { Sider } = Layout;
 
 interface SidebarProps {
@@ -22,14 +21,7 @@ interface SidebarProps {
 const DashboardSidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) => {
   const navigate = useNavigate();
   const { username, logout } = useAuth();
-  const location = useLocation();
 
-const getSelectedKey = () => {
-  if (location.pathname.startsWith('/reports')) return 'reports';
-  if (location.pathname.startsWith('/settings')) return 'settings';
-  if (location.pathname.startsWith('/dashboard')) return 'patients';
-  return '';
-};
   const handleLogout = () => {
     logout();
     navigate('/login');
@@ -37,10 +29,6 @@ const getSelectedKey = () => {
 
   const handleSettingsClick = () => {
     navigate('/settings');
-  };
-
-  const handleReportsClick = () => {
-    navigate('/reports');
   };
 
   return (
@@ -69,13 +57,9 @@ const getSelectedKey = () => {
           </span>
         )}
       </div>
-      <Menu theme="dark" mode="inline" selectedKeys={[getSelectedKey()]}>
-
-        <Menu.Item key="patients" icon={<UserOutlined />} onClick={() => navigate('/dashboard')}>
+      <Menu theme="dark" mode="inline" defaultSelectedKeys={['patients']}>
+        <Menu.Item key="patients" icon={<UserOutlined />}>
           Patients
-        </Menu.Item>
-        <Menu.Item key="reports" icon={<FileTextOutlined />} onClick={handleReportsClick}>
-          Reports
         </Menu.Item>
         <Menu.Item key="settings" icon={<SettingOutlined />} onClick={handleSettingsClick}>
           Receipt Settings

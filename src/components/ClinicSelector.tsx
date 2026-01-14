@@ -48,89 +48,25 @@ const ClinicSelector: React.FC<ClinicSelectorProps> = ({ onClinicSelect }) => {
       const db = getFirestore();
       const clinicsList: Clinic[] = [];
       
-      console.log('ClinicSelector: Fetching clinics for user:', userId);
-      
       // First, check if user is a doctor with direct clinic assignments
       const clinicsRef = collection(db, 'clinics');
       const doctorClinicsQuery = query(clinicsRef, where('doctors', 'array-contains', userId));
       
       const doctorClinicsSnapshot = await getDocs(doctorClinicsQuery);
-      console.log(`ClinicSelector: Found ${doctorClinicsSnapshot.size} clinics with direct doctor assignment`);
       
       doctorClinicsSnapshot.forEach((doc) => {
-        const clinicData = doc.data();
-        // Check multiple possible field names for clinic name
-        const clinicName = clinicData.location_ar || 
-                          clinicData.name || 
-                          clinicData.clinic_name || 
-                          clinicData.title || 
-                          clinicData.location ||
-                          'Unnamed Clinic';
-        
-        console.log(`ClinicSelector: Adding clinic from direct assignment: ${doc.id} - ${clinicName}`);
         clinicsList.push({
           _id: doc.id,
-          name: clinicName,
-          location_ar: clinicData.location_ar,
-          address: clinicData.address,
-          phone: clinicData.phone
+          name: doc.data().location_ar || doc.data().name || 'Unnamed Clinic',
+          location_ar: doc.data().location_ar,
+          address: doc.data().address,
+          phone: doc.data().phone
         });
       });
       
-      // Next, check if user is a doctor with clinic assignments via doctor_clinic_assistant collection
+      // Next, check if user is an assistant with clinic assignments via doctor_clinic_assistant collection
+      // This handles the case where an assistant is assigned to multiple clinics
       const doctorClinicAssistantRef = collection(db, 'doctor_clinic_assistant');
-      const doctorAssignmentsQuery = query(doctorClinicAssistantRef, where('doctor_id', '==', userId));
-      
-      const doctorAssignmentsSnapshot = await getDocs(doctorAssignmentsQuery);
-      
-      // If we found doctor assignments via doctor_clinic_assistant
-      if (!doctorAssignmentsSnapshot.empty) {
-        console.log(`Found ${doctorAssignmentsSnapshot.size} clinic assignments for doctor ${userId}`);
-        
-        // Get all clinic IDs assigned to this doctor
-        const clinicIds: string[] = [];
-        
-        doctorAssignmentsSnapshot.forEach((doc) => {
-          const clinicId = doc.data().clinic_id;
-          if (clinicId && !clinicIds.includes(clinicId)) {
-            clinicIds.push(clinicId);
-          }
-        });
-        
-        console.log('Doctor is assigned to these clinics:', clinicIds);
-        
-        // Fetch each clinic's details
-        for (const clinicId of clinicIds) {
-          // Skip if we already added this clinic (from the direct doctor query)
-          if (clinicsList.some(c => c._id === clinicId)) {
-            continue;
-          }
-          
-          const clinicDocRef = doc(db, 'clinics', clinicId);
-          const clinicDocSnap = await getDoc(clinicDocRef);
-          
-          if (clinicDocSnap.exists()) {
-            const clinicData = clinicDocSnap.data();
-            // Check multiple possible field names for clinic name
-            const clinicName = clinicData.location_ar || 
-                              clinicData.name || 
-                              clinicData.clinic_name || 
-                              clinicData.title || 
-                              clinicData.location ||
-                              'Unnamed Clinic';
-            
-            clinicsList.push({
-              _id: clinicDocSnap.id,
-              name: clinicName,
-              location_ar: clinicData.location_ar,
-              address: clinicData.address,
-              phone: clinicData.phone
-            });
-          }
-        }
-      }
-      
-      // Also check if user is an assistant with clinic assignments via doctor_clinic_assistant collection
       const assistantAssignmentsQuery = query(doctorClinicAssistantRef, where('assistant_id', '==', userId));
       
       const assistantAssignmentsSnapshot = await getDocs(assistantAssignmentsQuery);
@@ -153,7 +89,7 @@ const ClinicSelector: React.FC<ClinicSelectorProps> = ({ onClinicSelect }) => {
         
         // Fetch each clinic's details
         for (const clinicId of clinicIds) {
-          // Skip if we already added this clinic
+          // Skip if we already added this clinic (from the doctor query)
           if (clinicsList.some(c => c._id === clinicId)) {
             continue;
           }
@@ -162,27 +98,18 @@ const ClinicSelector: React.FC<ClinicSelectorProps> = ({ onClinicSelect }) => {
           const clinicDocSnap = await getDoc(clinicDocRef);
           
           if (clinicDocSnap.exists()) {
-            const clinicData = clinicDocSnap.data();
-            // Check multiple possible field names for clinic name
-            const clinicName = clinicData.location_ar || 
-                              clinicData.name || 
-                              clinicData.clinic_name || 
-                              clinicData.title || 
-                              clinicData.location ||
-                              'Unnamed Clinic';
-            
             clinicsList.push({
               _id: clinicDocSnap.id,
-              name: clinicName,
-              location_ar: clinicData.location_ar,
-              address: clinicData.address,
-              phone: clinicData.phone
+              name: clinicDocSnap.data().location_ar || clinicDocSnap.data().name || 'Unnamed Clinic',
+              location_ar: clinicDocSnap.data().location_ar,
+              address: clinicDocSnap.data().address,
+              phone: clinicDocSnap.data().phone
             });
           }
         }
       }
       
-      console.log(`ClinicSelector: Total clinics found: ${clinicsList.length}`, clinicsList);
+      console.log('Final clinics list:', clinicsList);
       setClinics(clinicsList);
       
       // Set first clinic as selected if nothing is selected yet
@@ -222,37 +149,31 @@ const ClinicSelector: React.FC<ClinicSelectorProps> = ({ onClinicSelect }) => {
     return clinic ? clinic.name : 'Select a clinic';
   };
 
-return (
-  <Card style={{ marginBottom: 12, padding: 12 }}>
-    {clinics.length > 0 ? (
-      <Space direction="vertical" size="small" style={{ width: '100%' }}>
-        <Select
-          size="small"
-          style={{ width: '100%' }}
-          placeholder="Select a clinic"
-          value={selectedClinic || undefined}
-          onChange={handleClinicChange}
-        >
-          {clinics.map(clinic => (
-            <Option key={clinic._id} value={clinic._id}>{clinic.name}</Option>
-          ))}
-        </Select>
-        {selectedClinic && (
-          <Text type="secondary" style={{ fontSize: '12px' }}>
-            You are currently viewing: <span style={{ fontWeight: 500 }}>
-              {clinics.find(c => c._id === selectedClinic)?.name}
-            </span>
-          </Text>
-        )}
-      </Space>
-    ) : (
-      <Text type="secondary" style={{ fontSize: '12px' }}>
-        No clinics found. Please contact an administrator.
-      </Text>
-    )}
-  </Card>
-);
-
+  return (
+    <Card title="Select Clinic" style={{ marginBottom: 16 }}>
+      {clinics.length > 0 ? (
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <Select
+            style={{ width: '100%' }}
+            placeholder="Select a clinic"
+            value={selectedClinic || undefined}
+            onChange={handleClinicChange}
+          >
+            {clinics.map(clinic => (
+              <Option key={clinic._id} value={clinic._id}>{clinic.name}</Option>
+            ))}
+          </Select>
+          {selectedClinic && (
+            <Text type="secondary">
+              You are currently viewing: {clinics.find(c => c._id === selectedClinic)?.name}
+            </Text>
+          )}
+        </Space>
+      ) : (
+        <Text type="secondary">No clinics found. Please contact an administrator to assign you to a clinic.</Text>
+      )}
+    </Card>
+  );
 };
 
 export default ClinicSelector;

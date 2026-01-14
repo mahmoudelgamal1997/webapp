@@ -9,7 +9,6 @@ import { useClinicContext } from './ClinicContext';
 import { Receipt } from './type';
 import moment from 'moment';
 import { getFirestore, collection, query, onSnapshot, doc } from 'firebase/firestore';
-import { Routes, Route, useParams  } from 'react-router-dom';
 
 // Import extracted components
 import DashboardSidebar from './DashboardSidebar';
@@ -20,7 +19,6 @@ import ReceiptModal from './ReceiptPatient';
 import ReceiptDetail from './ReceiptDetails';
 import ClinicSelector from './ClinicSelector';
 import SidebarWaitingList from './SidebarWaitingList';
-
 
 import { 
   SettingOutlined,
@@ -82,31 +80,19 @@ const Dashboard: React.FC = () => {
   }, [selectedClinicId]);
 
   // Auto-refresh patients list when needed
- useEffect(() => {
-  if (patientsNeedRefresh && !isReceiptModalVisible) {
-    const currentTime = Date.now();
-    // Keep debouncing for auto-refresh that wasn't triggered by waiting list changes
-    if (currentTime - lastRefreshTimestamp > 2000) {
-      console.log('Auto-refreshing patients list (normal debounced refresh)');
-      
-      // Call fetchPatients to update the data
-      fetchPatients().then(() => {
-        console.log('Patient list auto-refresh completed');
-        setPatientsNeedRefresh(false);
-        setLastRefreshTimestamp(currentTime);
-        
-        // Trigger PatientsList component refresh
-        setWaitingListRefreshTrigger(prev => prev + 1);
-      }).catch(error => {
-        console.error('Error during auto-refresh:', error);
-        // Reset the flag even on error to prevent endless retries
-        setPatientsNeedRefresh(false);
-      });
-    } else {
-      console.log('Skipping normal auto-refresh - too soon after last refresh');
+  useEffect(() => {
+    if (patientsNeedRefresh && !isReceiptModalVisible) {
+      const currentTime = Date.now();
+      // Prevent refresh spam - minimum 2 seconds between refreshes
+      if (currentTime - lastRefreshTimestamp > 2000) {
+        console.log('Auto-refreshing patients list');
+        fetchPatients().then(() => {
+          setPatientsNeedRefresh(false);
+          setLastRefreshTimestamp(currentTime);
+        });
+      }
     }
-  }
-}, [patientsNeedRefresh, isReceiptModalVisible, lastRefreshTimestamp, fetchPatients]);
+  }, [patientsNeedRefresh, isReceiptModalVisible, lastRefreshTimestamp, fetchPatients]);
 
   // Function to format date as used in Firebase
   const formatDate = (date?: Date): string => {
@@ -116,90 +102,67 @@ const Dashboard: React.FC = () => {
 
   // Function to setup Firestore listener for waiting list changes
   const setupWaitingListListener = (clinicId: string) => {
-  try {
-    const db = getFirestore();
-    const currentDate = formatDate();
-    
-    console.log('Setting up Firestore listener for clinic:', clinicId, 'date:', currentDate);
-    
-    // Define path variations as complete strings to avoid TypeScript spread error
-    const pathVariations = [
-      // Variation 1: Standard path
-      `clinics/${clinicId}/waiting_list/${currentDate}/patients`,
-      // Variation 2: Alternative collection name
-      `clinics/${clinicId}/waitingList/${currentDate}/patients`,
-      // Variation 3: Direct patients collection
-      `clinics/${clinicId}/patients`
-    ];
-    
-    // Remove existing listener if there is one
-    if (waitingListUnsubscribe.current) {
-      waitingListUnsubscribe.current();
-      waitingListUnsubscribe.current = null;
-    }
-    
-    // Try each path for setting up the listener
-    let listenerSet = false;
-    
-    for (const path of pathVariations) {
-      try {
-        console.log('Trying to set up listener on path:', path);
-        // Use collection() with the path string directly
-        const collRef = collection(db, path);
-        
-        // Set up new listener
-        const unsubscribe = onSnapshot(collRef, (snapshot) => {
-          console.log('Waiting list update detected in path:', path);
-          console.log('Snapshot size:', snapshot.size, 'documents');
-          
-          // When waiting list changes, refresh the waiting list sidebar
-          refreshWaitingListOnly();
-          
-          // IMPORTANT: For waiting list changes, we ALWAYS refresh immediately
-          // regardless of the time since last refresh
-          if (!isReceiptModalVisible) {
-            console.log('⚡ IMMEDIATE refresh of patient list due to waiting list change ⚡');
-            
-            // Call triggerFreshFetch to bypass cache
-          
-            // triggerFreshFetch();
-            
-            // Immediate fetch and refresh
-            fetchPatients().then(() => {
-              console.log('Patient list refresh completed after waiting list change');
-              setPatientsNeedRefresh(false);
-              setLastRefreshTimestamp(Date.now());
-              
-              // Make sure to trigger the PatientsList component refresh
-              setWaitingListRefreshTrigger(prev => prev + 1);
-            }).catch(error => {
-              console.error('Error refreshing patients after waiting list change:', error);
-              setPatientsNeedRefresh(false);
-            });
-          } else {
-            // If modal is open, just mark for refresh later
-            setPatientsNeedRefresh(true);
-          }
-        }, (error) => {
-          console.error('Error in waiting list listener for path:', path, error);
-        });
-        
-        waitingListUnsubscribe.current = unsubscribe;
-        listenerSet = true;
-        console.log('Firestore waiting list listener set up for path:', path);
-        break;
-      } catch (error) {
-        console.log('Could not set up listener for path:', path, error);
+    try {
+      const db = getFirestore();
+      const currentDate = formatDate();
+      
+      console.log('Setting up Firestore listener for clinic:', clinicId, 'date:', currentDate);
+      
+      // Define path variations as complete strings to avoid TypeScript spread error
+      const pathVariations = [
+        // Variation 1: Standard path
+        `clinics/${clinicId}/waiting_list/${currentDate}/patients`,
+        // Variation 2: Alternative collection name
+        `clinics/${clinicId}/waitingList/${currentDate}/patients`,
+        // Variation 3: Direct patients collection
+        `clinics/${clinicId}/patients`
+      ];
+      
+      // Remove existing listener if there is one
+      if (waitingListUnsubscribe.current) {
+        waitingListUnsubscribe.current();
+        waitingListUnsubscribe.current = null;
       }
+      
+      // Try each path for setting up the listener
+      let listenerSet = false;
+      
+      for (const path of pathVariations) {
+        try {
+          console.log('Trying to set up listener on path:', path);
+          // Use collection() with the path string directly
+          const collRef = collection(db, path);
+          
+          // Set up new listener
+          const unsubscribe = onSnapshot(collRef, (snapshot) => {
+            console.log('Waiting list update detected in path:', path);
+            console.log('Snapshot size:', snapshot.size, 'documents');
+            
+            // When waiting list changes, refresh the waiting list sidebar
+            refreshWaitingListOnly();
+            
+            // Also mark patients list for refresh, but only execute if no modal is open
+            setPatientsNeedRefresh(true);
+          }, (error) => {
+            console.error('Error in waiting list listener for path:', path, error);
+          });
+          
+          waitingListUnsubscribe.current = unsubscribe;
+          listenerSet = true;
+          console.log('Firestore waiting list listener set up for path:', path);
+          break;
+        } catch (error) {
+          console.log('Could not set up listener for path:', path, error);
+        }
+      }
+      
+      if (!listenerSet) {
+        console.error('Failed to set up listener for any path variation');
+      }
+    } catch (error) {
+      console.error('Error setting up Firestore listener:', error);
     }
-    
-    if (!listenerSet) {
-      console.error('Failed to set up listener for any path variation');
-    }
-  } catch (error) {
-    console.error('Error setting up Firestore listener:', error);
-  }
-};
+  };
 
   // Function to refresh only the waiting list data
   const refreshWaitingListOnly = () => {
@@ -226,23 +189,13 @@ const Dashboard: React.FC = () => {
 
   // Manual refresh function
   const handleRefresh = () => {
-  console.log('Manual refresh requested');
-  
-  // Call fetchPatients to update the data
-  fetchPatients().then(() => {
-    console.log('Patient list manual refresh completed');
-    setPatientsNeedRefresh(false);
+    console.log('Manual refresh requested');
+    fetchPatients();
+    refreshWaitingListOnly();
+    setPatientsNeedRefresh(false); // Clear the auto-refresh flag
     setLastRefreshTimestamp(Date.now());
-    
-    // Trigger PatientsList component refresh
-    setWaitingListRefreshTrigger(prev => prev + 1);
-  }).catch(error => {
-    console.error('Error during manual refresh:', error);
-  });
-  
-  // Also refresh the waiting list
-  refreshWaitingListOnly();
-};
+  };
+
   // Navigate to settings page
   const handleSettingsClick = () => {
     navigate('/settings');
@@ -260,30 +213,22 @@ const Dashboard: React.FC = () => {
     // Format the clinic information for the header
     const clinicInfo = [];
     
-    // Prioritize doctor settings, then fall back to selected clinic
-    const displayClinicName = doctorSettings.clinicName || selectedClinic?.name || 'عيادة';
-    const displayClinicAddress = doctorSettings.clinicAddress || selectedClinic?.address || '';
-    const displayClinicPhone = doctorSettings.clinicPhone || selectedClinic?.phone || '';
-    
-    // Add clinic name
-    if (displayClinicName && displayClinicName !== 'Unnamed Clinic') {
-      clinicInfo.push(`<h1>${displayClinicName}</h1>`);
+    // First try to use clinic from context if available
+    if (selectedClinic) {
+      clinicInfo.push(`<h1>${selectedClinic.name || 'عيادة'}</h1>`);
+      if (selectedClinic.address) {
+        clinicInfo.push(`<p>${selectedClinic.address}</p>`);
+      }
+      if (selectedClinic.phone) {
+        clinicInfo.push(`<p>هاتف: ${selectedClinic.phone}</p>`);
+      }
     }
     
-    // Add doctor title if available
-    if (doctorSettings.doctorTitle) {
-      clinicInfo.push(`<h3>${doctorSettings.doctorTitle}</h3>`);
-    }
-    
-    // Add address if available
-    if (displayClinicAddress) {
-      clinicInfo.push(`<p>${displayClinicAddress}</p>`);
-    }
-    
-    // Add phone if available
-    if (displayClinicPhone) {
-      clinicInfo.push(`<p>هاتف: ${displayClinicPhone}</p>`);
-    }
+    // Then override with doctor settings if available
+    if (doctorSettings.clinicName) clinicInfo.push(`<h1>${doctorSettings.clinicName}</h1>`);
+    if (doctorSettings.doctorTitle) clinicInfo.push(`<h3>${doctorSettings.doctorTitle}</h3>`);
+    if (doctorSettings.clinicAddress) clinicInfo.push(`<p>${doctorSettings.clinicAddress}</p>`);
+    if (doctorSettings.clinicPhone) clinicInfo.push(`<p>هاتف: ${doctorSettings.clinicPhone}</p>`);
     
     // Implement print functionality here
     const printWindow = window.open('', '_blank');
@@ -390,35 +335,24 @@ const Dashboard: React.FC = () => {
             </Card>
 
             {/* Patient data section */}
-          <Routes>
-  <Route
-    path=""
-    element={
-      selectedClinicId ? (
-        <Card title="Patients List">
-          <PatientsList refreshTrigger={waitingListRefreshTrigger} />
-        </Card>
-      ) : (
-        <Card>
-          <div style={{ textAlign: 'center', padding: '40px 0' }}>
-            <Title level={4}>Select a clinic to view patients</Title>
-          </div>
-        </Card>
-      )
-    }
-  />
- <Route
-  path="patient/:id"
-  element={
-    <PatientDetail
-      isReceiptModalVisible={isReceiptModalVisible}
-      setIsReceiptModalVisible={setIsReceiptModalVisible}
-      onPrintReceipt={handlePrintReceipt}
-      onBackToList={() => navigate('/dashboard')}
-    />
-  }
-/>
-</Routes>
+            {selectedClinicId && !selectedPatient ? (
+              <Card title="Patients List">
+                <PatientsList refreshTrigger={waitingListRefreshTrigger} />
+              </Card>
+            ) : selectedPatient ? (
+              <PatientDetail 
+                isReceiptModalVisible={isReceiptModalVisible}
+                setIsReceiptModalVisible={setIsReceiptModalVisible}
+                onPrintReceipt={handlePrintReceipt}
+                onBackToList={() => setSelectedPatient(null)}
+              />
+            ) : (
+              <Card>
+                <div style={{ textAlign: 'center', padding: '40px 0' }}>
+                  <Title level={4}>Select a clinic to view patients</Title>
+                </div>
+              </Card>
+            )}
           </Content>
           
           {/* Right sidebar for waiting list */}

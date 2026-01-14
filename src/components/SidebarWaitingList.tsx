@@ -47,10 +47,13 @@ const SidebarWaitingList = forwardRef<{ refreshData: () => Promise<void> }, Side
       refreshData: fetchData
     }));
 
-    // Function to format date as was previously working in your original code
+    // Function to format date - ensure consistent format (YYYY-M-D or YYYY-MM-DD)
     const formatDate = (date?: Date): string => {
       const d = date || new Date();
-      return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+      const year = d.getFullYear();
+      const month = d.getMonth() + 1;
+      const day = d.getDate();
+      return `${year}-${month}-${day}`;
     };
 
     // Function to process patient data from snapshot - using your original approach
@@ -64,9 +67,9 @@ const SidebarWaitingList = forwardRef<{ refreshData: () => Promise<void> }, Side
         patients.push({
           patient_id: data.patient_id || doc.id,
           patient_name: data.patient_name || 'Unknown Patient',
-          arrivalTime: data.arrivalTime,
+          arrivalTime: data.arrivalTime || data.time, // Use time if arrivalTime doesn't exist
           status: data.status || 'WAITING',
-          position: data.position || 0,
+          position: data.position || data.user_order_in_queue || 0, // Use user_order_in_queue as fallback
           doctor_id: data.doctor_id || doctorId,
           visit_type: data.visit_type || 'كشف',
           date: data.date,
@@ -95,7 +98,7 @@ const SidebarWaitingList = forwardRef<{ refreshData: () => Promise<void> }, Side
       setLoading(false);
     };
 
-    // Main function to fetch data - try multiple path variations to find the right one
+    // Main function to fetch data from Firebase - patients directly under clinic with WAITING status
     const fetchData = async () => {
       if (!selectedClinicId) {
         console.log('No clinic selected, cannot fetch waiting list');
@@ -103,104 +106,59 @@ const SidebarWaitingList = forwardRef<{ refreshData: () => Promise<void> }, Side
       }
       
       setLoading(true);
-      console.log('Fetching waiting list for clinic:', selectedClinicId);
+      console.log('=== FETCHING WAITING LIST FROM FIREBASE ===');
+      console.log('Clinic ID:', selectedClinicId);
       
       try {
         const db = getFirestore();
         const currentDate = formatDate();
-        console.log('Current date formatted:', currentDate);
+        console.log('Formatted date:', currentDate);
+        console.log('Fetching from: clinics/' + selectedClinicId + '/patients');
+        console.log('Filtering by: status == "WAITING" AND date == "' + currentDate + '"');
         
-        // Try multiple path variations
-        const pathVariations = [
-          // Variation 1: Your most recently updated structure
-          { 
-            path: `clinics/${selectedClinicId}/waiting_list/${currentDate}/patients`,
-            collFn: () => collection(db, 'clinics', selectedClinicId, 'waiting_list', currentDate, 'patients')
-          },
-          // Variation 2: Alternative collection name
-          { 
-            path: `clinics/${selectedClinicId}/waitingList/${currentDate}/patients`,
-            collFn: () => collection(db, 'clinics', selectedClinicId, 'waitingList', currentDate, 'patients')
-          },
-          // Variation 3: From WaitingListContext.tsx - patients directly under clinic
-          { 
-            path: `clinics/${selectedClinicId}/patients`,
-            collFn: () => {
-              const patientsRef = collection(db, 'clinics', selectedClinicId, 'patients');
-              // Filter to only waiting patients with status WAITING
-              return query(patientsRef, where('status', '==', 'WAITING'));
-            }
-          }
-        ];
+        // Get patients directly from clinics/{clinicId}/patients collection
+        // Filter by status = "WAITING" and date = currentDate
+        const patientsRef = collection(db, 'clinics', selectedClinicId, 'patients');
         
-        let querySnapshot = null;
-        let pathUsed = '';
+        // Query for WAITING patients for today's date
+        const waitingQuery = query(
+          patientsRef,
+          where('status', '==', 'WAITING'),
+          where('date', '==', currentDate),
+          orderBy('position', 'asc') // Sort by position
+        );
         
-        // Try each path until one works
-        for (const variation of pathVariations) {
-          try {
-            console.log('Trying path:', variation.path);
-            const collRef = variation.collFn();
-            const snapshot = await getDocs(collRef);
-            
-            console.log(`Found ${snapshot.size} documents at path: ${variation.path}`);
-            
-            if (snapshot.size > 0) {
-              querySnapshot = snapshot;
-              pathUsed = variation.path;
-              break;
-            }
-          } catch (error) {
-            console.log('Error with path:', variation.path, error);
-          }
+        let querySnapshot;
+        try {
+          querySnapshot = await getDocs(waitingQuery);
+          console.log(`✅ Found ${querySnapshot.size} WAITING patients for date ${currentDate}`);
+        } catch (queryError: any) {
+          // If orderBy fails (missing index), try without orderBy
+          console.log('⚠️ Query with orderBy failed, trying without orderBy:', queryError.message);
+          const simpleQuery = query(
+            patientsRef,
+            where('status', '==', 'WAITING'),
+            where('date', '==', currentDate)
+          );
+          querySnapshot = await getDocs(simpleQuery);
+          console.log(`✅ Found ${querySnapshot.size} WAITING patients (without orderBy)`);
         }
         
-        if (querySnapshot) {
-          console.log('Using data from path:', pathUsed);
+        if (querySnapshot && querySnapshot.size > 0) {
+          console.log('Loading data from snapshot...');
           loadData(querySnapshot);
         } else {
-          console.error('No data found in any path variation');
-          // Try a direct approach using your original WaitingListContext logic
-          try {
-            console.log('Trying to get all patients for the clinic and filter them');
-            const clinicPatientsRef = collection(db, 'clinics', selectedClinicId, 'patients');
-            const allPatientsSnapshot = await getDocs(clinicPatientsRef);
-            
-            // Manually filter waiting patients
-            const waitingPatients: WaitingPatient[] = [];
-            allPatientsSnapshot.forEach(doc => {
-              const data = doc.data();
-              if (data.status === 'WAITING' || (data.date === currentDate)) {
-                waitingPatients.push({
-                  patient_id: data.patient_id || doc.id,
-                  patient_name: data.patient_name || 'Unknown Patient',
-                  arrivalTime: data.arrivalTime,
-                  status: data.status || 'WAITING',
-                  position: data.position || 0,
-                  doctor_id: data.doctor_id || doctorId,
-                  visit_type: data.visit_type || 'كشف',
-                  date: data.date,
-                  time: data.time
-                });
-              }
-            });
-            
-            if (waitingPatients.length > 0) {
-              console.log('Found patients by filtering all clinic patients:', waitingPatients.length);
-              waitingPatients.sort((a, b) => (a.position || 0) - (b.position || 0));
-              setWaitingPatients(waitingPatients);
-            } else {
-              setWaitingPatients([]);
-            }
-          } catch (error) {
-            console.error('Error with direct approach:', error);
-            setWaitingPatients([]);
-          }
+          console.log('❌ No WAITING patients found');
+          console.log('Checked path: clinics/' + selectedClinicId + '/patients');
+          console.log('Filters: status="WAITING", date="' + currentDate + '"');
+          setWaitingPatients([]);
+          setLoading(false);
         }
-      } catch (error) {
-        console.error('Error fetching waiting list:', error);
+      } catch (error: any) {
+        console.error('❌ ERROR fetching waiting list from Firebase:', error);
+        console.error('Error message:', error.message);
+        console.error('Error code:', error.code);
         setWaitingPatients([]);
-      } finally {
         setLoading(false);
       }
     };
@@ -234,11 +192,74 @@ const SidebarWaitingList = forwardRef<{ refreshData: () => Promise<void> }, Side
       }
     };
 
-    // Initial fetch when component mounts or selectedClinicId changes
+    // Set up real-time listener for waiting list changes
     useEffect(() => {
-      if (selectedClinicId) {
-        fetchData();
+      if (!selectedClinicId) {
+        return;
       }
+
+      const db = getFirestore();
+      const currentDate = formatDate();
+      const patientsRef = collection(db, 'clinics', selectedClinicId, 'patients');
+
+      console.log('Setting up real-time listener for waiting list - Clinic:', selectedClinicId, 'Date:', currentDate);
+      
+      // Query for WAITING patients for today's date
+      let unsubscribe: any;
+      try {
+        const waitingQuery = query(
+          patientsRef,
+          where('status', '==', 'WAITING'),
+          where('date', '==', currentDate),
+          orderBy('position', 'asc')
+        );
+        unsubscribe = onSnapshot(waitingQuery, (snapshot: any) => {
+          console.log('Waiting list updated in real-time:', snapshot.size, 'WAITING patients');
+          loadData(snapshot);
+        }, (error: any) => {
+          console.error('Error in waiting list real-time listener (with orderBy):', error);
+          // Try without orderBy
+          console.log('Retrying listener without orderBy');
+          const simpleQuery = query(
+            patientsRef,
+            where('status', '==', 'WAITING'),
+            where('date', '==', currentDate)
+          );
+          const fallbackUnsubscribe = onSnapshot(simpleQuery, (snapshot: any) => {
+            console.log('Waiting list updated in real-time (no orderBy):', snapshot.size, 'patients');
+            loadData(snapshot);
+          }, (fallbackError: any) => {
+            console.error('Error in waiting list real-time listener (without orderBy):', fallbackError);
+            // If listener fails completely, try fetching once
+            fetchData();
+          });
+          unsubscribe = fallbackUnsubscribe;
+        });
+      } catch (error: any) {
+        console.log('Failed to create query with orderBy, using simple query:', error);
+        // Fallback to query without orderBy
+        const simpleQuery = query(
+          patientsRef,
+          where('status', '==', 'WAITING'),
+          where('date', '==', currentDate)
+        );
+        unsubscribe = onSnapshot(simpleQuery, (snapshot: any) => {
+          console.log('Waiting list updated in real-time (no orderBy):', snapshot.size, 'patients');
+          loadData(snapshot);
+        }, (listenerError: any) => {
+          console.error('Error in waiting list real-time listener:', listenerError);
+          fetchData();
+        });
+      }
+
+      // Initial fetch
+      fetchData();
+
+      // Cleanup listener on unmount or clinic change
+      return () => {
+        console.log('Cleaning up waiting list listener');
+        unsubscribe();
+      };
     }, [selectedClinicId]);
 
     // Respond to refreshTrigger changes from parent
