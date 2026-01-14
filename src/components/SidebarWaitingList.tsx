@@ -236,12 +236,17 @@ const SidebarWaitingList = forwardRef<{ refreshData: () => Promise<void> }, Side
           unsubscribe = fallbackUnsubscribe;
         });
       } catch (error) {
-        console.log('Failed to create query with orderBy, using direct collection:', error);
-        // Fallback to direct collection listener
-        unsubscribe = onSnapshot(waitingListRef, (snapshot) => {
-          console.log('Waiting list updated in real-time (direct):', snapshot.size, 'patients');
+        console.log('Failed to create query with orderBy, using simple query:', error);
+        // Fallback to query without orderBy
+        const simpleQuery = query(
+          patientsRef,
+          where('status', '==', 'WAITING'),
+          where('date', '==', currentDate)
+        );
+        unsubscribe = onSnapshot(simpleQuery, (snapshot: any) => {
+          console.log('Waiting list updated in real-time (no orderBy):', snapshot.size, 'patients');
           loadData(snapshot);
-        }, (listenerError) => {
+        }, (listenerError: any) => {
           console.error('Error in waiting list real-time listener:', listenerError);
           fetchData();
         });
