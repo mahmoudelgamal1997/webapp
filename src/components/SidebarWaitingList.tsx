@@ -120,40 +120,39 @@ const SidebarWaitingList = forwardRef<{ refreshData: () => Promise<void> }, Side
         // Filter by status = "WAITING" and date = currentDate
         const patientsRef = collection(db, 'clinics', selectedClinicId, 'patients');
         
-        // Query for WAITING patients for today's date
+        // Query for WAITING patients for today's date (without orderBy to avoid index requirement)
         const waitingQuery = query(
           patientsRef,
           where('status', '==', 'WAITING'),
-          where('date', '==', currentDate),
-          orderBy('position', 'asc') // Sort by position
+          where('date', '==', currentDate)
         );
         
-        let querySnapshot;
-        try {
-          querySnapshot = await getDocs(waitingQuery);
-          console.log(`✅ Found ${querySnapshot.size} WAITING patients for date ${currentDate}`);
-        } catch (queryError: any) {
-          // If orderBy fails (missing index), try without orderBy
-          console.log('⚠️ Query with orderBy failed, trying without orderBy:', queryError.message);
-          const simpleQuery = query(
-            patientsRef,
-            where('status', '==', 'WAITING'),
-            where('date', '==', currentDate)
-          );
-          querySnapshot = await getDocs(simpleQuery);
-          console.log(`✅ Found ${querySnapshot.size} WAITING patients (without orderBy)`);
-        }
+        const querySnapshot = await getDocs(waitingQuery);
+        console.log(`✅ Found ${querySnapshot.size} WAITING patients for date ${currentDate}`);
         
-        if (querySnapshot && querySnapshot.size > 0) {
-          console.log('Loading data from snapshot...');
-          loadData(querySnapshot);
+        // Sort by position in memory after fetching (to avoid needing composite index)
+        if (querySnapshot.size > 0) {
+          const sortedDocs = querySnapshot.docs.sort((a, b) => {
+            const posA = a.data().position || a.data().user_order_in_queue || 0;
+            const posB = b.data().position || b.data().user_order_in_queue || 0;
+            return posA - posB;
+          });
+          
+          // Create a new QuerySnapshot-like object with sorted docs
+          const sortedSnapshot = {
+            ...querySnapshot,
+            docs: sortedDocs,
+            forEach: (callback: any) => sortedDocs.forEach(callback)
+          };
+          
+          loadData(sortedSnapshot as any);
         } else {
-          console.log('❌ No WAITING patients found');
-          console.log('Checked path: clinics/' + selectedClinicId + '/patients');
-          console.log('Filters: status="WAITING", date="' + currentDate + '"');
+          console.log('No WAITING patients found');
           setWaitingPatients([]);
           setLoading(false);
         }
+        
+        // Data is already loaded in the try block above
       } catch (error: any) {
         console.error('❌ ERROR fetching waiting list from Firebase:', error);
         console.error('Error message:', error.message);
@@ -204,53 +203,42 @@ const SidebarWaitingList = forwardRef<{ refreshData: () => Promise<void> }, Side
 
       console.log('Setting up real-time listener for waiting list - Clinic:', selectedClinicId, 'Date:', currentDate);
       
-      // Query for WAITING patients for today's date
-      let unsubscribe: any;
-      try {
-        const waitingQuery = query(
-          patientsRef,
-          where('status', '==', 'WAITING'),
-          where('date', '==', currentDate),
-          orderBy('position', 'asc')
-        );
-        unsubscribe = onSnapshot(waitingQuery, (snapshot: any) => {
-          console.log('Waiting list updated in real-time:', snapshot.size, 'WAITING patients');
-          loadData(snapshot);
-        }, (error: any) => {
-          console.error('Error in waiting list real-time listener (with orderBy):', error);
-          // Try without orderBy
-          console.log('Retrying listener without orderBy');
-          const simpleQuery = query(
-            patientsRef,
-            where('status', '==', 'WAITING'),
-            where('date', '==', currentDate)
-          );
-          const fallbackUnsubscribe = onSnapshot(simpleQuery, (snapshot: any) => {
-            console.log('Waiting list updated in real-time (no orderBy):', snapshot.size, 'patients');
-            loadData(snapshot);
-          }, (fallbackError: any) => {
-            console.error('Error in waiting list real-time listener (without orderBy):', fallbackError);
-            // If listener fails completely, try fetching once
-            fetchData();
+      // Query for WAITING patients for today's date (without orderBy to avoid index requirement)
+      // We'll sort in memory after receiving the data
+      const waitingQuery = query(
+        patientsRef,
+        where('status', '==', 'WAITING'),
+        where('date', '==', currentDate)
+      );
+      
+      const unsubscribe = onSnapshot(waitingQuery, (snapshot: any) => {
+        console.log('Waiting list updated in real-time:', snapshot.size, 'WAITING patients');
+        
+        // Sort by position in memory
+        if (snapshot.size > 0) {
+          const sortedDocs = snapshot.docs.sort((a: any, b: any) => {
+            const posA = a.data().position || a.data().user_order_in_queue || 0;
+            const posB = b.data().position || b.data().user_order_in_queue || 0;
+            return posA - posB;
           });
-          unsubscribe = fallbackUnsubscribe;
-        });
-      } catch (error: any) {
-        console.log('Failed to create query with orderBy, using simple query:', error);
-        // Fallback to query without orderBy
-        const simpleQuery = query(
-          patientsRef,
-          where('status', '==', 'WAITING'),
-          where('date', '==', currentDate)
-        );
-        unsubscribe = onSnapshot(simpleQuery, (snapshot: any) => {
-          console.log('Waiting list updated in real-time (no orderBy):', snapshot.size, 'patients');
-          loadData(snapshot);
-        }, (listenerError: any) => {
-          console.error('Error in waiting list real-time listener:', listenerError);
-          fetchData();
-        });
-      }
+          
+          // Create sorted snapshot
+          const sortedSnapshot = {
+            ...snapshot,
+            docs: sortedDocs,
+            forEach: (callback: any) => sortedDocs.forEach(callback)
+          };
+          
+          loadData(sortedSnapshot as any);
+        } else {
+          setWaitingPatients([]);
+          setLoading(false);
+        }
+      }, (error: any) => {
+        console.error('Error in waiting list real-time listener:', error);
+        // If listener fails, try fetching once
+        fetchData();
+      });
 
       // Initial fetch
       fetchData();
