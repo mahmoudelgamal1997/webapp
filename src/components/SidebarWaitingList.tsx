@@ -116,19 +116,14 @@ const SidebarWaitingList = forwardRef<{ refreshData: () => Promise<void> }, Side
         console.log('Fetching from: clinics/' + selectedClinicId + '/patients');
         console.log('Filtering by: status == "WAITING" AND date == "' + currentDate + '"');
         
-        // Get patients directly from clinics/{clinicId}/patients collection
-        // Filter by status = "WAITING" and date = currentDate
-        const patientsRef = collection(db, 'clinics', selectedClinicId, 'patients');
+        // Use the correct Firebase path: clinics/{clinicId}/waiting_list/{date}/patients
+        const waitingListRef = collection(db, 'clinics', selectedClinicId, 'waiting_list', currentDate, 'patients');
         
-        // Query for WAITING patients for today's date (without orderBy to avoid index requirement)
-        const waitingQuery = query(
-          patientsRef,
-          where('status', '==', 'WAITING'),
-          where('date', '==', currentDate)
-        );
+        console.log('Fetching from path: clinics/' + selectedClinicId + '/waiting_list/' + currentDate + '/patients');
         
-        const querySnapshot = await getDocs(waitingQuery);
-        console.log(`✅ Found ${querySnapshot.size} WAITING patients for date ${currentDate}`);
+        // Get all patients from waiting_list collection (no filters needed, all are WAITING)
+        const querySnapshot = await getDocs(waitingListRef);
+        console.log(`✅ Found ${querySnapshot.size} patients in waiting_list for date ${currentDate}`);
         
         // Sort by position in memory after fetching (to avoid needing composite index)
         if (querySnapshot.size > 0) {
@@ -147,7 +142,7 @@ const SidebarWaitingList = forwardRef<{ refreshData: () => Promise<void> }, Side
           
           loadData(sortedSnapshot as any);
         } else {
-          console.log('No WAITING patients found');
+          console.log('No patients found in waiting_list collection');
           setWaitingPatients([]);
           setLoading(false);
         }
@@ -199,20 +194,15 @@ const SidebarWaitingList = forwardRef<{ refreshData: () => Promise<void> }, Side
 
       const db = getFirestore();
       const currentDate = formatDate();
-      const patientsRef = collection(db, 'clinics', selectedClinicId, 'patients');
+      // Use the correct Firebase path: clinics/{clinicId}/waiting_list/{date}/patients
+      const waitingListRef = collection(db, 'clinics', selectedClinicId, 'waiting_list', currentDate, 'patients');
 
       console.log('Setting up real-time listener for waiting list - Clinic:', selectedClinicId, 'Date:', currentDate);
+      console.log('Path: clinics/' + selectedClinicId + '/waiting_list/' + currentDate + '/patients');
       
-      // Query for WAITING patients for today's date (without orderBy to avoid index requirement)
-      // We'll sort in memory after receiving the data
-      const waitingQuery = query(
-        patientsRef,
-        where('status', '==', 'WAITING'),
-        where('date', '==', currentDate)
-      );
-      
-      const unsubscribe = onSnapshot(waitingQuery, (snapshot: any) => {
-        console.log('Waiting list updated in real-time:', snapshot.size, 'WAITING patients');
+      // Set up real-time listener on waiting_list collection (no query needed, all are WAITING)
+      const unsubscribe = onSnapshot(waitingListRef, (snapshot: any) => {
+        console.log('Waiting list updated in real-time:', snapshot.size, 'patients');
         
         // Sort by position in memory
         if (snapshot.size > 0) {
