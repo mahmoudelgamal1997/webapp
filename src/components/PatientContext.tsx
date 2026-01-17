@@ -65,8 +65,36 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [pagination, setPagination] = useState<PaginationInfo | null>(null);
 
-  const userId = localStorage.getItem('doctorId');
-  const { selectedClinicId } = useClinicContext(); 
+  // Get doctor_id from localStorage (set during login from Firebase /doctor_clinic_assistant collection)
+  // Note: The Firebase UID is the assistant_id, but we need doctor_id for API calls
+  // Make it reactive so it updates when doctorId changes in localStorage
+  const [userId, setUserId] = useState<string | null>(localStorage.getItem('doctorId'));
+  const { selectedClinicId } = useClinicContext();
+  
+  // Listen for changes to doctorId in localStorage (e.g., after login)
+  useEffect(() => {
+    const checkDoctorId = () => {
+      const currentDoctorId = localStorage.getItem('doctorId');
+      if (currentDoctorId !== userId) {
+        console.log('doctorId changed in localStorage:', currentDoctorId);
+        setUserId(currentDoctorId);
+      }
+    };
+    
+    // Check immediately
+    checkDoctorId();
+    
+    // Listen for custom event (when doctorId is set during login in same tab)
+    window.addEventListener('doctorIdChanged', checkDoctorId);
+    
+    // Listen for storage events (when localStorage changes in another tab/window)
+    window.addEventListener('storage', checkDoctorId);
+    
+    return () => {
+      window.removeEventListener('doctorIdChanged', checkDoctorId);
+      window.removeEventListener('storage', checkDoctorId);
+    };
+  }, [userId]); 
   
   // Sort function to sort by date (newest first) and then by _id for same dates
   // Handles both 'date' and 'last_visit_date' fields (history endpoint uses last_visit_date)
@@ -124,36 +152,38 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
   }) => {
     setIsLoading(true);
     try {
-      // Use the history endpoint which works correctly (same as mobile app)
-      // This endpoint returns data in the correct format with visits nested in patients
-      let endpoint = `${API.BASE_URL}${API.ENDPOINTS.HISTORY}`;
+      // Use the /api/patients endpoint which supports filtering by doctor_id, clinic_id, and assistant_id
+      // This endpoint returns data sorted by most recent first (newest to oldest)
+      let endpoint = `${API.BASE_URL}${API.ENDPOINTS.PATIENTS}`;
 
-      // Build query parameters
+      // Build query parameters - only essential parameters like mobile app
+      // Simple GET request with URL parameters only (no payload/body)
       const params: any = {};
       
-      // SECURITY: doctor_id is now required by backend - always send it
+      // SECURITY: doctor_id is required - always send it from localStorage
+      // IMPORTANT: Make sure we're using doctorId, NOT clinicId
       if (!userId) {
-        console.error('doctorId not found in localStorage - cannot fetch patients');
-        message.error('Doctor ID not found. Please log in again.');
+        console.log('doctorId not found in localStorage yet - waiting for login to complete');
+        // Don't show error during initialization - just return empty
+        // The useEffect will retry when doctorId is set
         return { patients: [], pagination: null };
       }
+      
+      // Debug: Log what we're getting from localStorage
+      console.log('doctorId from localStorage:', userId);
+      console.log('selectedClinicId:', selectedClinicId);
+      
+      // Ensure we're using doctorId, not clinicId
+      // Double-check that userId is actually the doctorId, not clinicId
+      if (userId === selectedClinicId) {
+        console.error('ERROR: doctorId matches clinicId - this is wrong!');
+        message.error('Configuration error: Doctor ID and Clinic ID are the same. Please log in again.');
+        return { patients: [], pagination: null };
+      }
+      
       params.doctor_id = userId;
       
-      // Add optional filters
-      if (options?.search) {
-        params.search = options.search;
-      }
-      if (options?.startDate) {
-        params.startDate = options.startDate;
-      }
-      // Only send endDate if explicitly provided (don't auto-filter by today)
-      // This matches mobile app behavior - no endDate means get all data
-      if (options?.endDate !== undefined) {
-        params.endDate = options.endDate;
-      }
-      if (options?.status) {
-        params.status = options.status;
-      }
+      // Only send pagination and sorting parameters (like mobile app)
       if (options?.page) {
         params.page = options.page;
       }
@@ -169,38 +199,51 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
 
       // Always send params (backend handles pagination only when page/limit are provided)
       // This maintains backward compatibility - if no pagination params, backend returns all results
-      console.log('Fetching from endpoint:', endpoint, 'with params:', params);
+      console.log('Fetching from endpoint:', endpoint);
+      console.log('Request params:', JSON.stringify(params, null, 2));
+      console.log('VERIFY: doctor_id param =', params.doctor_id);
+      console.log('VERIFY: This should NOT equal clinicId:', selectedClinicId);
       
+      // Simple GET request with URL parameters only (no body/payload)
+      // Matches mobile app behavior exactly
       const response = await axios.get(endpoint, { 
         params,
-        timeout: 30000, // 30 second timeout
-        headers: {
-          'Content-Type': 'application/json',
-        }
+        timeout: 30000 // 30 second timeout
       });
       console.log('API Response received');
 
-      // Handle history endpoint response format: { success, message, data, pagination, filters }
+      // Handle /api/patients endpoint response format: { success, message, data, totalItems, filters }
+      // Backend already sorts by most recent first (newest to oldest) - no need to sort again
       let updatedPatients: Patient[];
       let paginationInfo: PaginationInfo | null = null;
       
       if (response.data.success && response.data.data && Array.isArray(response.data.data)) {
-        // History endpoint format (same as mobile app)
+        // New format from /api/patients endpoint
         updatedPatients = response.data.data;
-        // Extract pagination info if available
+        // Use pagination info directly from response if available
         if (response.data.pagination) {
           paginationInfo = response.data.pagination;
+        } else if (response.data.totalItems !== undefined) {
+          // Fallback: build pagination info from totalItems
+          const currentPage = options?.page || 1;
+          const itemsPerPage = options?.limit || 20;
+          paginationInfo = {
+            currentPage,
+            totalPages: Math.ceil(response.data.totalItems / itemsPerPage),
+            totalItems: response.data.totalItems,
+            itemsPerPage,
+            hasNextPage: currentPage < Math.ceil(response.data.totalItems / itemsPerPage),
+            hasPrevPage: currentPage > 1,
+            nextPage: currentPage < Math.ceil(response.data.totalItems / itemsPerPage) ? currentPage + 1 : null,
+            prevPage: currentPage > 1 ? currentPage - 1 : null
+          };
         }
       } else if (Array.isArray(response.data)) {
-        // Old format - backward compatibility
+        // Backward compatibility - direct array response
         updatedPatients = response.data;
       } else if (response.data.data && Array.isArray(response.data.data)) {
         // Alternative format with data property
         updatedPatients = response.data.data;
-        // Extract pagination info if available
-        if (response.data.pagination) {
-          paginationInfo = response.data.pagination;
-        }
       } else {
         updatedPatients = [];
       }
@@ -208,25 +251,15 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
       console.log('Raw patients data:', updatedPatients);
       console.log('Pagination info:', paginationInfo);
       
-      // Filter out patients with future dates (only show up to today)
-      // History endpoint uses last_visit_date instead of date
-      const today = dayjs().startOf('day');
-      const filteredPatients = updatedPatients.filter(patient => {
-        // Check both date and last_visit_date fields (history endpoint uses last_visit_date)
-        const patientDateStr = patient.date || patient.last_visit_date;
-        if (!patientDateStr) return true; // Include patients without date
-        // Parse patient date and compare with today
-        const patientDate = dayjs(patientDateStr).startOf('day');
-        // Only include patients with date <= today
-        return patientDate.isBefore(today) || patientDate.isSame(today);
-      });
-      
-      // Always sort by date (newest first) for display
-      const sortedPatients = sortByLatestDate(filteredPatients);
+      // Backend already sorts by most recent first (newest to oldest) via updatedAt/createdAt
+      // No need for client-side sorting - backend handles it
+      const sortedPatients = updatedPatients;
       console.log('About to update state with:', sortedPatients);
 
       // Update state with new data
+      // Backend already sorted by createdAt - preserve that order
       setPatients([...sortedPatients]);
+      // Set filtered patients - useEffect will handle filtering if needed
       setFilteredPatients([...sortedPatients]);
       setPagination(paginationInfo);
       console.log('State updated with patient data');
@@ -297,9 +330,10 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
       });
     }
     
-    // Maintain the sort for filtered results
+    // Don't re-sort - backend already sorted by createdAt
+    // Just apply the filters and preserve the API sort order
     // Always set filteredPatients, even if empty (to show "no results")
-    setFilteredPatients(sortByLatestDate(filtered));
+    setFilteredPatients(filtered);
     console.log('Filtered patients updated:', filtered.length, 'patients match filters');
   };
 
@@ -310,12 +344,24 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
     setFilteredPatients([...patients]);
   };
 
-  // Initial fetch when component mounts
+  // Initial fetch when component mounts OR when doctorId changes (e.g., after login)
+  // Match mobile API: page=1, limit=20, sortBy=created_at, sortOrder=desc
   useEffect(() => {
-    console.log('Initial fetch effect running');
+    // Don't fetch if doctorId is not available yet
+    if (!userId) {
+      console.log('Waiting for doctorId to be set...');
+      return;
+    }
+    
+    console.log('Initial fetch effect running with doctorId:', userId);
     const loadData = async () => {
       try {
-        const result = await fetchPatients();
+        const result = await fetchPatients({
+          page: 1,
+          limit: 20,
+          sortBy: 'created_at',
+          sortOrder: 'desc'
+        });
         console.log('Initial fetch completed with', result.patients.length, 'patients');
         // Force component update
         setForceRender(prev => prev + 1);
@@ -325,23 +371,25 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
     };
     
     loadData();
-    
-    // Set up interval to re-sort data every few seconds
-    const sortInterval = setInterval(() => {
-      if (patients.length > 0 && !selectedPatient) {
-        console.log('Auto-sorting patients');
-        setPatients(prev => sortByLatestDate([...prev]));
-        setFilteredPatients(prev => sortByLatestDate([...prev]));
-      }
-    }, 5000); // Every 5 seconds to reduce overhead
-    
-    return () => clearInterval(sortInterval);
-  }, []); // Empty dependency array means this only runs once on mount
+  }, [userId]); // Re-fetch when doctorId changes (e.g., after login)
   
   // Apply filters effect with dependencies
+  // Only re-apply filters when search term or date range changes
+  // Don't re-sort - backend already sorted correctly
   useEffect(() => {
-    console.log('Filter effect running, searchTerm:', searchTerm, 'patients:', patients.length);
-    applyFilters();
+    if (patients.length === 0) {
+      setFilteredPatients([]);
+      return;
+    }
+    
+    // Only apply filters if user has set any filters
+    if (searchTerm.trim() || (dateRange[0] && dateRange[1])) {
+      console.log('Filter effect running, searchTerm:', searchTerm, 'patients:', patients.length);
+      applyFilters();
+    } else {
+      // No filters - use API data directly (preserve backend sorting)
+      setFilteredPatients([...patients]);
+    }
   }, [searchTerm, dateRange, patients]); // Include all dependencies
   
   // Sort receipts by date when selected patient changes
