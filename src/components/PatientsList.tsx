@@ -66,7 +66,12 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
           if (visit.date) {
             const visitDateAny = visit.date as any; // Cast to any to handle different types
             if (typeof visitDateAny === 'string') {
-              visitDateStr = visitDateAny;
+              // Handle ISO string format like "2026-01-17T00:00:00.000Z"
+              if (visitDateAny.includes('T')) {
+                visitDateStr = visitDateAny.split('T')[0];
+              } else {
+                visitDateStr = visitDateAny;
+              }
             } else if (visitDateAny instanceof Date || visitDateAny?.toISOString) {
               // Handle Date object or MongoDB date
               visitDateStr = visitDateAny.toISOString().split('T')[0];
@@ -86,10 +91,11 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
           // No need to filter by "today" - backend already handles date filtering via endDate parameter
           
           // Visit is valid (today or past) - create a new object with explicit properties
+          // Use the processed visitDateStr for consistent date format
           allVisits.push({
             _id: visit._id || '',
             visit_id: visit.visit_id || '',
-            date: visit.date || '',
+            date: visitDateStr || '',
             time: visit.time || '',
             visit_type: visit.visit_type || '',
             complaint: visit.complaint || '',
