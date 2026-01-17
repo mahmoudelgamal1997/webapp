@@ -1,0 +1,13 @@
+{
+    "folders": [
+        {
+            "path": "../../backendNoWaiting/mongo-data"
+        },
+        {
+            "path": "../../backendNoWaiting/patient-history-api"
+        },
+        {
+            "path": ".."
+        }
+    ]
+}
