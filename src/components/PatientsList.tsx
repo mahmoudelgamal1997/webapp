@@ -52,39 +52,57 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
 
   // Extract and flatten all visits from patients
   // Reversed sort function - newest first
-  // Filter out visits with future dates
+  // Backend already handles date filtering, so we trust the API response
   const extractVisits = (patientData: Patient[]): VisitWithPatientInfo[] => {
     const allVisits: VisitWithPatientInfo[] = [];
-    const today = moment().startOf('day'); // Get today's date at start of day
     
     patientData.forEach(patient => {
       if (patient.visits && patient.visits.length > 0) {
         patient.visits.forEach(visit => {
-          // Parse visit date to check if it's in the future
-          const visitDate = parseDateAndTime(visit.date || '', visit.time || '');
-          const visitMoment = moment(visitDate).startOf('day');
-          
-          // Only include visits up to today (exclude future dates)
-          if (visitMoment.isBefore(today, 'day') || visitMoment.isSame(today, 'day')) {
-            // Create a new object with explicit properties
-            allVisits.push({
-              _id: visit._id || '',
-              visit_id: visit.visit_id || '',
-              date: visit.date || '',
-              time: visit.time || '',
-              visit_type: visit.visit_type || '',
-              complaint: visit.complaint || '',
-              diagnosis: visit.diagnosis || '',
-              receipts: visit.receipts || [],
-              // Add patient info
-              patient_name: patient.patient_name,
-              patient_phone: patient.patient_phone,
-              patient_id: patient.patient_id,
-              age: patient.age,
-              address: patient.address,
-              _original_patient_id: patient.patient_id
-            });
+          // Backend already filters visits based on startDate/endDate parameters
+          // So we include all visits returned by the API
+          // Handle both string and Date types (MongoDB may return Date objects)
+          let visitDateStr: string = '';
+          if (visit.date) {
+            const visitDateAny = visit.date as any; // Cast to any to handle different types
+            if (typeof visitDateAny === 'string') {
+              visitDateStr = visitDateAny;
+            } else if (visitDateAny instanceof Date || visitDateAny?.toISOString) {
+              // Handle Date object or MongoDB date
+              visitDateStr = visitDateAny.toISOString().split('T')[0];
+            } else {
+              visitDateStr = String(visitDateAny);
+            }
           }
+          
+          if (!visitDateStr) return; // Skip visits without date
+          
+          // Parse date string directly (format: YYYY-MM-DD or YYYY-M-D)
+          const visitMoment = moment(visitDateStr, ['YYYY-MM-DD', 'YYYY-M-D', 'YYYY/MM/DD', 'YYYY/M/D', moment.ISO_8601]).startOf('day');
+          
+          // Skip if date is invalid
+          if (!visitMoment.isValid()) return;
+          
+          // No need to filter by "today" - backend already handles date filtering via endDate parameter
+          
+          // Visit is valid (today or past) - create a new object with explicit properties
+          allVisits.push({
+            _id: visit._id || '',
+            visit_id: visit.visit_id || '',
+            date: visit.date || '',
+            time: visit.time || '',
+            visit_type: visit.visit_type || '',
+            complaint: visit.complaint || '',
+            diagnosis: visit.diagnosis || '',
+            receipts: visit.receipts || [],
+            // Add patient info
+            patient_name: patient.patient_name,
+            patient_phone: patient.patient_phone,
+            patient_id: patient.patient_id,
+            age: patient.age,
+            address: patient.address,
+            _original_patient_id: patient.patient_id
+          });
         });
       }
     });
@@ -209,8 +227,18 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
   
   // Update visits when filtered patients change
   useEffect(() => {
-    if (filteredPatients && filteredPatients.length > 0) {
-      setVisitsToDisplay(extractVisits(filteredPatients));
+    if (filteredPatients) {
+      if (filteredPatients.length > 0) {
+        setVisitsToDisplay(extractVisits(filteredPatients));
+      } else {
+        // Clear visits when no filtered patients (e.g., search with no results)
+        setVisitsToDisplay([]);
+        // Also reset pagination
+        setPagination(prev => ({
+          ...prev,
+          total: 0
+        }));
+      }
     }
   }, [filteredPatients]);
 
@@ -324,13 +352,19 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
           dataSource={getPaginatedVisits()}
           rowKey={record => `${record._id || ''}-${record.visit_id || ''}`}
           loading={loading}
+          locale={{
+            emptyText: visitsToDisplay.length === 0 && !loading ? 'No visits found' : undefined
+          }}
           pagination={{
             current: pagination.current,
             pageSize: pagination.pageSize,
-            total: pagination.total,
+            total: contextPagination ? pagination.total : visitsToDisplay.length, // Use context pagination total if available, otherwise use filtered visits length
             showSizeChanger: true,
             pageSizeOptions: ['10', '20', '50', '100'],
             showTotal: (total, range) => {
+              if (total === 0) {
+                return 'No visits found';
+              }
               if (contextPagination) {
                 return `Showing ${range[0]}-${range[1]} of ${total} visits`;
               }

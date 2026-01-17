@@ -40,6 +40,7 @@ const Dashboard: React.FC = () => {
   const sidebarWaitingListRef = useRef<any>(null);
   const [patientsNeedRefresh, setPatientsNeedRefresh] = useState<boolean>(false);
   const [lastRefreshTimestamp, setLastRefreshTimestamp] = useState<number>(0);
+  const lastRefreshTimestampRef = useRef<number>(0);
   
   // Responsive breakpoints using Ant Design Grid
   const screens = useBreakpoint();
@@ -62,13 +63,14 @@ const Dashboard: React.FC = () => {
   // Get clinic context
   const { selectedClinicId, selectedClinic, setSelectedClinicId, clinics } = useClinicContext();
 
-  // Load data on component mount
+  // Load data on component mount - only fetch settings once on mount
   useEffect(() => {
     console.log('Dashboard rendering with', selectedPatient?.patient_name || 'no selected patient');
     
-    // Fetch doctor settings on component mount
+    // Fetch doctor settings only once on component mount
     fetchSettings();
-  }, [selectedPatient, fetchSettings]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array - only run once on mount
 
   // Setup Firestore listener for waiting list changes
   useEffect(() => {
@@ -85,17 +87,37 @@ const Dashboard: React.FC = () => {
     };
   }, [selectedClinicId]);
 
-  // Auto-refresh patients list when needed
+  // Auto-refresh patients list when needed - with reduced debounce for better responsiveness
   useEffect(() => {
     if (patientsNeedRefresh && !isReceiptModalVisible) {
       const currentTime = Date.now();
-      // Prevent refresh spam - minimum 2 seconds between refreshes
-      if (currentTime - lastRefreshTimestamp > 2000) {
-        console.log('Auto-refreshing patients list');
+      // Reduced delay to 1 second for better real-time experience
+      if (currentTime - lastRefreshTimestamp > 1000) {
+        console.log('Auto-refreshing patients list after waiting list change');
+        // Refresh both the context data and trigger PatientsList refresh
         fetchPatients().then(() => {
           setPatientsNeedRefresh(false);
           setLastRefreshTimestamp(currentTime);
+          lastRefreshTimestampRef.current = currentTime;
+          // Also trigger PatientsList refresh via refreshTrigger
+          setWaitingListRefreshTrigger(prev => prev + 1);
+        }).catch((error) => {
+          console.error('Error auto-refreshing patients list:', error);
+          setPatientsNeedRefresh(false);
         });
+      } else {
+        // If too soon, schedule a retry after the delay period
+        const delay = 1000 - (currentTime - lastRefreshTimestamp);
+        setTimeout(() => {
+          if (patientsNeedRefresh && !isReceiptModalVisible) {
+            console.log('Retrying auto-refresh after delay');
+            fetchPatients().then(() => {
+              setPatientsNeedRefresh(false);
+              setLastRefreshTimestamp(Date.now());
+              setWaitingListRefreshTrigger(prev => prev + 1);
+            });
+          }
+        }, delay);
       }
     }
   }, [patientsNeedRefresh, isReceiptModalVisible, lastRefreshTimestamp, fetchPatients]);
@@ -144,11 +166,25 @@ const Dashboard: React.FC = () => {
             console.log('Waiting list update detected in path:', path);
             console.log('Snapshot size:', snapshot.size, 'documents');
             
-            // When waiting list changes, refresh the waiting list sidebar
+            // When waiting list changes, refresh the waiting list sidebar immediately
             refreshWaitingListOnly();
             
-            // Also mark patients list for refresh, but only execute if no modal is open
+            // Also mark patients list for refresh immediately when waiting list changes
+            // This ensures patients that are removed from waiting list (status changed) appear in Patient List
             setPatientsNeedRefresh(true);
+            
+            // Force an immediate refresh trigger as well for better responsiveness
+            // Use ref to access current timestamp value
+            const currentTime = Date.now();
+            if (currentTime - lastRefreshTimestampRef.current > 1000) {
+              console.log('Immediate refresh triggered from waiting list change');
+              fetchPatients().then(() => {
+                const newTimestamp = Date.now();
+                setLastRefreshTimestamp(newTimestamp);
+                lastRefreshTimestampRef.current = newTimestamp;
+                setWaitingListRefreshTrigger(prev => prev + 1);
+              });
+            }
           }, (error) => {
             console.error('Error in waiting list listener for path:', path, error);
           });
