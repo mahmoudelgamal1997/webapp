@@ -143,6 +143,7 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
         // Default to today's date to exclude future dates
         const today = dayjs().format('YYYY-MM-DD');
         params.endDate = today;
+        console.log('Setting endDate filter to today:', today);
       }
       if (options?.status) {
         params.status = options.status;
@@ -164,7 +165,13 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
       // This maintains backward compatibility - if no pagination params, backend returns all results
       console.log('Fetching from endpoint:', endpoint, 'with params:', params);
       
-      const response = await axios.get(endpoint, { params });
+      const response = await axios.get(endpoint, { 
+        params,
+        timeout: 30000, // 30 second timeout
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
       console.log('API Response received');
 
       // Handle both old format (array) and new format (object with data property)
@@ -226,9 +233,11 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
       setForceRender(prev => prev + 1);
       
       return { patients: sortedPatients, pagination: paginationInfo };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching patients', error);
-      message.error('Failed to fetch patients');
+      console.error('Error details:', error.response?.data || error.message);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to fetch patients';
+      message.error(`Failed to fetch patients: ${errorMessage}`);
       return { patients: [], pagination: null };
     } finally {
       setIsLoading(false);
@@ -238,7 +247,12 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
   // Apply all filters: search term and date range
   const applyFilters = () => {
     console.log('Applying filters to', patients.length, 'patients');
-    if (patients.length === 0) return;
+    
+    // If no patients, clear filtered patients
+    if (patients.length === 0) {
+      setFilteredPatients([]);
+      return;
+    }
     
     let filtered = [...patients];
     
@@ -268,8 +282,9 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
     }
     
     // Maintain the sort for filtered results
+    // Always set filteredPatients, even if empty (to show "no results")
     setFilteredPatients(sortByLatestDate(filtered));
-    console.log('Filtered patients updated:', filtered.length);
+    console.log('Filtered patients updated:', filtered.length, 'patients match filters');
   };
 
   // Clear all filters
