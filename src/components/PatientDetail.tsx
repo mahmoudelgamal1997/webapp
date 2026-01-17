@@ -138,59 +138,63 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
   return (
     <Card 
       title={
-        <Row justify="space-between" align="middle">
-          <Col>Patient Details: {selectedPatient.patient_name}</Col>
-          <Col>
-            <Button 
-              type="primary" 
-              icon={<PlusOutlined />} 
-              onClick={() => setIsReceiptModalVisible(true)}
-            >
-              Add Receipt
-            </Button>
+        <Row justify="space-between" align="middle" gutter={[8, 8]}>
+          <Col xs={24} sm={12}>Patient Details: {selectedPatient.patient_name}</Col>
+          <Col xs={24} sm={12} style={{ textAlign: 'right' }}>
+            <Space wrap>
+              <Button 
+                type="primary" 
+                icon={<PlusOutlined />} 
+                onClick={() => setIsReceiptModalVisible(true)}
+              >
+                Add Receipt
+              </Button>
+              <Button onClick={onBackToList}>
+                Back to List
+              </Button>
+            </Space>
           </Col>
         </Row>
-      }
-      extra={
-        <Button onClick={onBackToList}>
-          Back to List
-        </Button>
       }
     >
       {/* Personal Information Section */}
       <Title level={4}>Personal Information</Title>
       <Row gutter={[16, 8]}>
-        <Col span={6}><Text strong>Name: </Text>{selectedPatient.patient_name}</Col>
-        <Col span={6}><Text strong>Phone: </Text>{selectedPatient.patient_phone}</Col>
-        <Col span={6}><Text strong>Age: </Text>{selectedPatient.age}</Col>
-        <Col span={6}><Text strong>Address: </Text>{selectedPatient.address}</Col>
+        <Col xs={24} sm={12} md={6}><Text strong>Name: </Text>{selectedPatient.patient_name}</Col>
+        <Col xs={24} sm={12} md={6}><Text strong>Phone: </Text>{selectedPatient.patient_phone}</Col>
+        <Col xs={24} sm={12} md={6}><Text strong>Age: </Text>{selectedPatient.age}</Col>
+        <Col xs={24} sm={12} md={6}><Text strong>Address: </Text>{selectedPatient.address}</Col>
       </Row>
 
       <Divider />
 
       {/* Receipts History - Updated with Visit Type instead of Drug Model */}
       <Title level={4}>Receipts History</Title>
-      <Table 
-        dataSource={allReceipts} 
-        columns={receiptsColumns}
-        rowKey="receipt_id"
-        onRow={(record) => {
-          return {
-            onClick: () => {
-              // Find the visit that contains this receipt
-              const visit = patientHistory?.visits.find(v => 
-                v.receipts?.some(r => r._id === record._id)
-              );
-              if (visit) {
-                showVisitDetails(visit);
+      <div style={{ overflowX: 'auto' }}>
+        <Table 
+          dataSource={allReceipts} 
+          columns={receiptsColumns}
+          rowKey="receipt_id"
+          scroll={{ x: 'max-content' }}
+          onRow={(record) => {
+            return {
+              onClick: () => {
+                // Find the visit that contains this receipt
+                const visit = patientHistory?.visits.find(v => 
+                  v.receipts?.some(r => r._id === record._id)
+                );
+                if (visit) {
+                  showVisitDetails(visit);
+                }
               }
-            }
-          };
-        }}
-        pagination={{
-          pageSize: 10
-        }}
-      />
+            };
+          }}
+          pagination={{
+            pageSize: 10,
+            responsive: true
+          }}
+        />
+      </div>
 
       {/* Visit Details Modal */}
       <Modal

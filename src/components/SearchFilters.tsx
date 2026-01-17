@@ -38,7 +38,7 @@ const SearchFilters: React.FC = () => {
           />
         </Col>
         <Col xs={24} md={13}>
-          <Space>
+          <Space wrap>
             <Button 
               type={isDateFilterVisible ? "primary" : "default"}
               icon={<CalendarOutlined />} 
@@ -52,6 +52,7 @@ const SearchFilters: React.FC = () => {
                 onChange={handleDateRangeChange}
                 value={dateRange}
                 allowClear
+                style={{ width: '100%', maxWidth: '300px' }}
               />
             )}
             

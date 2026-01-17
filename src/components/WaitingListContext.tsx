@@ -75,19 +75,10 @@ const fetchClinics = async (): Promise<Clinic[]> => {
     const clinicsList: Clinic[] = [];
     
     querySnapshot.forEach((doc) => {
-      const clinicData = doc.data();
-      // Check multiple possible field names for clinic name
-      const clinicName = clinicData.location_ar || 
-                        clinicData.name || 
-                        clinicData.clinic_name || 
-                        clinicData.title || 
-                        clinicData.location ||
-                        'Unnamed Clinic';
-      
-      console.log('Found clinic:', doc.id, clinicName);
+      console.log('Found clinic:', doc.id, doc.data().name);
       clinicsList.push({
         _id: doc.id,
-        name: clinicName
+        name: doc.data().name || 'Unnamed Clinic'
       });
     });
     

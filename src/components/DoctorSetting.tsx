@@ -1,5 +1,5 @@
 // components/DoctorSettings.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Form, Input, Button, Card, message, Typography, Divider, Space, Layout } from 'antd';
 import { SaveOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
@@ -44,18 +44,6 @@ const DoctorSettings: React.FC = () => {
     navigate('/dashboard');
   };
 
-useEffect(() => {
-  console.log("Raw settings received:", settings);
-  if (settings) {
-    const cleanedSettings = {
-      ...settings,
-      clinicAddress: settings.clinicAddress === '""' ? '' : settings.clinicAddress
-    };
-    console.log("Cleaned settings:", cleanedSettings);
-    form.setFieldsValue(cleanedSettings);
-  }
-}, [form, settings]);
-
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Layout>
@@ -87,7 +75,7 @@ useEffect(() => {
               form={form}
               layout="vertical"
               onFinish={handleSubmit}
-              // initialValues should not be used when using form.setFieldsValue in useEffect
+              initialValues={settings}
             >
               <Title level={4}>Clinic Information</Title>
               <Form.Item

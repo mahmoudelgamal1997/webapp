@@ -1,6 +1,13 @@
 // src/components/Dashboard.tsx
 import React, { useState, useEffect, useRef } from 'react';
-import { Layout, Card, Typography, Button, Space, Alert, Row, Col } from 'antd';
+import { Layout, Card, Typography, Button, Space, Alert, Row, Col, Drawer, Grid } from 'antd';
+import { 
+  SettingOutlined,
+  WarningOutlined,
+  ItalicOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined
+} from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { usePatientContext } from './PatientContext';
@@ -9,9 +16,6 @@ import { useClinicContext } from './ClinicContext';
 import { Receipt } from './type';
 import moment from 'moment';
 import { getFirestore, collection, query, onSnapshot, doc } from 'firebase/firestore';
-import { Routes, Route, useParams  } from 'react-router-dom';
-
-// Import extracted components
 import DashboardSidebar from './DashboardSidebar';
 import DashboardHeader from './DashboardHeader';
 import PatientsList from './PatientsList';
@@ -21,14 +25,7 @@ import ReceiptDetail from './ReceiptDetails';
 import ClinicSelector from './ClinicSelector';
 import SidebarWaitingList from './SidebarWaitingList';
 
-
-import { 
-  SettingOutlined,
-  WarningOutlined,
-  ItalicOutlined,
-  MenuFoldOutlined,
-  MenuUnfoldOutlined
-} from '@ant-design/icons';
+const { useBreakpoint } = Grid;
 const { Content, Sider } = Layout;
 const { Title, Text } = Typography;
 
@@ -36,11 +33,19 @@ const Dashboard: React.FC = () => {
   const [collapsed, setCollapsed] = useState<boolean>(false);
   const [isReceiptModalVisible, setIsReceiptModalVisible] = useState<boolean>(false);
   const [waitingListVisible, setWaitingListVisible] = useState<boolean>(true);
+  const [sidebarDrawerVisible, setSidebarDrawerVisible] = useState<boolean>(false);
+  const [waitingListDrawerVisible, setWaitingListDrawerVisible] = useState<boolean>(false);
   const waitingListUnsubscribe = useRef<any>(null);
   const [waitingListRefreshTrigger, setWaitingListRefreshTrigger] = useState<number>(0);
   const sidebarWaitingListRef = useRef<any>(null);
   const [patientsNeedRefresh, setPatientsNeedRefresh] = useState<boolean>(false);
   const [lastRefreshTimestamp, setLastRefreshTimestamp] = useState<number>(0);
+  const lastRefreshTimestampRef = useRef<number>(0);
+  
+  // Responsive breakpoints using Ant Design Grid
+  const screens = useBreakpoint();
+  const isMobile = !screens.md; // md breakpoint is 768px
+  const isTablet = screens.md && !screens.lg; // lg breakpoint is 992px
   
   const navigate = useNavigate();
   
@@ -58,13 +63,14 @@ const Dashboard: React.FC = () => {
   // Get clinic context
   const { selectedClinicId, selectedClinic, setSelectedClinicId, clinics } = useClinicContext();
 
-  // Load data on component mount
+  // Load data on component mount - only fetch settings once on mount
   useEffect(() => {
     console.log('Dashboard rendering with', selectedPatient?.patient_name || 'no selected patient');
     
-    // Fetch doctor settings on component mount
+    // Fetch doctor settings only once on component mount
     fetchSettings();
-  }, [selectedPatient, fetchSettings]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array - only run once on mount
 
   // Setup Firestore listener for waiting list changes
   useEffect(() => {
@@ -81,32 +87,40 @@ const Dashboard: React.FC = () => {
     };
   }, [selectedClinicId]);
 
-  // Auto-refresh patients list when needed
- useEffect(() => {
-  if (patientsNeedRefresh && !isReceiptModalVisible) {
-    const currentTime = Date.now();
-    // Keep debouncing for auto-refresh that wasn't triggered by waiting list changes
-    if (currentTime - lastRefreshTimestamp > 2000) {
-      console.log('Auto-refreshing patients list (normal debounced refresh)');
-      
-      // Call fetchPatients to update the data
-      fetchPatients().then(() => {
-        console.log('Patient list auto-refresh completed');
-        setPatientsNeedRefresh(false);
-        setLastRefreshTimestamp(currentTime);
-        
-        // Trigger PatientsList component refresh
-        setWaitingListRefreshTrigger(prev => prev + 1);
-      }).catch(error => {
-        console.error('Error during auto-refresh:', error);
-        // Reset the flag even on error to prevent endless retries
-        setPatientsNeedRefresh(false);
-      });
-    } else {
-      console.log('Skipping normal auto-refresh - too soon after last refresh');
+  // Auto-refresh patients list when needed - with reduced debounce for better responsiveness
+  useEffect(() => {
+    if (patientsNeedRefresh && !isReceiptModalVisible) {
+      const currentTime = Date.now();
+      // Reduced delay to 1 second for better real-time experience
+      if (currentTime - lastRefreshTimestamp > 1000) {
+        console.log('Auto-refreshing patients list after waiting list change');
+        // Refresh both the context data and trigger PatientsList refresh
+        fetchPatients().then(() => {
+          setPatientsNeedRefresh(false);
+          setLastRefreshTimestamp(currentTime);
+          lastRefreshTimestampRef.current = currentTime;
+          // Also trigger PatientsList refresh via refreshTrigger
+          setWaitingListRefreshTrigger(prev => prev + 1);
+        }).catch((error) => {
+          console.error('Error auto-refreshing patients list:', error);
+          setPatientsNeedRefresh(false);
+        });
+      } else {
+        // If too soon, schedule a retry after the delay period
+        const delay = 1000 - (currentTime - lastRefreshTimestamp);
+        setTimeout(() => {
+          if (patientsNeedRefresh && !isReceiptModalVisible) {
+            console.log('Retrying auto-refresh after delay');
+            fetchPatients().then(() => {
+              setPatientsNeedRefresh(false);
+              setLastRefreshTimestamp(Date.now());
+              setWaitingListRefreshTrigger(prev => prev + 1);
+            });
+          }
+        }, delay);
+      }
     }
-  }
-}, [patientsNeedRefresh, isReceiptModalVisible, lastRefreshTimestamp, fetchPatients]);
+  }, [patientsNeedRefresh, isReceiptModalVisible, lastRefreshTimestamp, fetchPatients]);
 
   // Function to format date as used in Firebase
   const formatDate = (date?: Date): string => {
@@ -116,90 +130,81 @@ const Dashboard: React.FC = () => {
 
   // Function to setup Firestore listener for waiting list changes
   const setupWaitingListListener = (clinicId: string) => {
-  try {
-    const db = getFirestore();
-    const currentDate = formatDate();
-    
-    console.log('Setting up Firestore listener for clinic:', clinicId, 'date:', currentDate);
-    
-    // Define path variations as complete strings to avoid TypeScript spread error
-    const pathVariations = [
-      // Variation 1: Standard path
-      `clinics/${clinicId}/waiting_list/${currentDate}/patients`,
-      // Variation 2: Alternative collection name
-      `clinics/${clinicId}/waitingList/${currentDate}/patients`,
-      // Variation 3: Direct patients collection
-      `clinics/${clinicId}/patients`
-    ];
-    
-    // Remove existing listener if there is one
-    if (waitingListUnsubscribe.current) {
-      waitingListUnsubscribe.current();
-      waitingListUnsubscribe.current = null;
-    }
-    
-    // Try each path for setting up the listener
-    let listenerSet = false;
-    
-    for (const path of pathVariations) {
-      try {
-        console.log('Trying to set up listener on path:', path);
-        // Use collection() with the path string directly
-        const collRef = collection(db, path);
-        
-        // Set up new listener
-        const unsubscribe = onSnapshot(collRef, (snapshot) => {
-          console.log('Waiting list update detected in path:', path);
-          console.log('Snapshot size:', snapshot.size, 'documents');
-          
-          // When waiting list changes, refresh the waiting list sidebar
-          refreshWaitingListOnly();
-          
-          // IMPORTANT: For waiting list changes, we ALWAYS refresh immediately
-          // regardless of the time since last refresh
-          if (!isReceiptModalVisible) {
-            console.log('⚡ IMMEDIATE refresh of patient list due to waiting list change ⚡');
-            
-            // Call triggerFreshFetch to bypass cache
-          
-            // triggerFreshFetch();
-            
-            // Immediate fetch and refresh
-            fetchPatients().then(() => {
-              console.log('Patient list refresh completed after waiting list change');
-              setPatientsNeedRefresh(false);
-              setLastRefreshTimestamp(Date.now());
-              
-              // Make sure to trigger the PatientsList component refresh
-              setWaitingListRefreshTrigger(prev => prev + 1);
-            }).catch(error => {
-              console.error('Error refreshing patients after waiting list change:', error);
-              setPatientsNeedRefresh(false);
-            });
-          } else {
-            // If modal is open, just mark for refresh later
-            setPatientsNeedRefresh(true);
-          }
-        }, (error) => {
-          console.error('Error in waiting list listener for path:', path, error);
-        });
-        
-        waitingListUnsubscribe.current = unsubscribe;
-        listenerSet = true;
-        console.log('Firestore waiting list listener set up for path:', path);
-        break;
-      } catch (error) {
-        console.log('Could not set up listener for path:', path, error);
+    try {
+      const db = getFirestore();
+      const currentDate = formatDate();
+      
+      console.log('Setting up Firestore listener for clinic:', clinicId, 'date:', currentDate);
+      
+      // Define path variations as complete strings to avoid TypeScript spread error
+      const pathVariations = [
+        // Variation 1: Standard path
+        `clinics/${clinicId}/waiting_list/${currentDate}/patients`,
+        // Variation 2: Alternative collection name
+        `clinics/${clinicId}/waitingList/${currentDate}/patients`,
+        // Variation 3: Direct patients collection
+        `clinics/${clinicId}/patients`
+      ];
+      
+      // Remove existing listener if there is one
+      if (waitingListUnsubscribe.current) {
+        waitingListUnsubscribe.current();
+        waitingListUnsubscribe.current = null;
       }
+      
+      // Try each path for setting up the listener
+      let listenerSet = false;
+      
+      for (const path of pathVariations) {
+        try {
+          console.log('Trying to set up listener on path:', path);
+          // Use collection() with the path string directly
+          const collRef = collection(db, path);
+          
+          // Set up new listener
+          const unsubscribe = onSnapshot(collRef, (snapshot) => {
+            console.log('Waiting list update detected in path:', path);
+            console.log('Snapshot size:', snapshot.size, 'documents');
+            
+            // When waiting list changes, refresh the waiting list sidebar immediately
+            refreshWaitingListOnly();
+            
+            // Also mark patients list for refresh immediately when waiting list changes
+            // This ensures patients that are removed from waiting list (status changed) appear in Patient List
+            setPatientsNeedRefresh(true);
+            
+            // Force an immediate refresh trigger as well for better responsiveness
+            // Use ref to access current timestamp value
+            const currentTime = Date.now();
+            if (currentTime - lastRefreshTimestampRef.current > 1000) {
+              console.log('Immediate refresh triggered from waiting list change');
+              fetchPatients().then(() => {
+                const newTimestamp = Date.now();
+                setLastRefreshTimestamp(newTimestamp);
+                lastRefreshTimestampRef.current = newTimestamp;
+                setWaitingListRefreshTrigger(prev => prev + 1);
+              });
+            }
+          }, (error) => {
+            console.error('Error in waiting list listener for path:', path, error);
+          });
+          
+          waitingListUnsubscribe.current = unsubscribe;
+          listenerSet = true;
+          console.log('Firestore waiting list listener set up for path:', path);
+          break;
+        } catch (error) {
+          console.log('Could not set up listener for path:', path, error);
+        }
+      }
+      
+      if (!listenerSet) {
+        console.error('Failed to set up listener for any path variation');
+      }
+    } catch (error) {
+      console.error('Error setting up Firestore listener:', error);
     }
-    
-    if (!listenerSet) {
-      console.error('Failed to set up listener for any path variation');
-    }
-  } catch (error) {
-    console.error('Error setting up Firestore listener:', error);
-  }
-};
+  };
 
   // Function to refresh only the waiting list data
   const refreshWaitingListOnly = () => {
@@ -226,32 +231,41 @@ const Dashboard: React.FC = () => {
 
   // Manual refresh function
   const handleRefresh = () => {
-  console.log('Manual refresh requested');
-  
-  // Call fetchPatients to update the data
-  fetchPatients().then(() => {
-    console.log('Patient list manual refresh completed');
-    setPatientsNeedRefresh(false);
+    console.log('Manual refresh requested');
+    fetchPatients();
+    refreshWaitingListOnly();
+    setPatientsNeedRefresh(false); // Clear the auto-refresh flag
     setLastRefreshTimestamp(Date.now());
-    
-    // Trigger PatientsList component refresh
-    setWaitingListRefreshTrigger(prev => prev + 1);
-  }).catch(error => {
-    console.error('Error during manual refresh:', error);
-  });
-  
-  // Also refresh the waiting list
-  refreshWaitingListOnly();
-};
+  };
+
   // Navigate to settings page
   const handleSettingsClick = () => {
     navigate('/settings');
   };
 
-  // Toggle waiting list sidebar
+  // Toggle waiting list sidebar/drawer
   const toggleWaitingList = () => {
-    setWaitingListVisible(!waitingListVisible);
+    if (isMobile) {
+      setWaitingListDrawerVisible(!waitingListDrawerVisible);
+    } else {
+      setWaitingListVisible(!waitingListVisible);
+    }
   };
+
+  // Update button text based on visibility
+  const getWaitingListButtonText = () => {
+    if (isMobile) {
+      return waitingListDrawerVisible ? 'Hide Waiting List' : 'Show Waiting List';
+    }
+    return waitingListVisible ? 'Hide Waiting List' : 'Show Waiting List';
+  };
+
+  // Auto-collapse sidebar on mobile
+  useEffect(() => {
+    if (isMobile) {
+      setCollapsed(true);
+    }
+  }, [isMobile]);
 
   // Handle print receipt with dynamic header
   const handlePrintReceipt = (receipt: Receipt) => {
@@ -260,30 +274,22 @@ const Dashboard: React.FC = () => {
     // Format the clinic information for the header
     const clinicInfo = [];
     
-    // Prioritize doctor settings, then fall back to selected clinic
-    const displayClinicName = doctorSettings.clinicName || selectedClinic?.name || 'عيادة';
-    const displayClinicAddress = doctorSettings.clinicAddress || selectedClinic?.address || '';
-    const displayClinicPhone = doctorSettings.clinicPhone || selectedClinic?.phone || '';
-    
-    // Add clinic name
-    if (displayClinicName && displayClinicName !== 'Unnamed Clinic') {
-      clinicInfo.push(`<h1>${displayClinicName}</h1>`);
+    // First try to use clinic from context if available
+    if (selectedClinic) {
+      clinicInfo.push(`<h1>${selectedClinic.name || 'عيادة'}</h1>`);
+      if (selectedClinic.address) {
+        clinicInfo.push(`<p>${selectedClinic.address}</p>`);
+      }
+      if (selectedClinic.phone) {
+        clinicInfo.push(`<p>هاتف: ${selectedClinic.phone}</p>`);
+      }
     }
     
-    // Add doctor title if available
-    if (doctorSettings.doctorTitle) {
-      clinicInfo.push(`<h3>${doctorSettings.doctorTitle}</h3>`);
-    }
-    
-    // Add address if available
-    if (displayClinicAddress) {
-      clinicInfo.push(`<p>${displayClinicAddress}</p>`);
-    }
-    
-    // Add phone if available
-    if (displayClinicPhone) {
-      clinicInfo.push(`<p>هاتف: ${displayClinicPhone}</p>`);
-    }
+    // Then override with doctor settings if available
+    if (doctorSettings.clinicName) clinicInfo.push(`<h1>${doctorSettings.clinicName}</h1>`);
+    if (doctorSettings.doctorTitle) clinicInfo.push(`<h3>${doctorSettings.doctorTitle}</h3>`);
+    if (doctorSettings.clinicAddress) clinicInfo.push(`<p>${doctorSettings.clinicAddress}</p>`);
+    if (doctorSettings.clinicPhone) clinicInfo.push(`<p>هاتف: ${doctorSettings.clinicPhone}</p>`);
     
     // Implement print functionality here
     const printWindow = window.open('', '_blank');
@@ -352,92 +358,124 @@ const Dashboard: React.FC = () => {
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      {/* Left sidebar */}
-      <DashboardSidebar collapsed={collapsed} setCollapsed={setCollapsed} />
+      {/* Left sidebar - Drawer on mobile, Sidebar on desktop */}
+      {isMobile ? (
+        <Drawer
+          title="Menu"
+          placement="left"
+          onClose={() => setSidebarDrawerVisible(false)}
+          open={sidebarDrawerVisible}
+          bodyStyle={{ padding: 0 }}
+          width={256}
+        >
+          <DashboardSidebar collapsed={false} setCollapsed={() => {}} />
+        </Drawer>
+      ) : (
+        <DashboardSidebar collapsed={collapsed} setCollapsed={setCollapsed} />
+      )}
       
       <Layout>
         {/* Header */}
-        <DashboardHeader onSettingsClick={handleSettingsClick} />
+        <DashboardHeader 
+          onSettingsClick={handleSettingsClick}
+          onMenuClick={() => isMobile && setSidebarDrawerVisible(true)}
+          isMobile={isMobile}
+        />
         
         {/* Main content and right sidebar */}
         <Layout>
           {/* Main content area */}
-          <Content style={{ margin: '24px 16px', padding: 24, background: 'white' }}>
+          <Content style={{ 
+            margin: isMobile ? '16px 8px' : '24px 16px', 
+            padding: isMobile ? 12 : 24, 
+            background: 'white' 
+          }}>
             {/* Clinic Selector */}
             <ClinicSelector onClinicSelect={handleClinicSelect} />
             
             {/* Dashboard Controls */}
             <Card style={{ marginBottom: 16 }}>
               <Space direction="vertical" style={{ width: '100%' }}>
-                <Title level={4}>No waiting Dashboard</Title>
-                <Space>
+                <Title level={isMobile ? 5 : 4}>No waiting Dashboard</Title>
+                <Space direction={isMobile ? 'vertical' : 'horizontal'} style={{ width: '100%' }}>
                   <Button 
                     type="primary" 
                     onClick={handleRefresh} 
                     disabled={!selectedClinicId}
-                    loading={patientsNeedRefresh} // Show loading state when auto-refresh is pending
+                    loading={patientsNeedRefresh}
+                    block={isMobile}
                   >
                     Refresh Data
                   </Button>
                   <Button 
-                    icon={waitingListVisible ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />}
+                    icon={isMobile ? (waitingListDrawerVisible ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />) : (waitingListVisible ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />)}
                     onClick={toggleWaitingList}
+                    block={isMobile}
                   >
-                    {waitingListVisible ? 'Hide Waiting List' : 'Show Waiting List'}
+                    {getWaitingListButtonText()}
                   </Button>
                 </Space>
               </Space>
             </Card>
 
             {/* Patient data section */}
-          <Routes>
-  <Route
-    path=""
-    element={
-      selectedClinicId ? (
-        <Card title="Patients List">
-          <PatientsList refreshTrigger={waitingListRefreshTrigger} />
-        </Card>
-      ) : (
-        <Card>
-          <div style={{ textAlign: 'center', padding: '40px 0' }}>
-            <Title level={4}>Select a clinic to view patients</Title>
-          </div>
-        </Card>
-      )
-    }
-  />
- <Route
-  path="patient/:id"
-  element={
-    <PatientDetail
-      isReceiptModalVisible={isReceiptModalVisible}
-      setIsReceiptModalVisible={setIsReceiptModalVisible}
-      onPrintReceipt={handlePrintReceipt}
-      onBackToList={() => navigate('/dashboard')}
-    />
-  }
-/>
-</Routes>
+            {selectedClinicId && !selectedPatient ? (
+              <Card title="Patients List">
+                <PatientsList refreshTrigger={waitingListRefreshTrigger} />
+              </Card>
+            ) : selectedPatient ? (
+              <PatientDetail 
+                isReceiptModalVisible={isReceiptModalVisible}
+                setIsReceiptModalVisible={setIsReceiptModalVisible}
+                onPrintReceipt={handlePrintReceipt}
+                onBackToList={() => setSelectedPatient(null)}
+              />
+            ) : (
+              <Card>
+                <div style={{ textAlign: 'center', padding: '40px 0' }}>
+                  <Title level={4}>Select a clinic to view patients</Title>
+                </div>
+              </Card>
+            )}
           </Content>
           
-          {/* Right sidebar for waiting list */}
-          {waitingListVisible && selectedClinicId && (
-            <Sider 
-              width={280} 
-              theme="light"
-              style={{ 
-                background: '#fff',
-                margin: '24px 16px 24px 0',
-                borderRadius: '4px',
-                boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
-              }}
-            >
-              <SidebarWaitingList 
-                ref={sidebarWaitingListRef}
-                refreshTrigger={waitingListRefreshTrigger}
-              />
-            </Sider>
+          {/* Right sidebar for waiting list - Drawer on mobile, Sidebar on desktop */}
+          {selectedClinicId && (
+            <>
+              {isMobile ? (
+                <Drawer
+                  title="Waiting List"
+                  placement="right"
+                  onClose={() => setWaitingListDrawerVisible(false)}
+                  open={waitingListDrawerVisible}
+                  width={280}
+                  bodyStyle={{ padding: 0 }}
+                >
+                  <SidebarWaitingList 
+                    ref={sidebarWaitingListRef}
+                    refreshTrigger={waitingListRefreshTrigger}
+                  />
+                </Drawer>
+              ) : (
+                waitingListVisible && (
+                  <Sider 
+                    width={280} 
+                    theme="light"
+                    style={{ 
+                      background: '#fff',
+                      margin: '24px 16px 24px 0',
+                      borderRadius: '4px',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                    }}
+                  >
+                    <SidebarWaitingList 
+                      ref={sidebarWaitingListRef}
+                      refreshTrigger={waitingListRefreshTrigger}
+                    />
+                  </Sider>
+                )
+              )}
+            </>
           )}
         </Layout>
       </Layout>
