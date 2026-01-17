@@ -30,8 +30,12 @@ export interface Patient {
   address: string;
   age: string;
   date: string;
+  last_visit_date?: string; // Used by history endpoint
   patient_id: string; // Add this to match the API response
   doctor_id: string;
+  doctor_name?: string; // Used by history endpoint
+  status?: string; // Used by history endpoint
+  total_visits?: number; // Used by history endpoint
   receipt?: string;
   receipts?: Receipt[];
   visits?: Visit[]; // Add this to match the API response

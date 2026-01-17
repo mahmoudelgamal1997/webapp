@@ -4,6 +4,7 @@ const API = {
   ENDPOINTS: {
     PATIENTS: '/api/patients',
     DOCTOR_PATIENTS: (doctorId) => `/api/patients/doctor/${doctorId}`,
+    HISTORY: '/api/history', // Use history endpoint which works correctly
     PATIENT_BY_ID: (patientId) => `/api/patients/${patientId}`,
     DOCTOR_SETTINGS: (doctorId) => `/api/doctors/${doctorId}/settings`,
 

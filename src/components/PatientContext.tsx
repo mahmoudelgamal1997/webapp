@@ -7,6 +7,17 @@ import dayjs from 'dayjs';
 import API from '../config/api';
 import { useClinicContext } from './ClinicContext';
 
+interface PaginationInfo {
+  currentPage: number;
+  totalPages: number;
+  totalItems: number;
+  itemsPerPage: number;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
+  nextPage: number | null;
+  prevPage: number | null;
+}
+
 interface PatientContextType {
   patients: Patient[];
   filteredPatients: Patient[];
@@ -18,7 +29,16 @@ interface PatientContextType {
   setDateRange: (range: [dayjs.Dayjs | null, dayjs.Dayjs | null]) => void;
   isDateFilterVisible: boolean;
   setIsDateFilterVisible: (visible: boolean) => void;
-  fetchPatients: () => Promise<Patient[]>;
+  fetchPatients: (options?: {
+    search?: string;
+    startDate?: string;
+    endDate?: string;
+    status?: string;
+    page?: number;
+    limit?: number;
+    sortBy?: string;
+    sortOrder?: string;
+  }) => Promise<{ patients: Patient[]; pagination?: PaginationInfo | null }>;
   clearFilters: () => void;
   selectedReceipt: Receipt | null;
   setSelectedReceipt: (receipt: Receipt | null) => void;
@@ -26,7 +46,8 @@ interface PatientContextType {
   setIsViewReceiptModalVisible: (visible: boolean) => void;
   forceRender: number;
   setForceRender: (value: number) => void;
-  setFilteredPatients: (patients: Patient[]) => void; // Add this line
+  setFilteredPatients: (patients: Patient[]) => void;
+  pagination: PaginationInfo | null;
 }
 
 const PatientContext = createContext<PatientContextType | undefined>(undefined);
@@ -42,21 +63,27 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [isViewReceiptModalVisible, setIsViewReceiptModalVisible] = useState<boolean>(false);
   const [forceRender, setForceRender] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [pagination, setPagination] = useState<PaginationInfo | null>(null);
 
   const userId = localStorage.getItem('doctorId');
   const { selectedClinicId } = useClinicContext(); 
   
   // Sort function to sort by date (newest first) and then by _id for same dates
+  // Handles both 'date' and 'last_visit_date' fields (history endpoint uses last_visit_date)
   const sortByLatestDate = (data: Patient[]) => {
     return [...data].sort((a: Patient, b: Patient) => {
+      // Use date or last_visit_date (history endpoint format)
+      const dateAStr = a.date || a.last_visit_date;
+      const dateBStr = b.date || b.last_visit_date;
+      
       // Handle missing dates
-      if (!a.date) return 1;
-      if (!b.date) return -1;
+      if (!dateAStr) return 1;
+      if (!dateBStr) return -1;
       
-      const dateA = new Date(a.date).getTime();
-      const dateB = new Date(b.date).getTime();
+      const dateA = new Date(dateAStr).getTime();
+      const dateB = new Date(dateBStr).getTime();
       
-      // If dates are different, sort by date
+      // If dates are different, sort by date (newest first)
       if (dateA !== dateB) {
         return dateB - dateA;
       }
@@ -84,31 +111,124 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
     }
   };
 
-  // Fetch patients from API
-  const fetchPatients = async () => {
+  // Fetch patients from API with optional filters
+  const fetchPatients = async (options?: {
+    search?: string;
+    startDate?: string;
+    endDate?: string;
+    status?: string;
+    page?: number;
+    limit?: number;
+    sortBy?: string;
+    sortOrder?: string;
+  }) => {
     setIsLoading(true);
     try {
-      // Use the doctor-specific endpoint if userId is available
-      let endpoint = `${API.BASE_URL}${API.ENDPOINTS.PATIENTS}`;
+      // Use the history endpoint which works correctly (same as mobile app)
+      // This endpoint returns data in the correct format with visits nested in patients
+      let endpoint = `${API.BASE_URL}${API.ENDPOINTS.HISTORY}`;
+
+      // Build query parameters
+      const params: any = {};
       
-      if (userId) {
-        endpoint = `${API.BASE_URL}${API.ENDPOINTS.DOCTOR_PATIENTS(userId)}`;
-        console.log('Fetching from endpoint:', endpoint);
+      // SECURITY: doctor_id is now required by backend - always send it
+      if (!userId) {
+        console.error('doctorId not found in localStorage - cannot fetch patients');
+        message.error('Doctor ID not found. Please log in again.');
+        return { patients: [], pagination: null };
       }
+      params.doctor_id = userId;
       
-      const response = await axios.get(endpoint);
+      // Add optional filters
+      if (options?.search) {
+        params.search = options.search;
+      }
+      if (options?.startDate) {
+        params.startDate = options.startDate;
+      }
+      // Only send endDate if explicitly provided (don't auto-filter by today)
+      // This matches mobile app behavior - no endDate means get all data
+      if (options?.endDate !== undefined) {
+        params.endDate = options.endDate;
+      }
+      if (options?.status) {
+        params.status = options.status;
+      }
+      if (options?.page) {
+        params.page = options.page;
+      }
+      if (options?.limit) {
+        params.limit = options.limit;
+      }
+      if (options?.sortBy) {
+        params.sortBy = options.sortBy;
+      }
+      if (options?.sortOrder) {
+        params.sortOrder = options.sortOrder;
+      }
+
+      // Always send params (backend handles pagination only when page/limit are provided)
+      // This maintains backward compatibility - if no pagination params, backend returns all results
+      console.log('Fetching from endpoint:', endpoint, 'with params:', params);
+      
+      const response = await axios.get(endpoint, { 
+        params,
+        timeout: 30000, // 30 second timeout
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
       console.log('API Response received');
 
-      const updatedPatients = response.data;
-      console.log('Raw patients data:', updatedPatients);
+      // Handle history endpoint response format: { success, message, data, pagination, filters }
+      let updatedPatients: Patient[];
+      let paginationInfo: PaginationInfo | null = null;
       
-      // Always sort by date (newest first)
-      const sortedPatients = sortByLatestDate(updatedPatients);
+      if (response.data.success && response.data.data && Array.isArray(response.data.data)) {
+        // History endpoint format (same as mobile app)
+        updatedPatients = response.data.data;
+        // Extract pagination info if available
+        if (response.data.pagination) {
+          paginationInfo = response.data.pagination;
+        }
+      } else if (Array.isArray(response.data)) {
+        // Old format - backward compatibility
+        updatedPatients = response.data;
+      } else if (response.data.data && Array.isArray(response.data.data)) {
+        // Alternative format with data property
+        updatedPatients = response.data.data;
+        // Extract pagination info if available
+        if (response.data.pagination) {
+          paginationInfo = response.data.pagination;
+        }
+      } else {
+        updatedPatients = [];
+      }
+
+      console.log('Raw patients data:', updatedPatients);
+      console.log('Pagination info:', paginationInfo);
+      
+      // Filter out patients with future dates (only show up to today)
+      // History endpoint uses last_visit_date instead of date
+      const today = dayjs().startOf('day');
+      const filteredPatients = updatedPatients.filter(patient => {
+        // Check both date and last_visit_date fields (history endpoint uses last_visit_date)
+        const patientDateStr = patient.date || patient.last_visit_date;
+        if (!patientDateStr) return true; // Include patients without date
+        // Parse patient date and compare with today
+        const patientDate = dayjs(patientDateStr).startOf('day');
+        // Only include patients with date <= today
+        return patientDate.isBefore(today) || patientDate.isSame(today);
+      });
+      
+      // Always sort by date (newest first) for display
+      const sortedPatients = sortByLatestDate(filteredPatients);
       console.log('About to update state with:', sortedPatients);
 
       // Update state with new data
       setPatients([...sortedPatients]);
       setFilteredPatients([...sortedPatients]);
+      setPagination(paginationInfo);
       console.log('State updated with patient data');
       
       // If there's a selected patient, update it with fresh data
@@ -128,11 +248,13 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
       // Force re-render of the table to maintain sort order
       setForceRender(prev => prev + 1);
       
-      return sortedPatients;
-    } catch (error) {
+      return { patients: sortedPatients, pagination: paginationInfo };
+    } catch (error: any) {
       console.error('Error fetching patients', error);
-      message.error('Failed to fetch patients');
-      return [];
+      console.error('Error details:', error.response?.data || error.message);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to fetch patients';
+      message.error(`Failed to fetch patients: ${errorMessage}`);
+      return { patients: [], pagination: null };
     } finally {
       setIsLoading(false);
     }
@@ -141,7 +263,12 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
   // Apply all filters: search term and date range
   const applyFilters = () => {
     console.log('Applying filters to', patients.length, 'patients');
-    if (patients.length === 0) return;
+    
+    // If no patients, clear filtered patients
+    if (patients.length === 0) {
+      setFilteredPatients([]);
+      return;
+    }
     
     let filtered = [...patients];
     
@@ -171,8 +298,9 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
     }
     
     // Maintain the sort for filtered results
+    // Always set filteredPatients, even if empty (to show "no results")
     setFilteredPatients(sortByLatestDate(filtered));
-    console.log('Filtered patients updated:', filtered.length);
+    console.log('Filtered patients updated:', filtered.length, 'patients match filters');
   };
 
   // Clear all filters
@@ -188,7 +316,7 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
     const loadData = async () => {
       try {
         const result = await fetchPatients();
-        console.log('Initial fetch completed with', result.length, 'patients');
+        console.log('Initial fetch completed with', result.patients.length, 'patients');
         // Force component update
         setForceRender(prev => prev + 1);
       } catch (error) {
@@ -260,6 +388,7 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
     forceRender,
     setForceRender,
     setFilteredPatients,
+    pagination,
   };
 
   return (
