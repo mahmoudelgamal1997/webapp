@@ -118,19 +118,37 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
     });
   };
 
-  // Helper function to properly parse dates with times
+  // Helper function to convert Arabic numerals to regular numerals
+  const convertArabicNumerals = (str: string): string => {
+    if (!str) return str;
+    const arabicNumerals = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+    const regularNumerals = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+    let converted = str;
+    arabicNumerals.forEach((arabic, index) => {
+      converted = converted.replace(new RegExp(arabic, 'g'), regularNumerals[index]);
+    });
+    return converted;
+  };
+
+  // Helper function to properly parse dates with times (handles Arabic numerals)
   const parseDateAndTime = (dateStr: string, timeStr: string): number => {
     if (!dateStr) return 0;
     
+    // Convert Arabic numerals to regular numerals
+    const convertedDateStr = convertArabicNumerals(dateStr);
+    const convertedTimeStr = convertArabicNumerals(timeStr || '');
+    
     // First try to parse with time
-    if (timeStr) {
-      const fullDateStr = `${dateStr} ${timeStr}`;
+    if (convertedTimeStr) {
+      const fullDateStr = `${convertedDateStr} ${convertedTimeStr}`;
       const momentDate = moment(fullDateStr, [
         'YYYY-MM-DD HH:mm',
         'YYYY-M-D HH:mm',
         'YYYY-MM-DD H:mm',
-        'YYYY-M-D H:mm'
-      ]);
+        'YYYY-M-D H:mm',
+        'YYYY-MM-DD HH:mm:ss',
+        'YYYY-M-D HH:mm:ss'
+      ], true); // Strict mode
       
       if (momentDate.isValid()) {
         return momentDate.valueOf();
@@ -138,10 +156,10 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
     }
     
     // Fallback to just date
-    const momentDate = moment(dateStr, [
+    const momentDate = moment(convertedDateStr, [
       'YYYY-MM-DD',
       'YYYY-M-D'
-    ]);
+    ], true); // Strict mode
     
     return momentDate.isValid() ? momentDate.valueOf() : 0;
   };
@@ -273,6 +291,29 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
       title: 'Time',
       dataIndex: 'time',
       key: 'time',
+      render: (timeStr: string) => {
+        if (!timeStr) return 'N/A';
+        
+        // Convert Arabic numerals to regular numerals
+        const convertedTime = convertArabicNumerals(timeStr);
+        
+        // Parse 24-hour time and convert to 12-hour format
+        try {
+          // Handle formats like "14:35" or "02:35" or "2:35"
+          const timeMatch = convertedTime.match(/(\d{1,2}):(\d{2})/);
+          if (timeMatch) {
+            const hours = parseInt(timeMatch[1], 10);
+            const minutes = timeMatch[2];
+            const period = hours >= 12 ? 'PM' : 'AM';
+            const displayHours = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+            return `${displayHours}:${minutes} ${period}`;
+          }
+          // If format doesn't match, return as is
+          return timeStr;
+        } catch (error) {
+          return timeStr;
+        }
+      },
     },
     {
       title: 'Address',
@@ -350,7 +391,7 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
         <Table 
           columns={columns} 
           dataSource={getPaginatedVisits()}
-          rowKey={record => `${record._id || ''}-${record.visit_id || ''}`}
+          rowKey={record => `${record.patient_id || ''}-${record.visit_id || ''}-${record.date || ''}-${record.time || ''}`}
           loading={loading}
           locale={{
             emptyText: visitsToDisplay.length === 0 && !loading ? 'No visits found' : undefined
