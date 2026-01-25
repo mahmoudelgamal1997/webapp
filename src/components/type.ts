@@ -54,11 +54,17 @@ export interface NextVisit {
   _id: string;
   patientId: string;
   patientName: string;
+  patientPhone?: string;
   doctorId: string;
   doctorName: string;
   visitDate: string;
+  reminderDurationDays?: number;
   notes: string;
-  notificationSent: boolean;
+  notificationSent?: boolean; // Deprecated, use notificationSent3Days and notificationSent1Day
+  notificationSent3Days?: boolean;
+  notificationSent1Day?: boolean;
+  notificationDelivered3Days?: boolean;
+  notificationDelivered1Day?: boolean;
   createdAt: string;
   fcmToken?: string;
 }

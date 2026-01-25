@@ -24,6 +24,8 @@ import ReceiptModal from './ReceiptPatient';
 import ReceiptDetail from './ReceiptDetails';
 import ClinicSelector from './ClinicSelector';
 import SidebarWaitingList from './SidebarWaitingList';
+import SendNotification from './SendNotification';
+import NextVisits from './NextVisits';
 
 const { useBreakpoint } = Grid;
 const { Content, Sider } = Layout;
@@ -41,6 +43,7 @@ const Dashboard: React.FC = () => {
   const [patientsNeedRefresh, setPatientsNeedRefresh] = useState<boolean>(false);
   const [lastRefreshTimestamp, setLastRefreshTimestamp] = useState<number>(0);
   const lastRefreshTimestampRef = useRef<number>(0);
+  const [notificationModalVisible, setNotificationModalVisible] = useState<boolean>(false);
   
   // Responsive breakpoints using Ant Design Grid
   const screens = useBreakpoint();
@@ -58,7 +61,7 @@ const Dashboard: React.FC = () => {
   } = usePatientContext();
   
   // Get doctor settings for receipt customization
-  const { settings: doctorSettings, fetchSettings } = useDoctorContext();
+  const { settings: doctorSettings, fetchSettings, doctorId } = useDoctorContext();
   
   // Get clinic context
   const { selectedClinicId, selectedClinic, setSelectedClinicId, clinics } = useClinicContext();
@@ -408,6 +411,14 @@ const Dashboard: React.FC = () => {
                     Refresh Data
                   </Button>
                   <Button 
+                    type="default"
+                    onClick={() => setNotificationModalVisible(true)}
+                    disabled={!selectedClinicId || !doctorId}
+                    block={isMobile}
+                  >
+                    Send Notification
+                  </Button>
+                  <Button 
                     icon={isMobile ? (waitingListDrawerVisible ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />) : (waitingListVisible ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />)}
                     onClick={toggleWaitingList}
                     block={isMobile}
@@ -420,9 +431,14 @@ const Dashboard: React.FC = () => {
 
             {/* Patient data section */}
             {selectedClinicId && !selectedPatient ? (
-              <Card title="Patients List">
-                <PatientsList refreshTrigger={waitingListRefreshTrigger} />
-              </Card>
+              <>
+                <Card title="Patients List" style={{ marginBottom: 16 }}>
+                  <PatientsList refreshTrigger={waitingListRefreshTrigger} />
+                </Card>
+                <Card title="Scheduled Visit Reminders">
+                  <NextVisits />
+                </Card>
+              </>
             ) : selectedPatient ? (
               <PatientDetail 
                 isReceiptModalVisible={isReceiptModalVisible}
@@ -431,11 +447,16 @@ const Dashboard: React.FC = () => {
                 onBackToList={() => setSelectedPatient(null)}
               />
             ) : (
-              <Card>
-                <div style={{ textAlign: 'center', padding: '40px 0' }}>
-                  <Title level={4}>Select a clinic to view patients</Title>
-                </div>
-              </Card>
+              <>
+                <Card>
+                  <div style={{ textAlign: 'center', padding: '40px 0' }}>
+                    <Title level={4}>Select a clinic to view patients</Title>
+                  </div>
+                </Card>
+                <Card title="Scheduled Visit Reminders" style={{ marginTop: 16 }}>
+                  <NextVisits />
+                </Card>
+              </>
             )}
           </Content>
           
@@ -495,6 +516,13 @@ const Dashboard: React.FC = () => {
 
       {/* Modal for viewing receipt details */}
       <ReceiptDetail onPrintReceipt={handlePrintReceipt} />
+
+      {/* Notification Modal */}
+      <SendNotification
+        visible={notificationModalVisible}
+        onCancel={() => setNotificationModalVisible(false)}
+        patientName={selectedPatient?.patient_name}
+      />
     </Layout>
   );
 };

@@ -10,13 +10,14 @@ import {
   doc, 
   deleteDoc, 
   query,
-  orderBy
+  orderBy,
+  where
 } from 'firebase/firestore';
 
 interface NextVisitContextType {
   nextVisits: NextVisit[];
   loading: boolean;
-  addNextVisit: (patient: Patient, visitDate: string, notes?: string) => Promise<boolean>;
+  addNextVisit: (patient: Patient, visitDate: string, notes?: string, reminderDurationDays?: number) => Promise<boolean>;
   deleteNextVisit: (visitId: string) => Promise<boolean>;
   fetchNextVisits: () => Promise<NextVisit[]>;
 }
@@ -61,56 +62,81 @@ export const NextVisitProvider: React.FC<{ children: ReactNode }> = ({ children 
   };
 
   // Add a new next visit to Firestore
- // Updated addNextVisit function in NextVisitContext.tsx
-const addNextVisit = async (patient: Patient, visitDate: string, notes?: string): Promise<boolean> => {
-  try {
-    setLoading(true);
-    const doctorId = localStorage.getItem('doctorId');
-    const doctorName = localStorage.getItem('doctorName') || localStorage.getItem('username') || '';
-    
-    if (!doctorId) {
-      message.error('Doctor ID not found. Please log in again.');
-      return false;
-    }
+  const addNextVisit = async (
+    patient: Patient, 
+    visitDate: string, 
+    notes?: string, 
+    reminderDurationDays?: number
+  ): Promise<boolean> => {
+    try {
+      setLoading(true);
+      const doctorId = localStorage.getItem('doctorId');
+      const doctorName = localStorage.getItem('doctorName') || localStorage.getItem('username') || '';
+      
+      if (!doctorId) {
+        message.error('Doctor ID not found. Please log in again.');
+        return false;
+      }
 
-    if (!patient || !patient._id) {
-      message.error('Patient information is incomplete');
+      if (!patient || !patient._id) {
+        message.error('Patient information is incomplete');
+        return false;
+      }
+      
+      console.log('Adding next visit with:', { patient, visitDate, notes, reminderDurationDays });
+      
+      const db = getFirestore();
+      const nextVisitsCollection = collection(db, 'nextVisits', doctorId, 'appointments');
+      
+      // Get patient's FCM token from users collection if not in patient object
+      let fcmToken = patient.fcmToken;
+      if (!fcmToken) {
+        try {
+          const usersRef = collection(db, 'users');
+          const userQuery = await getDocs(
+            query(usersRef, where('phone', '==', patient.patient_phone))
+          );
+          if (!userQuery.empty) {
+            fcmToken = userQuery.docs[0].data().fcmToken;
+          }
+        } catch (error) {
+          console.warn('Could not fetch FCM token from users collection:', error);
+        }
+      }
+      
+      const nextVisit = {
+        patientId: patient._id,
+        patientName: patient.patient_name,
+        patientPhone: patient.patient_phone,
+        doctorId,
+        doctorName,
+        visitDate,
+        reminderDurationDays: reminderDurationDays || 7, // Default to 7 days
+        notes: notes || '',
+        notificationSent3Days: false, // Track 3-day reminder
+        notificationSent1Day: false, // Track 1-day reminder
+        notificationDelivered3Days: false, // Track delivery status for 3-day reminder
+        notificationDelivered1Day: false, // Track delivery status for 1-day reminder
+        createdAt: new Date().toISOString(),
+        fcmToken: fcmToken || ''
+      };
+      
+      console.log('Next visit object created:', nextVisit);
+      
+      const docRef = await addDoc(nextVisitsCollection, nextVisit);
+      console.log('Document written to Firestore with ID:', docRef.id);
+      
+      message.success('Visit reminder scheduled successfully');
+      await fetchNextVisits(); // Refresh the visits list
+      return true;
+    } catch (error) {
+      console.error('Error adding next visit:', error);
+      message.error('Failed to schedule next visit');
       return false;
+    } finally {
+      setLoading(false);
     }
-    
-    console.log('Adding next visit with:', { patient, visitDate, notes });
-    
-    const db = getFirestore();
-    const nextVisitsCollection = collection(db, 'nextVisits', doctorId, 'appointments');
-    
-    const nextVisit = {
-      patientId: patient._id,
-      patientName: patient.patient_name,
-      doctorId,
-      doctorName,
-      visitDate,
-      notes: notes || '',
-      notificationSent: false,
-      createdAt: new Date().toISOString(),
-      fcmToken: patient.fcmToken // Use the FCM token directly from the patient object
-    };
-    
-    console.log('Next visit object created:', nextVisit);
-    
-    const docRef = await addDoc(nextVisitsCollection, nextVisit);
-    console.log('Document written to Firestore with ID:', docRef.id);
-    
-    message.success('Next visit scheduled successfully');
-    await fetchNextVisits(); // Refresh the visits list
-    return true;
-  } catch (error) {
-    console.error('Error adding next visit:', error);
-    message.error('Failed to schedule next visit');
-    return false;
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   // Delete a next visit from Firestore
   const deleteNextVisit = async (visitId: string): Promise<boolean> => {

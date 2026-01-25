@@ -3,6 +3,9 @@ import { Form, Input, Button, Modal, Select, message, Card } from 'antd';
 import axios from 'axios';
 import API from '../config/api';
 import dayjs from 'dayjs';
+import { sendReceiptNotificationToPatient } from '../services/notificationService';
+import { useDoctorContext } from './DoctorContext';
+import { useClinicContext } from './ClinicContext';
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -49,6 +52,9 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
   const [form] = Form.useForm();
   const [isLoading, setIsLoading] = useState(false);
   const [drugModel, setDrugModel] = useState<string>('new');
+  const doctorContext = useDoctorContext();
+  const doctorId = doctorContext?.doctorId || localStorage.getItem('doctorId') || '';
+  const { selectedClinicId } = useClinicContext();
 
   // Reset form when modal opens/closes
   React.useEffect(() => {
@@ -73,10 +79,29 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
       };
 
       // Send update to backend
-     await axios.put(
+     const response = await axios.put(
         `${API.BASE_URL}${API.ENDPOINTS.PATIENT_BY_ID(patient._id)}`, 
         payload
       );
+
+      // Send notification to patient
+      try {
+        if (patient.patient_phone) {
+          await sendReceiptNotificationToPatient({
+            patientPhone: patient.patient_phone,
+            patientName: patient.patient_name || '',
+            patientId: patient._id || patient.patient_id || '',
+            clinicId: selectedClinicId || patient.clinic_id || '',
+            doctorId: doctorId || patient.doctor_id || '',
+            doctorName: patient.doctor_name || '',
+            receiptId: response.data?.patient?.visits?.[response.data.patient.visits.length - 1]?.receipts?.[response.data.patient.visits[response.data.patient.visits.length - 1].receipts.length - 1]?._id || ''
+          });
+          console.log('✅ Receipt notification sent to patient');
+        }
+      } catch (notificationError) {
+        console.error('Error sending receipt notification:', notificationError);
+        // Don't fail the whole operation if notification fails
+      }
 
       message.success('Receipt added successfully');
       form.resetFields();
@@ -128,7 +153,6 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
             placeholder="اختر نموذج روشتة"
             onChange={handleTemplateChange}
           >
-            <Option value="existing">روشتة جاهزة</Option>
             <Option value="new">روشتة جديدة</Option>
           </Select>
         </Form.Item>

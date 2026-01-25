@@ -17,6 +17,7 @@ interface DoctorSettings {
 interface DoctorContextType {
   settings: DoctorSettings;
   loading: boolean;
+  doctorId: string | null;
   fetchSettings: () => Promise<void>;
   updateSettings: (settings: DoctorSettings) => Promise<boolean>;
 }
@@ -110,6 +111,7 @@ export const DoctorProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const value = {
     settings,
     loading,
+    doctorId,
     fetchSettings,
     updateSettings
   };

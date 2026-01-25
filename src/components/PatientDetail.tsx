@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Card, Row, Col, Typography, Button, Divider, Table, Modal, Space, List } from 'antd';
-import { PlusOutlined, FileTextOutlined } from '@ant-design/icons';
+import { PlusOutlined, FileTextOutlined, BellOutlined, CalendarOutlined } from '@ant-design/icons';
 import moment from 'moment';
 import ReceiptsList from './ReceiptsList';
 import { Receipt, Patient, Visit } from '../components/type';
 import { usePatientContext } from './PatientContext';
 import API from '../config/api';
+import SendNotification from './SendNotification';
+import NextVisitForm from './NextVisitForm';
 
 const { Title, Text } = Typography;
 
@@ -45,6 +47,8 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [visitDetailsVisible, setVisitDetailsVisible] = useState(false);
   const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
+  const [notificationModalVisible, setNotificationModalVisible] = useState(false);
+  const [nextVisitModalVisible, setNextVisitModalVisible] = useState(false);
 
   useEffect(() => {
     const fetchPatientHistory = async () => {
@@ -136,12 +140,29 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
   }
 
   return (
+    <>
     <Card 
       title={
         <Row justify="space-between" align="middle" gutter={[8, 8]}>
           <Col xs={24} sm={12}>Patient Details: {selectedPatient.patient_name}</Col>
           <Col xs={24} sm={12} style={{ textAlign: 'right' }}>
             <Space wrap>
+              <Button 
+                type="primary" 
+                icon={<CalendarOutlined />} 
+                onClick={() => setNextVisitModalVisible(true)}
+                style={{ backgroundColor: '#1890ff', borderColor: '#1890ff' }}
+              >
+                Schedule Reminder
+              </Button>
+              <Button 
+                type="primary" 
+                icon={<BellOutlined />} 
+                onClick={() => setNotificationModalVisible(true)}
+                style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
+              >
+                Notify Assistant
+              </Button>
               <Button 
                 type="primary" 
                 icon={<PlusOutlined />} 
@@ -283,6 +304,22 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
         )}
       </Modal>
     </Card>
+
+    {/* Quick Notification Modal */}
+    <SendNotification
+      visible={notificationModalVisible}
+      onCancel={() => setNotificationModalVisible(false)}
+      patientName={selectedPatient?.patient_name}
+      quickSend={true}
+    />
+
+    {/* Next Visit Reminder Modal */}
+    <NextVisitForm
+      visible={nextVisitModalVisible}
+      onCancel={() => setNextVisitModalVisible(false)}
+      patient={selectedPatient}
+    />
+  </>
   );
 };
 
