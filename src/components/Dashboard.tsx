@@ -399,7 +399,7 @@ const Dashboard: React.FC = () => {
             {/* Dashboard Controls */}
             <Card style={{ marginBottom: 16 }}>
               <Space direction="vertical" style={{ width: '100%' }}>
-                <Title level={isMobile ? 5 : 4}>No waiting Dashboard</Title>
+                <Title level={isMobile ? 5 : 4}>Dr Waiting Dashboard</Title>
                 <Space direction={isMobile ? 'vertical' : 'horizontal'} style={{ width: '100%' }}>
                   <Button 
                     type="primary" 
