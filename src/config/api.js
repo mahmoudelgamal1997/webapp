@@ -15,6 +15,7 @@ const API = {
 
     // Billing endpoints
     BILLING: '/api/billing',
+    RECORD_CONSULTATION: '/api/billing/consultation',  // Quick consultation record
     DOCTOR_BILLINGS: (doctorId) => `/api/billing/doctor/${doctorId}`,
     BILLING_RECORD: (doctorId, billingId) => `/api/billing/doctor/${doctorId}/${billingId}`,
     BILLING_BY_VISIT: (visitId) => `/api/billing/visit/${visitId}`,
