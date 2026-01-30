@@ -1,7 +1,7 @@
 // src/components/SidebarWaitingList.tsx
 import React, { useState, useEffect, useImperativeHandle, forwardRef } from 'react';
-import { List, Card, Tag, Typography, Spin, Empty, Badge, Button, Tooltip, message, Popconfirm } from 'antd';
-import { UserOutlined, ReloadOutlined, DollarOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { List, Card, Tag, Typography, Spin, Empty, Badge, Button } from 'antd';
+import { UserOutlined, ReloadOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { 
   getFirestore, 
   collection, 
@@ -10,9 +10,7 @@ import {
   onSnapshot,
   where
 } from 'firebase/firestore';
-import axios from 'axios';
 import dayjs from 'dayjs';
-import API from '../config/api';
 import { useClinicContext } from './ClinicContext';
 
 const { Text } = Typography;
@@ -28,12 +26,6 @@ interface WaitingPatient {
   visit_type?: string;
   date?: string;
   time?: string;
-  consultationPaid?: boolean;
-}
-
-interface DoctorFees {
-  consultationFee: number;
-  revisitFee: number;
 }
 
 interface SidebarWaitingListProps {
@@ -44,9 +36,6 @@ const SidebarWaitingList = forwardRef<{ refreshData: () => Promise<void> }, Side
   ({ refreshTrigger = 0 }, ref) => {
     const [waitingPatients, setWaitingPatients] = useState<WaitingPatient[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
-    const [paidPatients, setPaidPatients] = useState<Set<string>>(new Set());
-    const [doctorFees, setDoctorFees] = useState<DoctorFees>({ consultationFee: 0, revisitFee: 0 });
-    const [recordingId, setRecordingId] = useState<string | null>(null);
     const { selectedClinicId } = useClinicContext();
     const doctorId = localStorage.getItem('doctorId');
 
@@ -54,69 +43,6 @@ const SidebarWaitingList = forwardRef<{ refreshData: () => Promise<void> }, Side
     useImperativeHandle(ref, () => ({
       refreshData: fetchData
     }));
-
-    // Fetch doctor settings (consultation fees)
-    const fetchDoctorFees = async () => {
-      if (!doctorId) return;
-      try {
-        const response = await axios.get(`${API.BASE_URL}${API.ENDPOINTS.DOCTOR_SETTINGS(doctorId)}`);
-        if (response.data.settings) {
-          setDoctorFees({
-            consultationFee: response.data.settings.consultationFee || 0,
-            revisitFee: response.data.settings.revisitFee || 0
-          });
-        }
-      } catch (error) {
-        console.error('Error fetching doctor fees:', error);
-      }
-    };
-
-    // Record consultation fee for a patient
-    const recordConsultation = async (patient: WaitingPatient) => {
-      if (!doctorId) return;
-      
-      const isRevisit = patient.visit_type === 'اعاده كشف' || patient.visit_type === 'إعادة كشف';
-      const fee = isRevisit ? doctorFees.revisitFee : doctorFees.consultationFee;
-      
-      if (fee <= 0) {
-        message.warning('Please set consultation fees in Services page first');
-        return;
-      }
-
-      setRecordingId(patient.patient_id);
-      
-      try {
-        const response = await axios.post(`${API.BASE_URL}${API.ENDPOINTS.RECORD_CONSULTATION}`, {
-          doctor_id: doctorId,
-          patient_id: patient.patient_id,
-          patient_name: patient.patient_name,
-          patient_phone: patient.patient_phone || '',
-          clinic_id: selectedClinicId || '',
-          consultationType: isRevisit ? 'اعاده كشف' : 'كشف',
-          consultationFee: fee,
-          paymentMethod: 'cash'
-        });
-
-        if (response.data.success) {
-          setPaidPatients(prev => {
-            const newSet = new Set(Array.from(prev));
-            newSet.add(patient.patient_id);
-            return newSet;
-          });
-          message.success(`✅ ${fee} EGP recorded for ${patient.patient_name}`);
-        }
-      } catch (error) {
-        console.error('Error recording consultation:', error);
-        message.error('Failed to record consultation');
-      } finally {
-        setRecordingId(null);
-      }
-    };
-
-    // Fetch doctor fees on mount
-    useEffect(() => {
-      fetchDoctorFees();
-    }, [doctorId]);
 
     // Function to format date - ensure consistent format (YYYY-M-D or YYYY-MM-DD)
     const formatDate = (date?: Date): string => {
@@ -383,70 +309,37 @@ const SidebarWaitingList = forwardRef<{ refreshData: () => Promise<void> }, Side
         ) : waitingPatients.length > 0 ? (
           <List
             dataSource={waitingPatients}
-            renderItem={(patient, index) => {
-              const isPaid = paidPatients.has(patient.patient_id);
-              const isRevisit = patient.visit_type === 'اعاده كشف' || patient.visit_type === 'إعادة كشف';
-              const fee = isRevisit ? doctorFees.revisitFee : doctorFees.consultationFee;
-              
-              return (
-                <List.Item
-                  style={{ 
-                    padding: '8px 12px',
-                    backgroundColor: isPaid ? '#f6ffed' : (patient.status === 'in-progress' ? '#fff7e6' : 'transparent'),
-                    borderBottom: '1px solid #f0f0f0'
-                  }}
-                >
-                  <div style={{ display: 'flex', width: '100%', alignItems: 'center' }}>
-                    <div style={{ marginLeft: '12px', flexShrink: 0 }}>
-                      <Badge count={index + 1} style={{ backgroundColor: isPaid ? '#52c41a' : '#1890ff' }}>
-                        <UserOutlined style={{ fontSize: '18px', padding: '4px' }} />
-                      </Badge>
+            renderItem={(patient, index) => (
+              <List.Item
+                style={{ 
+                  padding: '8px 12px',
+                  backgroundColor: patient.status === 'in-progress' ? '#fff7e6' : 'transparent',
+                  borderBottom: '1px solid #f0f0f0'
+                }}
+              >
+                <div style={{ display: 'flex', width: '100%', alignItems: 'center' }}>
+                  <div style={{ marginLeft: '12px', flexShrink: 0 }}>
+                    <Badge count={index + 1} style={{ backgroundColor: '#1890ff' }}>
+                      <UserOutlined style={{ fontSize: '18px', padding: '4px' }} />
+                    </Badge>
+                  </div>
+                  <div style={{ flex: 1, overflow: 'hidden' }}>
+                    <div style={{ fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {patient.patient_name}
                     </div>
-                    <div style={{ flex: 1, overflow: 'hidden' }}>
-                      <div style={{ fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {patient.patient_name}
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Text type="secondary" style={{ fontSize: '12px' }}>
-                          {patient.time || formatTime(patient.arrivalTime)}
-                        </Text>
-                        {getStatusTag(patient.visit_type || '')}
-                      </div>
-                    </div>
-                    <div style={{ marginRight: '8px', flexShrink: 0 }}>
-                      {isPaid ? (
-                        <Tooltip title="Consultation Paid">
-                          <CheckCircleOutlined style={{ color: '#52c41a', fontSize: '18px' }} />
-                        </Tooltip>
-                      ) : (
-                        <Popconfirm
-                          title={`Record ${fee} EGP for ${isRevisit ? 'Revisit' : 'Consultation'}?`}
-                          onConfirm={() => recordConsultation(patient)}
-                          okText="Yes"
-                          cancelText="No"
-                          placement="left"
-                        >
-                          <Button
-                            type="primary"
-                            size="small"
-                            icon={<DollarOutlined />}
-                            loading={recordingId === patient.patient_id}
-                            style={{ 
-                              backgroundColor: '#52c41a', 
-                              borderColor: '#52c41a',
-                              fontSize: '11px',
-                              padding: '0 6px'
-                            }}
-                          >
-                            {fee}
-                          </Button>
-                        </Popconfirm>
-                      )}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Text type="secondary" style={{ fontSize: '12px' }}>
+                        {patient.time || formatTime(patient.arrivalTime)}
+                      </Text>
+                      {getStatusTag(patient.visit_type || '')}
                     </div>
                   </div>
-                </List.Item>
-              );
-            }}
+                  <div style={{ marginRight: '8px', flexShrink: 0 }}>
+                    <CheckCircleOutlined style={{ color: '#52c41a', fontSize: '16px' }} />
+                  </div>
+                </div>
+              </List.Item>
+            )}
           />
         ) : (
           <Empty 
