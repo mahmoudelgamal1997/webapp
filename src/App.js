@@ -3,6 +3,8 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'r
 import LoginPage from './components/Login';
 import Dashboard from './components/Dashboard';
 import DoctorSettings from './components/DoctorSetting';
+import ServicesManagement from './components/ServicesManagement';
+import RevenueAnalytics from './components/RevenueAnalytics';
 import { AuthProvider, useAuth } from './components/AuthContext';
 import { PatientProvider } from './components/PatientContext';
 import { DoctorProvider } from './components/DoctorContext';
@@ -66,6 +68,22 @@ function App() {
                       <PatientProvider>
                         <DoctorSettings />
                       </PatientProvider>
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/services" 
+                  element={
+                    <ProtectedRoute>
+                      <ServicesManagement />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/analytics" 
+                  element={
+                    <ProtectedRoute>
+                      <RevenueAnalytics />
                     </ProtectedRoute>
                   } 
                 />

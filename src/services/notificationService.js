@@ -285,6 +285,132 @@ export const deleteNotificationTemplate = async (templateId) => {
 };
 
 /**
+ * Send billing notification to assistant - HIGH PRIORITY with sound/vibration
+ * This is critical for money tracking - assistant must be notified immediately
+ * @param {Object} billingData - Billing notification data
+ * @param {string} billingData.doctor_id - Doctor ID
+ * @param {string} billingData.clinic_id - Clinic ID
+ * @param {string} billingData.assistant_id - Assistant ID (optional, will notify all if not provided)
+ * @param {string} billingData.patient_name - Patient name
+ * @param {number} billingData.totalAmount - Total bill amount
+ * @param {number} billingData.consultationFee - Consultation fee
+ * @param {Array} billingData.services - List of services
+ * @param {string} billingData.billing_id - Billing record ID
+ * @param {string} billingData.clinic_name - Clinic name
+ * @returns {Promise<Object>} Created notification document
+ */
+export const sendBillingNotificationToAssistant = async (billingData) => {
+  const MAX_RETRIES = 3;
+  const RETRY_DELAY = 2000; // 2 seconds
+
+  // Build services summary
+  const servicesSummary = billingData.services && billingData.services.length > 0
+    ? billingData.services.map(s => `${s.service_name}: ${s.subtotal} EGP`).join(', ')
+    : 'No additional services';
+
+  // Build the notification message with billing details
+  const message = `💰 فاتورة جديدة - ${billingData.patient_name}\n` +
+    `المبلغ الإجمالي: ${billingData.totalAmount} جنيه\n` +
+    `رسوم الكشف: ${billingData.consultationFee} جنيه\n` +
+    (billingData.services?.length > 0 ? `الخدمات: ${servicesSummary}` : '');
+
+  const notificationDoc = {
+    doctor_id: billingData.doctor_id,
+    clinic_id: billingData.clinic_id,
+    assistant_id: billingData.assistant_id,
+    message: message,
+    type: 'billing', // Special type for billing notifications
+    priority: 'high', // High priority for sound/vibration
+    read: false,
+    createdAt: serverTimestamp(),
+    doctor_name: billingData.doctor_name || '',
+    clinic_name: billingData.clinic_name || '',
+    patient_name: billingData.patient_name || '',
+    // Additional billing data for assistant to verify
+    billing_data: {
+      billing_id: billingData.billing_id,
+      totalAmount: billingData.totalAmount,
+      consultationFee: billingData.consultationFee,
+      servicesCount: billingData.services?.length || 0,
+      services: billingData.services || []
+    }
+  };
+
+  // Retry logic for offline/network issues
+  const attemptSend = async (attempt) => {
+    try {
+      const notificationsRef = collection(db, 'doctor_assistant_notifications');
+      const docRef = await addDoc(notificationsRef, notificationDoc);
+
+      console.log('✅ Billing notification created:', docRef.id);
+      console.log('💰 Amount:', billingData.totalAmount, 'EGP for patient:', billingData.patient_name);
+      
+      return { 
+        success: true, 
+        id: docRef.id, 
+        ...notificationDoc 
+      };
+    } catch (error) {
+      console.error(`❌ Billing notification attempt ${attempt} failed:`, error);
+      
+      if (attempt < MAX_RETRIES) {
+        console.log(`🔄 Retrying in ${RETRY_DELAY}ms... (attempt ${attempt + 1}/${MAX_RETRIES})`);
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+        return attemptSend(attempt + 1);
+      }
+      
+      throw error;
+    }
+  };
+
+  return attemptSend(1);
+};
+
+/**
+ * Get all assistants for a doctor and clinic, then send billing notification to all
+ * @param {Object} billingData - Billing notification data
+ * @returns {Promise<Array>} Results of all notification attempts
+ */
+export const sendBillingNotificationToAllAssistants = async (billingData) => {
+  try {
+    // Get all assistants for this doctor-clinic combination
+    const assistants = await getAssistantsForDoctorClinic(billingData.doctor_id, billingData.clinic_id);
+    
+    if (assistants.length === 0) {
+      console.warn('⚠️ No assistants found for billing notification');
+      return { success: false, error: 'No assistants found', notified: 0 };
+    }
+
+    console.log(`📢 Sending billing notification to ${assistants.length} assistant(s)`);
+
+    // Send notification to each assistant
+    const results = await Promise.allSettled(
+      assistants.map(assistant => 
+        sendBillingNotificationToAssistant({
+          ...billingData,
+          assistant_id: assistant.id
+        })
+      )
+    );
+
+    const successful = results.filter(r => r.status === 'fulfilled').length;
+    const failed = results.filter(r => r.status === 'rejected').length;
+
+    console.log(`✅ Billing notifications sent: ${successful} succeeded, ${failed} failed`);
+
+    return {
+      success: successful > 0,
+      notified: successful,
+      failed: failed,
+      total: assistants.length
+    };
+  } catch (error) {
+    console.error('❌ Error sending billing notifications:', error);
+    throw error;
+  }
+};
+
+/**
  * Send receipt notification to patient
  * @param {Object} receiptData - Receipt notification data
  * @param {string} receiptData.patientPhone - Patient phone number

@@ -8,7 +8,23 @@ const API = {
     PATIENT_BY_ID: (patientId) => `/api/patients/${patientId}`,
     DOCTOR_SETTINGS: (doctorId) => `/api/doctors/${doctorId}/settings`,
 
-    // Add other endpoints as needed
+    // Services endpoints
+    SERVICES: '/api/services',
+    DOCTOR_SERVICES: (doctorId) => `/api/services/doctor/${doctorId}`,
+    SERVICE: (doctorId, serviceId) => `/api/services/doctor/${doctorId}/${serviceId}`,
+
+    // Billing endpoints
+    BILLING: '/api/billing',
+    DOCTOR_BILLINGS: (doctorId) => `/api/billing/doctor/${doctorId}`,
+    BILLING_RECORD: (doctorId, billingId) => `/api/billing/doctor/${doctorId}/${billingId}`,
+    BILLING_BY_VISIT: (visitId) => `/api/billing/visit/${visitId}`,
+
+    // Analytics endpoints
+    REVENUE_OVERVIEW: (doctorId) => `/api/analytics/revenue/${doctorId}`,
+    REVENUE_BREAKDOWN: (doctorId) => `/api/analytics/revenue/${doctorId}/breakdown`,
+    SERVICES_ANALYTICS: (doctorId) => `/api/analytics/services/${doctorId}`,
+    CLINIC_PERFORMANCE: (doctorId) => `/api/analytics/performance/${doctorId}`,
+    PATIENT_BILLING_HISTORY: (doctorId, patientId) => `/api/analytics/patient/${doctorId}/${patientId}`,
   }
 };
 

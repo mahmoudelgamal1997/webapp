@@ -1,10 +1,11 @@
 // src/components/WaitingList.tsx
 import React, { useState, useEffect } from 'react';
 import { Table, Card, Button, Tag, Space, DatePicker, Row, Col, Typography, Modal, message, Select } from 'antd';
-import { ReloadOutlined, UserAddOutlined, ClockCircleOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { ReloadOutlined, UserAddOutlined, ClockCircleOutlined, CheckCircleOutlined, FileImageOutlined } from '@ant-design/icons';
 import moment from 'moment';
 import { useWaitingList } from './WaitingListContext';
 import { usePatientContext } from './PatientContext';
+import UploadReportModal from './UploadReportModal';
 import type { ColumnsType } from 'antd/es/table';
 
 const { Title } = Typography;
@@ -30,6 +31,8 @@ const WaitingList: React.FC<WaitingListProps> = ({ onSelectPatient }) => {
   
   const { patients, fetchPatients } = usePatientContext();
   const [selectedDate, setSelectedDate] = useState<moment.Moment>(moment());
+  const [uploadModalVisible, setUploadModalVisible] = useState(false);
+  const [selectedPatientForUpload, setSelectedPatientForUpload] = useState<any>(null);
 
   useEffect(() => {
     // Fetch clinics on initial load
@@ -161,6 +164,22 @@ const WaitingList: React.FC<WaitingListProps> = ({ onSelectPatient }) => {
       key: 'actions',
       render: (_, record) => (
         <Space size="small">
+          <Button 
+            size="small" 
+            type="default"
+            icon={<FileImageOutlined />}
+            onClick={() => {
+              setSelectedPatientForUpload({
+                _id: record._id,
+                patient_id: record.patient_id,
+                patient_phone: record.patient_phone,
+                patient_name: record.patient_name,
+                doctor_id: record.doctor_id
+              });
+              setUploadModalVisible(true);
+            }}
+            title="Upload Reports"
+          />
           {record.status !== 'in-progress' && (
             <Button 
               size="small" 
@@ -250,6 +269,20 @@ const WaitingList: React.FC<WaitingListProps> = ({ onSelectPatient }) => {
           locale={{ emptyText: 'No patients in waiting list' }}
         />
       )}
+
+      {/* Upload Report Modal */}
+      <UploadReportModal
+        visible={uploadModalVisible}
+        onCancel={() => {
+          setUploadModalVisible(false);
+          setSelectedPatientForUpload(null);
+        }}
+        patient={selectedPatientForUpload || {}}
+        assistantId={localStorage.getItem('assistantId') || undefined}
+        onSuccess={() => {
+          message.success('Reports uploaded successfully');
+        }}
+      />
     </div>
   );
 };

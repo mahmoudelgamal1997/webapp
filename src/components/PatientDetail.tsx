@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Card, Row, Col, Typography, Button, Divider, Table, Modal, Space, List } from 'antd';
-import { PlusOutlined, FileTextOutlined, BellOutlined, CalendarOutlined } from '@ant-design/icons';
+import { Card, Row, Col, Typography, Button, Divider, Table, Modal, Space, List, Image } from 'antd';
+import { PlusOutlined, FileTextOutlined, BellOutlined, CalendarOutlined, FileImageOutlined, EyeOutlined, DollarOutlined } from '@ant-design/icons';
 import moment from 'moment';
 import ReceiptsList from './ReceiptsList';
 import { Receipt, Patient, Visit } from '../components/type';
@@ -9,6 +9,7 @@ import { usePatientContext } from './PatientContext';
 import API from '../config/api';
 import SendNotification from './SendNotification';
 import NextVisitForm from './NextVisitForm';
+import BillingModal from './BillingModal';
 
 const { Title, Text } = Typography;
 
@@ -49,6 +50,11 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
   const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
   const [notificationModalVisible, setNotificationModalVisible] = useState(false);
   const [nextVisitModalVisible, setNextVisitModalVisible] = useState(false);
+  const [billingModalVisible, setBillingModalVisible] = useState(false);
+  const [patientReports, setPatientReports] = useState<any[]>([]);
+  const [reportsLoading, setReportsLoading] = useState(false);
+  const [imagePreviewVisible, setImagePreviewVisible] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string>('');
 
   useEffect(() => {
     const fetchPatientHistory = async () => {
@@ -74,7 +80,31 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
       }
     };
 
+    const fetchPatientReports = async () => {
+      if (selectedPatient) {
+        try {
+          setReportsLoading(true);
+          const response = await axios.get(`${API.BASE_URL}/api/patients/reports`, {
+            params: {
+              patient_id: selectedPatient.patient_id,
+              patient_phone: selectedPatient.patient_phone,
+              doctor_id: selectedPatient.doctor_id
+            }
+          });
+
+          if (response.data.success) {
+            setPatientReports(response.data.data || []);
+          }
+        } catch (error) {
+          console.error('Error fetching patient reports:', error);
+        } finally {
+          setReportsLoading(false);
+        }
+      }
+    };
+
     fetchPatientHistory();
+    fetchPatientReports();
   }, [selectedPatient]);
 
   if (!selectedPatient) {
@@ -149,6 +179,14 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
             <Space wrap>
               <Button 
                 type="primary" 
+                icon={<DollarOutlined />} 
+                onClick={() => setBillingModalVisible(true)}
+                style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
+              >
+                Create Bill
+              </Button>
+              <Button 
+                type="primary" 
                 icon={<CalendarOutlined />} 
                 onClick={() => setNextVisitModalVisible(true)}
                 style={{ backgroundColor: '#1890ff', borderColor: '#1890ff' }}
@@ -159,7 +197,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
                 type="primary" 
                 icon={<BellOutlined />} 
                 onClick={() => setNotificationModalVisible(true)}
-                style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
+                style={{ backgroundColor: '#722ed1', borderColor: '#722ed1' }}
               >
                 Notify Assistant
               </Button>
@@ -186,6 +224,70 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
         <Col xs={24} sm={12} md={6}><Text strong>Age: </Text>{selectedPatient.age}</Col>
         <Col xs={24} sm={12} md={6}><Text strong>Address: </Text>{selectedPatient.address}</Col>
       </Row>
+
+      <Divider />
+
+      {/* Reports Section */}
+      <Title level={4}>Reports & Examinations</Title>
+      {reportsLoading ? (
+        <div>Loading reports...</div>
+      ) : patientReports.length > 0 ? (
+        <div style={{ marginBottom: 24 }}>
+          <Row gutter={[16, 16]}>
+            {patientReports.map((report) => (
+              <Col xs={24} sm={12} md={8} lg={6} key={report.report_id}>
+                <Card
+                  hoverable
+                  cover={
+                    <div style={{ height: 150, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f5f5f5' }}>
+                      <img
+                        alt={report.description || 'Report'}
+                        src={`${API.BASE_URL}${report.image_url}`}
+                        style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                        onClick={() => {
+                          setPreviewImage(`${API.BASE_URL}${report.image_url}`);
+                          setImagePreviewVisible(true);
+                        }}
+                      />
+                    </div>
+                  }
+                  actions={[
+                    <EyeOutlined
+                      key="view"
+                      onClick={() => {
+                        setPreviewImage(`${API.BASE_URL}${report.image_url}`);
+                        setImagePreviewVisible(true);
+                      }}
+                    />
+                  ]}
+                >
+                  <Card.Meta
+                    title={
+                      <div>
+                        <div style={{ textTransform: 'capitalize', marginBottom: 4 }}>
+                          {report.report_type || 'Examination'}
+                        </div>
+                        <div style={{ fontSize: 12, color: '#999' }}>
+                          {moment(report.uploaded_at).format('YYYY-MM-DD HH:mm')}
+                        </div>
+                      </div>
+                    }
+                    description={
+                      report.description ? (
+                        <div style={{ fontSize: 12, marginTop: 4 }}>
+                          {report.description}
+                        </div>
+                      ) : null
+                    }
+                  />
+                </Card>
+              </Col>
+            ))}
+          </Row>
+        </div>
+      ) : (
+        <div style={{ marginBottom: 24, color: '#999' }}>No reports available</div>
+      )}
 
       <Divider />
 
@@ -319,6 +421,31 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
       onCancel={() => setNextVisitModalVisible(false)}
       patient={selectedPatient}
     />
+
+    {/* Billing Modal */}
+    <BillingModal
+      visible={billingModalVisible}
+      onCancel={() => setBillingModalVisible(false)}
+      patient={selectedPatient}
+      onBillingComplete={() => {
+        setBillingModalVisible(false);
+      }}
+    />
+
+    {/* Image Preview Modal */}
+    <Modal
+      open={imagePreviewVisible}
+      footer={null}
+      onCancel={() => setImagePreviewVisible(false)}
+      width={800}
+      centered
+    >
+      <img
+        alt="Preview"
+        style={{ width: '100%' }}
+        src={previewImage}
+      />
+    </Modal>
   </>
   );
 };

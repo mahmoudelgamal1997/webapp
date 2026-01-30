@@ -6,9 +6,12 @@ import {
   LogoutOutlined, 
   MenuUnfoldOutlined, 
   MenuFoldOutlined, 
-  SettingOutlined 
+  SettingOutlined,
+  MedicineBoxOutlined,
+  BarChartOutlined,
+  DollarOutlined
 } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 
 const { Sider } = Layout;
@@ -20,6 +23,7 @@ interface SidebarProps {
 
 const DashboardSidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { username, logout } = useAuth();
 
   const handleLogout = () => {
@@ -27,8 +31,30 @@ const DashboardSidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) =
     navigate('/login');
   };
 
-  const handleSettingsClick = () => {
-    navigate('/settings');
+  const handleMenuClick = (key: string) => {
+    switch (key) {
+      case 'patients':
+        navigate('/dashboard');
+        break;
+      case 'services':
+        navigate('/services');
+        break;
+      case 'analytics':
+        navigate('/analytics');
+        break;
+      case 'settings':
+        navigate('/settings');
+        break;
+    }
+  };
+
+  // Determine current selected key based on path
+  const getSelectedKey = () => {
+    const path = location.pathname;
+    if (path.includes('/services')) return 'services';
+    if (path.includes('/analytics')) return 'analytics';
+    if (path.includes('/settings')) return 'settings';
+    return 'patients';
   };
 
   return (
@@ -57,11 +83,22 @@ const DashboardSidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) =
           </span>
         )}
       </div>
-      <Menu theme="dark" mode="inline" defaultSelectedKeys={['patients']}>
+      <Menu 
+        theme="dark" 
+        mode="inline" 
+        selectedKeys={[getSelectedKey()]}
+        onClick={({ key }) => key !== 'logout' && handleMenuClick(key)}
+      >
         <Menu.Item key="patients" icon={<UserOutlined />}>
           Patients
         </Menu.Item>
-        <Menu.Item key="settings" icon={<SettingOutlined />} onClick={handleSettingsClick}>
+        <Menu.Item key="services" icon={<MedicineBoxOutlined />}>
+          Services
+        </Menu.Item>
+        <Menu.Item key="analytics" icon={<BarChartOutlined />}>
+          Revenue & Analytics
+        </Menu.Item>
+        <Menu.Item key="settings" icon={<SettingOutlined />}>
           Receipt Settings
         </Menu.Item>
         <Menu.Item key="logout" icon={<LogoutOutlined />} onClick={handleLogout}>

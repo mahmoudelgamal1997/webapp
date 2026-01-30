@@ -1,6 +1,6 @@
 // components/DoctorSettings.tsx
 import React, { useState } from 'react';
-import { Form, Input, Button, Card, message, Typography, Divider, Space, Layout } from 'antd';
+import { Form, Input, Button, Card, message, Typography, Divider, Layout } from 'antd';
 import { SaveOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useDoctorContext } from './DoctorContext';
@@ -8,7 +8,7 @@ import { useAuth } from './AuthContext';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
-const { Header, Content, Sider } = Layout;
+const { Header, Content } = Layout;
 
 interface SettingsFormValues {
   receiptHeader: string;
