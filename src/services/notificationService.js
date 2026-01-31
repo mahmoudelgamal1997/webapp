@@ -397,18 +397,27 @@ const saveBillingToPatientDocument = async (billingData) => {
   const { clinic_id, patient_id, date } = billingData;
   
   if (!clinic_id || !patient_id || !date) {
-    console.warn('⚠️ Missing required fields for saving billing to patient document');
-    console.warn('   clinic_id:', clinic_id);
-    console.warn('   patient_id:', patient_id);
-    console.warn('   date:', date);
+    console.error('❌ Missing required fields for saving billing to patient document');
+    console.error('   clinic_id:', clinic_id);
+    console.error('   patient_id:', patient_id);
+    console.error('   date:', date);
     return { success: false, error: 'Missing required fields' };
   }
 
+  const path = `clinics/${clinic_id}/waiting_list/${date}/patients/${patient_id}`;
   console.log('💾 Saving billing to patient document...');
-  console.log(`   Path: clinics/${clinic_id}/waiting_list/${date}/patients/${patient_id}`);
+  console.log(`   Full Path: ${path}`);
 
   try {
     const patientRef = doc(db, 'clinics', clinic_id, 'waiting_list', date, 'patients', patient_id);
+    
+    // Check if patient document exists first
+    const patientSnap = await getDoc(patientRef);
+    if (!patientSnap.exists()) {
+      console.error(`❌ Patient document does NOT exist at path: ${path}`);
+      return { success: false, error: 'Patient document not found' };
+    }
+    console.log('✅ Patient document exists, proceeding with billing update...');
     
     // Build billing object for patient document
     // Ensure services array is properly formatted
@@ -434,13 +443,16 @@ const saveBillingToPatientDocument = async (billingData) => {
       console.log(`   Service ${i + 1}: ${s.service_name} - ${s.subtotal} EGP`);
     });
 
-    // Update patient document with billing field
-    await updateDoc(patientRef, { billing: billingForPatient });
+    // Use setDoc with merge to update the billing field
+    await setDoc(patientRef, { billing: billingForPatient }, { merge: true });
 
     console.log('✅ Billing saved to patient document successfully!');
+    console.log(`   Verify at: Firebase Console -> Firestore -> ${path}`);
     return { success: true };
   } catch (error) {
     console.error('❌ Error saving billing to patient document:', error);
+    console.error('   Error code:', error.code);
+    console.error('   Error message:', error.message);
     return { success: false, error: error.message };
   }
 };
