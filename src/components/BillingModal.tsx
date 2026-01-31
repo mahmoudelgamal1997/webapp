@@ -75,7 +75,7 @@ const BillingModal: React.FC<BillingModalProps> = ({
     setDiscountReason('');
     form.setFieldsValue({
       paymentMethod: 'cash',
-      paymentStatus: 'paid'
+      paymentStatus: 'pending' // Default to pending - assistant will collect payment
     });
   };
 
@@ -443,12 +443,12 @@ const BillingModal: React.FC<BillingModalProps> = ({
               <Form.Item
                 name="paymentStatus"
                 label="Payment Status"
-                initialValue="paid"
+                initialValue="pending"
               >
                 <Select>
-                  <Option value="paid">✅ Paid</Option>
-                  <Option value="pending">⏳ Pending</Option>
-                  <Option value="partial">📊 Partial</Option>
+                  <Option value="pending">⏳ Pending (Assistant will collect)</Option>
+                  <Option value="paid">✅ Already Paid</Option>
+                  <Option value="partial">📊 Partial Payment</Option>
                 </Select>
               </Form.Item>
             </Col>
