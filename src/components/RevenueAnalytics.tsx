@@ -67,9 +67,12 @@ const RevenueAnalytics: React.FC = () => {
     try {
       setLoading(true);
       
+      // Format dates with time component to ensure proper filtering
+      // Start date: beginning of day (00:00:00)
+      // End date: end of day (23:59:59) to include all records for that day
       const params = {
-        startDate: dateRange[0]?.format('YYYY-MM-DD'),
-        endDate: dateRange[1]?.format('YYYY-MM-DD')
+        startDate: dateRange[0]?.startOf('day').format('YYYY-MM-DD HH:mm:ss'),
+        endDate: dateRange[1]?.endOf('day').format('YYYY-MM-DD HH:mm:ss')
       };
 
       const [overviewRes, servicesRes, performanceRes] = await Promise.all([
