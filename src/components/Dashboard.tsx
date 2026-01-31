@@ -444,7 +444,13 @@ const Dashboard: React.FC = () => {
                 isReceiptModalVisible={isReceiptModalVisible}
                 setIsReceiptModalVisible={setIsReceiptModalVisible}
                 onPrintReceipt={handlePrintReceipt}
-                onBackToList={() => setSelectedPatient(null)}
+                onBackToList={() => {
+                  setSelectedPatient(null);
+                  // Ensure we're on dashboard route, not services
+                  if (window.location.pathname !== '/dashboard') {
+                    navigate('/dashboard', { replace: true });
+                  }
+                }}
               />
             ) : (
               <>
