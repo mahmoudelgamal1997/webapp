@@ -156,7 +156,9 @@ export const listenToNotifications = (assistantId, callback) => {
  */
 export const getAssistantsForDoctorClinic = async (doctorId, clinicId) => {
   try {
-    console.log('Fetching assistants for doctor:', doctorId, 'clinic:', clinicId);
+    console.log('🔍🔍🔍 FETCHING ASSISTANTS 🔍🔍🔍');
+    console.log('📝 Doctor ID:', doctorId);
+    console.log('📝 Clinic ID:', clinicId);
     
     const relationshipsRef = collection(db, 'doctor_clinic_assistant');
     const q = query(
@@ -167,11 +169,16 @@ export const getAssistantsForDoctorClinic = async (doctorId, clinicId) => {
     const snapshot = await getDocs(q);
     const relationships = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     
-    console.log('Found relationships:', relationships.length, relationships);
+    console.log('📄 Found', relationships.length, 'relationships');
+    relationships.forEach((rel, i) => {
+      console.log(`   ${i + 1}. assistant_id: ${rel.assistant_id}`);
+    });
     
     if (relationships.length === 0) {
-      console.warn('No relationships found for doctor:', doctorId, 'clinic:', clinicId);
-      console.log('Make sure relationships are created in admin portal');
+      console.warn('⚠️⚠️⚠️ NO RELATIONSHIPS FOUND ⚠️⚠️⚠️');
+      console.warn('Doctor:', doctorId);
+      console.warn('Clinic:', clinicId);
+      console.warn('Make sure doctor-clinic-assistant relationships are created in admin portal');
       return [];
     }
     
@@ -179,21 +186,21 @@ export const getAssistantsForDoctorClinic = async (doctorId, clinicId) => {
     const assistants = [];
     for (const rel of relationships) {
       const assistantId = rel.assistant_id;
-      console.log('Fetching assistant document:', assistantId);
+      console.log('👤 Fetching assistant document:', assistantId);
       
       const assistantDoc = doc(db, 'assistants', assistantId);
       const assistantSnap = await getDoc(assistantDoc);
       
       if (assistantSnap.exists()) {
         const assistantData = assistantSnap.data();
-        console.log('Found assistant:', assistantId, assistantData);
+        console.log('✅ Found assistant:', assistantId);
         assistants.push({ id: assistantId, ...assistantData });
       } else {
-        console.warn('Assistant document not found:', assistantId);
+        console.warn('❌ Assistant document not found in /assistants collection:', assistantId);
       }
     }
     
-    console.log('Returning assistants:', assistants);
+    console.log('👥 Returning', assistants.length, 'assistants');
     return assistants;
   } catch (error) {
     console.error('Error fetching assistants:', error);
@@ -303,6 +310,13 @@ export const sendBillingNotificationToAssistant = async (billingData) => {
   const MAX_RETRIES = 3;
   const RETRY_DELAY = 2000; // 2 seconds
 
+  console.log('💰💰💰 CREATING BILLING NOTIFICATION 💰💰💰');
+  console.log('📝 Assistant ID:', billingData.assistant_id);
+  console.log('📝 Doctor ID:', billingData.doctor_id);
+  console.log('📝 Clinic ID:', billingData.clinic_id);
+  console.log('📝 Patient:', billingData.patient_name);
+  console.log('📝 Amount:', billingData.totalAmount);
+
   // Build services summary
   const servicesSummary = billingData.services && billingData.services.length > 0
     ? billingData.services.map(s => `${s.service_name}: ${s.subtotal} EGP`).join(', ')
@@ -336,14 +350,18 @@ export const sendBillingNotificationToAssistant = async (billingData) => {
     }
   };
 
+  console.log('📄 Notification document to create:', JSON.stringify(notificationDoc, null, 2));
+
   // Retry logic for offline/network issues
   const attemptSend = async (attempt) => {
     try {
       const notificationsRef = collection(db, 'doctor_assistant_notifications');
       const docRef = await addDoc(notificationsRef, notificationDoc);
 
-      console.log('✅ Billing notification created:', docRef.id);
+      console.log('✅✅✅ BILLING NOTIFICATION CREATED SUCCESSFULLY ✅✅✅');
+      console.log('📄 Document ID:', docRef.id);
       console.log('💰 Amount:', billingData.totalAmount, 'EGP for patient:', billingData.patient_name);
+      console.log('👤 To assistant:', billingData.assistant_id);
       
       return { 
         success: true, 
@@ -351,7 +369,8 @@ export const sendBillingNotificationToAssistant = async (billingData) => {
         ...notificationDoc 
       };
     } catch (error) {
-      console.error(`❌ Billing notification attempt ${attempt} failed:`, error);
+      console.error(`❌❌❌ Billing notification attempt ${attempt} failed:`, error);
+      console.error('Error details:', error.message);
       
       if (attempt < MAX_RETRIES) {
         console.log(`🔄 Retrying in ${RETRY_DELAY}ms... (attempt ${attempt + 1}/${MAX_RETRIES})`);
