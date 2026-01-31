@@ -341,6 +341,8 @@ export const sendBillingNotificationToAssistant = async (billingData) => {
     doctor_name: billingData.doctor_name || '',
     clinic_name: billingData.clinic_name || '',
     patient_name: billingData.patient_name || '',
+    patient_id: billingData.patient_id || '', // Required for marking as paid
+    date: billingData.date || '', // Required for Firebase path
     // Additional billing data for assistant to verify
     billing_data: {
       billing_id: billingData.billing_id,
