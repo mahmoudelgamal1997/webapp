@@ -411,6 +411,9 @@ const saveBillingToPatientDocument = async (billingData) => {
     const patientRef = doc(db, 'clinics', clinic_id, 'waiting_list', date, 'patients', patient_id);
     
     // Build billing object for patient document
+    // Ensure services array is properly formatted
+    const servicesArray = Array.isArray(billingData.services) ? billingData.services : [];
+    
     const billingForPatient = {
       totalAmount: billingData.totalAmount || 0,
       amountPaid: billingData.amountPaid || 0,
@@ -421,8 +424,14 @@ const saveBillingToPatientDocument = async (billingData) => {
       paymentMethod: billingData.paymentMethod || 'cash',
       notes: billingData.notes || '',
       billingDate: date,
-      services: billingData.services || []
+      services: servicesArray
     };
+
+    console.log('💾 Billing data to save:', JSON.stringify(billingForPatient, null, 2));
+    console.log(`📋 Services count: ${servicesArray.length}`);
+    servicesArray.forEach((s, i) => {
+      console.log(`   Service ${i + 1}: ${s.service_name} - ${s.subtotal} EGP`);
+    });
 
     // Update patient document with billing field
     await updateDoc(patientRef, { billing: billingForPatient });
