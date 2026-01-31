@@ -194,15 +194,36 @@ const BillingModal: React.FC<BillingModalProps> = ({
         // Send notification to assistant about the additional services
         // Also saves billing to patient document for real-time display
         try {
-          // Get today's date in the same format as Firebase path (yyyy-M-d)
-          const today = new Date();
-          const dateString = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
+          // Use patient's date (visit date) in the same format as Firebase path (yyyy-M-d)
+          // If patient.date is in different format, parse it
+          let dateString = patient.date || '';
+          
+          // If date is in format "2026-1-31" or "2026-01-31", use as is
+          // If in other format like "2026-01-31T00:00:00Z", extract date part
+          if (dateString.includes('T')) {
+            dateString = dateString.split('T')[0];
+          }
+          
+          // Ensure format is yyyy-M-d (single digit month/day if needed)
+          if (dateString && dateString.match(/^\d{4}-\d{1,2}-\d{1,2}$/)) {
+            // Format is already correct, but ensure single digits for month/day
+            const parts = dateString.split('-');
+            dateString = `${parts[0]}-${parseInt(parts[1])}-${parseInt(parts[2])}`;
+          }
+          
+          // Fallback to today if patient.date is missing
+          if (!dateString) {
+            const today = new Date();
+            dateString = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
+          }
+          
+          console.log('📅 Using patient date for billing:', dateString);
           
           await sendBillingNotificationToAllAssistants({
             doctor_id: doctorId,
             clinic_id: selectedClinicId || patient.clinic_id || '',
             patient_id: patient.patient_id, // Required for saving to patient document
-            date: dateString, // Required for Firebase path
+            date: dateString, // Required for Firebase path - use patient's visit date
             patient_name: patient.patient_name,
             totalAmount: totalAmount,
             amountPaid: values.paymentStatus === 'paid' ? totalAmount : (values.amountPaid || 0),

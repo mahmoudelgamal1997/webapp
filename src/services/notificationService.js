@@ -415,6 +415,7 @@ const saveBillingToPatientDocument = async (billingData) => {
     const servicesArray = Array.isArray(billingData.services) ? billingData.services : [];
     
     const billingForPatient = {
+      billing_id: billingData.billing_id || '',
       totalAmount: billingData.totalAmount || 0,
       amountPaid: billingData.amountPaid || 0,
       paymentStatus: billingData.paymentStatus || 'pending',
