@@ -423,6 +423,10 @@ const saveBillingToPatientDocument = async (billingData) => {
     // Ensure services array is properly formatted
     const servicesArray = Array.isArray(billingData.services) ? billingData.services : [];
     
+    // Use ISO string timestamp instead of serverTimestamp() because Firestore doesn't support
+    // serverTimestamp() inside arrays. We'll use a formatted date string for ordering.
+    const createdAtTimestamp = new Date().toISOString();
+    
     const billingForPatient = {
       billing_id: billingData.billing_id || '',
       totalAmount: billingData.totalAmount || 0,
@@ -435,7 +439,7 @@ const saveBillingToPatientDocument = async (billingData) => {
       notes: billingData.notes || '',
       billingDate: date,
       services: servicesArray,
-      createdAt: serverTimestamp() // Add timestamp for ordering
+      createdAt: createdAtTimestamp // Use ISO string instead of serverTimestamp() for arrays
     };
 
     console.log('💾 Billing data to save:', JSON.stringify(billingForPatient, null, 2));
