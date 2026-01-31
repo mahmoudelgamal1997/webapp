@@ -448,21 +448,42 @@ const saveBillingToPatientDocument = async (billingData) => {
     const patientData = patientSnap.data();
     const existingBills = patientData?.bills || [];
     
+    console.log(`📋 Current bills in patient document: ${existingBills.length}`);
+    if (existingBills.length > 0) {
+      existingBills.forEach((bill, index) => {
+        console.log(`   Bill ${index}: ID=${bill.billing_id}, Amount=${bill.totalAmount}`);
+      });
+    }
+    
     // Check if this bill already exists (by billing_id) to avoid duplicates
     const billExists = existingBills.some(bill => bill.billing_id === billingForPatient.billing_id);
     
+    let updatedBills;
     if (billExists) {
       console.log('⚠️ Bill with this billing_id already exists, updating instead of appending');
       // Update existing bill
-      const updatedBills = existingBills.map(bill => 
+      updatedBills = existingBills.map(bill => 
         bill.billing_id === billingForPatient.billing_id ? billingForPatient : bill
       );
-      await setDoc(patientRef, { bills: updatedBills }, { merge: true });
     } else {
       // Append new bill to array
-      const updatedBills = [...existingBills, billingForPatient];
-      await setDoc(patientRef, { bills: updatedBills }, { merge: true });
-      console.log(`✅ Added new bill to array. Total bills: ${updatedBills.length}`);
+      updatedBills = [...existingBills, billingForPatient];
+      console.log(`✅ Adding new bill to array. New total: ${updatedBills.length}`);
+    }
+    
+    // Save the updated bills array
+    console.log(`💾 Saving ${updatedBills.length} bills to patient document...`);
+    await setDoc(patientRef, { bills: updatedBills }, { merge: true });
+    
+    // Verify the save by reading back
+    const verifySnap = await getDoc(patientRef);
+    const verifyData = verifySnap.data();
+    const verifyBills = verifyData?.bills || [];
+    console.log(`✅ Verification: Patient document now has ${verifyBills.length} bills`);
+    
+    if (verifyBills.length !== updatedBills.length) {
+      console.error(`❌ MISMATCH: Expected ${updatedBills.length} bills but found ${verifyBills.length}`);
+      return { success: false, error: 'Bills count mismatch after save' };
     }
 
     console.log('✅ Billing saved to patient document successfully!');
