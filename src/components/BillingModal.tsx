@@ -192,17 +192,30 @@ const BillingModal: React.FC<BillingModalProps> = ({
         message.success('Services bill created successfully');
         
         // Send notification to assistant about the additional services
+        // Also saves billing to patient document for real-time display
         try {
+          // Get today's date in the same format as Firebase path (yyyy-M-d)
+          const today = new Date();
+          const dateString = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
+          
           await sendBillingNotificationToAllAssistants({
             doctor_id: doctorId,
             clinic_id: selectedClinicId || patient.clinic_id || '',
+            patient_id: patient.patient_id, // Required for saving to patient document
+            date: dateString, // Required for Firebase path
             patient_name: patient.patient_name,
             totalAmount: totalAmount,
+            amountPaid: values.paymentStatus === 'paid' ? totalAmount : (values.amountPaid || 0),
+            paymentStatus: values.paymentStatus,
+            paymentMethod: values.paymentMethod,
             consultationFee: 0,
+            consultationType: 'خدمات إضافية',
+            servicesTotal: servicesTotal,
             services: selectedServices,
             billing_id: response.data.data?.billing_id || '',
             clinic_name: selectedClinic?.name || '',
-            doctor_name: ''
+            doctor_name: '',
+            notes: values.notes || ''
           });
           message.success('Notification sent to assistant');
         } catch (notifError) {

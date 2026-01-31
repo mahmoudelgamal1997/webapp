@@ -8,6 +8,7 @@ import {
   orderBy, 
   limit,
   updateDoc,
+  setDoc,
   doc,
   serverTimestamp,
   onSnapshot
@@ -386,12 +387,77 @@ export const sendBillingNotificationToAssistant = async (billingData) => {
 };
 
 /**
+ * Save billing data to patient document in Firebase for real-time display
+ * Path: /clinics/{clinicId}/waiting_list/{date}/patients/{patientId}
+ * @param {Object} billingData - Billing information to save
+ */
+const saveBillingToPatientDocument = async (billingData) => {
+  const { clinic_id, patient_id, date } = billingData;
+  
+  if (!clinic_id || !patient_id || !date) {
+    console.warn('⚠️ Missing required fields for saving billing to patient document');
+    console.warn('   clinic_id:', clinic_id);
+    console.warn('   patient_id:', patient_id);
+    console.warn('   date:', date);
+    return { success: false, error: 'Missing required fields' };
+  }
+
+  console.log('💾 Saving billing to patient document...');
+  console.log(`   Path: clinics/${clinic_id}/waiting_list/${date}/patients/${patient_id}`);
+
+  try {
+    const patientRef = doc(db, 'clinics', clinic_id, 'waiting_list', date, 'patients', patient_id);
+    
+    // Build billing object for patient document
+    const billingForPatient = {
+      totalAmount: billingData.totalAmount || 0,
+      amountPaid: billingData.amountPaid || 0,
+      paymentStatus: billingData.paymentStatus || 'pending',
+      consultationFee: billingData.consultationFee || 0,
+      consultationType: billingData.consultationType || 'كشف',
+      servicesTotal: billingData.servicesTotal || 0,
+      paymentMethod: billingData.paymentMethod || 'cash',
+      notes: billingData.notes || '',
+      billingDate: date,
+      services: billingData.services || []
+    };
+
+    // Update patient document with billing field
+    await updateDoc(patientRef, { billing: billingForPatient });
+
+    console.log('✅ Billing saved to patient document successfully!');
+    return { success: true };
+  } catch (error) {
+    console.error('❌ Error saving billing to patient document:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
  * Get all assistants for a doctor and clinic, then send billing notification to all
+ * Also saves billing data to patient document for real-time display
  * @param {Object} billingData - Billing notification data
  * @returns {Promise<Array>} Results of all notification attempts
  */
 export const sendBillingNotificationToAllAssistants = async (billingData) => {
   try {
+    // IMPORTANT: Save billing to patient document for real-time display on assistant app
+    console.log('💰💰💰 BILLING WORKFLOW START 💰💰💰');
+    
+    if (billingData.patient_id && billingData.clinic_id && billingData.date) {
+      const saveBillingResult = await saveBillingToPatientDocument(billingData);
+      if (saveBillingResult.success) {
+        console.log('✅ Billing saved to Firebase patient document');
+      } else {
+        console.warn('⚠️ Could not save billing to patient document:', saveBillingResult.error);
+      }
+    } else {
+      console.warn('⚠️ Cannot save billing to patient document - missing patient_id, clinic_id, or date');
+      console.warn('   patient_id:', billingData.patient_id);
+      console.warn('   clinic_id:', billingData.clinic_id);
+      console.warn('   date:', billingData.date);
+    }
+    
     // Get all assistants for this doctor-clinic combination
     const assistants = await getAssistantsForDoctorClinic(billingData.doctor_id, billingData.clinic_id);
     
