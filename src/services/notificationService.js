@@ -434,7 +434,8 @@ const saveBillingToPatientDocument = async (billingData) => {
       paymentMethod: billingData.paymentMethod || 'cash',
       notes: billingData.notes || '',
       billingDate: date,
-      services: servicesArray
+      services: servicesArray,
+      createdAt: serverTimestamp() // Add timestamp for ordering
     };
 
     console.log('💾 Billing data to save:', JSON.stringify(billingForPatient, null, 2));
@@ -443,8 +444,26 @@ const saveBillingToPatientDocument = async (billingData) => {
       console.log(`   Service ${i + 1}: ${s.service_name} - ${s.subtotal} EGP`);
     });
 
-    // Use setDoc with merge to update the billing field
-    await setDoc(patientRef, { billing: billingForPatient }, { merge: true });
+    // Get existing bills array or create new one
+    const patientData = patientSnap.data();
+    const existingBills = patientData?.bills || [];
+    
+    // Check if this bill already exists (by billing_id) to avoid duplicates
+    const billExists = existingBills.some(bill => bill.billing_id === billingForPatient.billing_id);
+    
+    if (billExists) {
+      console.log('⚠️ Bill with this billing_id already exists, updating instead of appending');
+      // Update existing bill
+      const updatedBills = existingBills.map(bill => 
+        bill.billing_id === billingForPatient.billing_id ? billingForPatient : bill
+      );
+      await setDoc(patientRef, { bills: updatedBills }, { merge: true });
+    } else {
+      // Append new bill to array
+      const updatedBills = [...existingBills, billingForPatient];
+      await setDoc(patientRef, { bills: updatedBills }, { merge: true });
+      console.log(`✅ Added new bill to array. Total bills: ${updatedBills.length}`);
+    }
 
     console.log('✅ Billing saved to patient document successfully!');
     console.log(`   Verify at: Firebase Console -> Firestore -> ${path}`);
