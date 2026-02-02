@@ -75,6 +75,8 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
         drugModel: values.drugModel || 'new',
         drugs: values.drugs || [],
         notes: values.notes || '',
+        complaint: values.complaint || '',
+        diagnosis: values.diagnosis || '',
         date: dayjs().format('YYYY-MM-DD')
       };
 
@@ -155,6 +157,28 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
           >
             <Option value="new">روشتة جديدة</Option>
           </Select>
+        </Form.Item>
+
+        {/* Complaint Field */}
+        <Form.Item
+          name="complaint"
+          label="الشكوى"
+        >
+          <TextArea 
+            placeholder="أدخل شكوى المريض" 
+            rows={2} 
+          />
+        </Form.Item>
+
+        {/* Diagnosis Field */}
+        <Form.Item
+          name="diagnosis"
+          label="التشخيص"
+        >
+          <TextArea 
+            placeholder="أدخل التشخيص" 
+            rows={2} 
+          />
         </Form.Item>
 
         {/* Drug Details Section */}
