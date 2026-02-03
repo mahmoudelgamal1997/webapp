@@ -13,6 +13,20 @@ import BillingModal from './BillingModal';
 
 const { Title, Text } = Typography;
 
+/**
+ * Helper function to get the correct image URL
+ * Handles both Firebase Storage URLs (full URLs) and legacy local paths
+ */
+const getImageUrl = (imageUrl: string): string => {
+  if (!imageUrl) return '';
+  // If it's already a full URL (Firebase Storage or any http/https URL), use it directly
+  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+    return imageUrl;
+  }
+  // Otherwise, it's a legacy local path - prepend the API base URL
+  return `${API.BASE_URL}${imageUrl}`;
+};
+
 interface PatientDetailProps {
   isReceiptModalVisible: boolean;
   setIsReceiptModalVisible: (visible: boolean) => void;
@@ -242,10 +256,10 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
                     <div style={{ height: 150, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f5f5f5' }}>
                       <img
                         alt={report.description || 'Report'}
-                        src={`${API.BASE_URL}${report.image_url}`}
+                        src={getImageUrl(report.image_url)}
                         style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
                         onClick={() => {
-                          setPreviewImage(`${API.BASE_URL}${report.image_url}`);
+                          setPreviewImage(getImageUrl(report.image_url));
                           setImagePreviewVisible(true);
                         }}
                       />
@@ -255,7 +269,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
                     <EyeOutlined
                       key="view"
                       onClick={() => {
-                        setPreviewImage(`${API.BASE_URL}${report.image_url}`);
+                        setPreviewImage(getImageUrl(report.image_url));
                         setImagePreviewVisible(true);
                       }}
                     />
