@@ -9,29 +9,31 @@ import { AuthProvider, useAuth } from './components/AuthContext';
 import { PatientProvider } from './components/PatientContext';
 import { DoctorProvider } from './components/DoctorContext';
 import { NextVisitProvider } from './components/NextVisitContext';
-import { ClinicProvider } from './components/ClinicContext'; // Import the new ClinicProvider
+import { ClinicProvider } from './components/ClinicContext';
+import { InventoryProvider } from './components/InventoryContext';
+import InventoryManagement from './components/InventoryManagement';
 
 // Protected route component
 const ProtectedRoute = ({ children }) => {
   const { isLoggedIn } = useAuth();
   const location = useLocation();
-  
+
   if (!isLoggedIn()) {
     // Redirect to login with the intended destination
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
-  
+
   return children;
 };
 
 // Public route - redirects to dashboard if already logged in
 const PublicRoute = ({ children }) => {
   const { isLoggedIn } = useAuth();
-  
+
   if (isLoggedIn()) {
     return <Navigate to="/dashboard" replace />;
   }
-  
+
   return children;
 };
 
@@ -40,57 +42,67 @@ function App() {
     <Router>
       <AuthProvider>
         <DoctorProvider>
-          <ClinicProvider> {/* Add ClinicProvider */}
-            <NextVisitProvider>
-              <Routes>
-                <Route 
-                  path="/login" 
-                  element={
-                    <PublicRoute>
-                      <LoginPage />
-                    </PublicRoute>
-                  } 
-                />
-                <Route 
-                  path="/dashboard/*" 
-                  element={
-                    <ProtectedRoute>
-                      <PatientProvider>
-                        <Dashboard />
-                      </PatientProvider>
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/settings" 
-                  element={
-                    <ProtectedRoute>
-                      <PatientProvider>
-                        <DoctorSettings />
-                      </PatientProvider>
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/services" 
-                  element={
-                    <ProtectedRoute>
-                      <ServicesManagement />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/analytics" 
-                  element={
-                    <ProtectedRoute>
-                      <RevenueAnalytics />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route path="/" element={<Navigate to="/dashboard" />} />
-                <Route path="*" element={<Navigate to="/login" />} />
-              </Routes>
-            </NextVisitProvider>
+          <ClinicProvider>
+            <InventoryProvider>
+              <NextVisitProvider>
+                <Routes>
+                  <Route
+                    path="/login"
+                    element={
+                      <PublicRoute>
+                        <LoginPage />
+                      </PublicRoute>
+                    }
+                  />
+                  <Route
+                    path="/dashboard/*"
+                    element={
+                      <ProtectedRoute>
+                        <PatientProvider>
+                          <Dashboard />
+                        </PatientProvider>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/settings"
+                    element={
+                      <ProtectedRoute>
+                        <PatientProvider>
+                          <DoctorSettings />
+                        </PatientProvider>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/services"
+                    element={
+                      <ProtectedRoute>
+                        <ServicesManagement />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/analytics"
+                    element={
+                      <ProtectedRoute>
+                        <RevenueAnalytics />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/inventory"
+                    element={
+                      <ProtectedRoute>
+                        <InventoryManagement />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route path="/" element={<Navigate to="/dashboard" />} />
+                  <Route path="*" element={<Navigate to="/login" />} />
+                </Routes>
+              </NextVisitProvider>
+            </InventoryProvider>
           </ClinicProvider>
         </DoctorProvider>
       </AuthProvider>

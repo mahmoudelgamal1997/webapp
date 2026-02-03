@@ -1,15 +1,16 @@
 // src/components/DashboardSidebar.tsx
 import React from 'react';
 import { Layout, Menu } from 'antd';
-import { 
-  UserOutlined, 
-  LogoutOutlined, 
-  MenuUnfoldOutlined, 
-  MenuFoldOutlined, 
+import {
+  UserOutlined,
+  LogoutOutlined,
+  MenuUnfoldOutlined,
+  MenuFoldOutlined,
   SettingOutlined,
   MedicineBoxOutlined,
   BarChartOutlined,
-  DollarOutlined
+  DollarOutlined,
+  InboxOutlined
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
@@ -42,6 +43,9 @@ const DashboardSidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) =
       case 'analytics':
         navigate('/analytics');
         break;
+      case 'inventory':
+        navigate('/inventory');
+        break;
       case 'settings':
         navigate('/settings');
         break;
@@ -53,22 +57,23 @@ const DashboardSidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) =
     const path = location.pathname;
     if (path.includes('/services')) return 'services';
     if (path.includes('/analytics')) return 'analytics';
+    if (path.includes('/inventory')) return 'inventory';
     if (path.includes('/settings')) return 'settings';
     return 'patients';
   };
 
   return (
-    <Sider 
-      collapsible 
-      collapsed={collapsed} 
+    <Sider
+      collapsible
+      collapsed={collapsed}
       onCollapse={(value) => setCollapsed(value)}
       trigger={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
     >
-      <div 
-        className="logo" 
-        style={{ 
-          height: '32px', 
-          background: 'rgba(255, 255, 255, 0.2)', 
+      <div
+        className="logo"
+        style={{
+          height: '32px',
+          background: 'rgba(255, 255, 255, 0.2)',
           margin: '16px',
           display: 'flex',
           alignItems: 'center',
@@ -83,9 +88,9 @@ const DashboardSidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) =
           </span>
         )}
       </div>
-      <Menu 
-        theme="dark" 
-        mode="inline" 
+      <Menu
+        theme="dark"
+        mode="inline"
         selectedKeys={[getSelectedKey()]}
         onClick={({ key }) => key !== 'logout' && handleMenuClick(key)}
       >
@@ -97,6 +102,9 @@ const DashboardSidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) =
         </Menu.Item>
         <Menu.Item key="analytics" icon={<BarChartOutlined />}>
           Revenue & Analytics
+        </Menu.Item>
+        <Menu.Item key="inventory" icon={<InboxOutlined />}>
+          Inventory
         </Menu.Item>
         <Menu.Item key="settings" icon={<SettingOutlined />}>
           Receipt Settings
