@@ -261,8 +261,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
                     <Form.Item
                       {...restField}
                       name={[name, 'drug']}
-                      style={{ flex: 1, marginLeft: '8px' }}
-                      rules={[{ required: true, message: 'الرجاء إدخال اسم الدواء' }]}
+                      style={{ flex: 2, marginLeft: '8px' }}
                     >
                       <Input placeholder="اسم الدواء" />
                     </Form.Item>
@@ -270,13 +269,13 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
                       {...restField}
                       name={[name, 'frequency']}
                       style={{ flex: 1, marginLeft: '8px' }}
-                      rules={[{ required: true, message: 'الرجاء اختيار التكرار' }]}
                     >
                       <Select placeholder="التكرار">
-
-                        <Option value="مرة">مرة</Option>
+                        <Option value="_">_</Option>
+                        <Option value="مرة واحدة">مرة واحدة</Option>
                         <Option value="مرتين">مرتين</Option>
                         <Option value="3 مرات">3 مرات</Option>
+                        <Option value="4 مرات">4 مرات</Option>
                         <Option value="يومياً">يومياً</Option>
                       </Select>
                     </Form.Item>
@@ -284,7 +283,6 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
                       {...restField}
                       name={[name, 'period']}
                       style={{ flex: 1, marginLeft: '8px' }}
-                      rules={[{ required: true, message: 'الرجاء اختيار المدة' }]}
                     >
                       <Select placeholder="المدة">
                         <Option value="يوميًا">يوميًا</Option>
@@ -304,7 +302,6 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
                       {...restField}
                       name={[name, 'timing']}
                       style={{ flex: 1, marginLeft: '8px' }}
-                      rules={[{ required: true, message: 'الرجاء اختيار توقيت الدواء' }]}
                     >
                       <Select placeholder="توقيت الدواء">
                         <Option value="_">_</Option>
