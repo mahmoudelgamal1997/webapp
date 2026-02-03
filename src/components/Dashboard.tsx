@@ -337,17 +337,23 @@ const Dashboard: React.FC = () => {
               body { 
                 font-family: Arial, sans-serif; 
                 direction: rtl; 
-                margin: 0;
-                padding-top: ${isCustomPaper ? (printSettings.marginTop || 0) + 'mm' : '20px'};
+                margin: 0; 
+                padding: 0;
               }
               @page {
                 size: ${printSettings.paperSize === 'custom' ? 'auto' : printSettings.paperSize};
                 margin: 0;
               }
               .receipt { 
-                padding: 0 20px; 
+                position: ${isCustomPaper ? 'absolute' : 'static'};
+                top: ${isCustomPaper ? (printSettings.marginTop || 0) + 'mm' : 'auto'};
+                left: 0;
+                right: 0;
+                padding: 0 20px;
                 max-width: 800px; 
                 margin: 0 auto; 
+                width: 100%;
+                box-sizing: border-box;
               }
               .header { 
                 text-align: center; 
@@ -383,6 +389,9 @@ const Dashboard: React.FC = () => {
                 text-align: center; 
                 font-style: italic; 
                 display: ${printSettings.showFooter ? 'block' : 'none'};
+                position: ${isCustomPaper ? 'absolute' : 'static'};
+                bottom: ${isCustomPaper ? '0' : 'auto'};
+                width: 100%;
               }
               h1, h2, h3 { margin: 5px 0; }
             </style>
