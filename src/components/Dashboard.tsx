@@ -270,6 +270,28 @@ const Dashboard: React.FC = () => {
     }
   }, [isMobile]);
 
+  // Helper to translate drug timing to Arabic
+  const formatDrugTiming = (timing: string) => {
+    if (!timing) return '';
+    const map: Record<string, string> = {
+      "After eating": "بعد الأكل",
+      "After meals": "بعد الأكل",
+      "Before eating": "قبل الأكل",
+      "Before meals": "قبل الأكل",
+      "Before sleeping": "قبل النوم",
+      "At bed time": "عند النوم",
+      "Every 8 hours": "كل 8 ساعات",
+      "Every 6 hours": "كل 6 ساعات",
+      "Every 12 hours": "كل 12 ساعة",
+      "Twice a day": "مرتين يومياً",
+      "Once a day": "مرة يومياً",
+      "Three times a day": "3 مرات يومياً",
+      "As needed": "عند اللزوم",
+      "PRN": "عند اللزوم"
+    };
+    return map[timing] || timing;
+  };
+
   // Handle print receipt with dynamic header
   const handlePrintReceipt = (receipt: Receipt) => {
     console.log('Printing receipt:', receipt);
@@ -297,19 +319,71 @@ const Dashboard: React.FC = () => {
     // Implement print functionality here
     const printWindow = window.open('', '_blank');
     if (printWindow) {
+      const printSettings = doctorSettings.printSettings || {
+        paperSize: 'a4',
+        marginTop: 0,
+        showHeader: true,
+        showFooter: true,
+        showPatientInfo: true
+      };
+
+      const isCustomPaper = !printSettings.showHeader; // Simplified check for custom paper mode
+
       printWindow.document.write(`
         <html>
           <head>
             <title>Patient Receipt</title>
             <style>
-              body { font-family: Arial, sans-serif; direction: rtl; }
-              .receipt { padding: 20px; max-width: 800px; margin: 0 auto; }
-              .header { text-align: center; margin-bottom: 20px; border-bottom: 1px solid #ccc; padding-bottom: 15px; }
+              body { 
+                font-family: Arial, sans-serif; 
+                direction: rtl; 
+                margin: 0;
+                padding-top: ${isCustomPaper ? (printSettings.marginTop || 0) + 'mm' : '20px'};
+              }
+              @page {
+                size: ${printSettings.paperSize === 'custom' ? 'auto' : printSettings.paperSize};
+                margin: 0;
+              }
+              .receipt { 
+                padding: 0 20px; 
+                max-width: 800px; 
+                margin: 0 auto; 
+              }
+              .header { 
+                text-align: center; 
+                margin-bottom: 20px; 
+                border-bottom: ${isCustomPaper ? 'none' : '1px solid #ccc'}; 
+                padding-bottom: 15px; 
+                display: ${isCustomPaper ? 'none' : 'block'};
+              }
               .clinic-info { margin-bottom: 15px; }
-              .patient-info { margin-bottom: 20px; padding: 10px; background-color: #f8f8f8; border-radius: 5px; }
-              .drug-item { margin-bottom: 15px; padding: 10px; border: 1px solid #eee; border-radius: 5px; }
-              .notes { margin-top: 20px; padding: 10px; background-color: #f5f5f5; border-radius: 5px; }
-              .footer { margin-top: 30px; border-top: 1px solid #ccc; padding-top: 15px; text-align: center; font-style: italic; }
+              .patient-info { 
+                margin-bottom: 20px; 
+                padding: 10px; 
+                background-color: ${isCustomPaper ? 'transparent' : '#f8f8f8'}; 
+                border-radius: 5px; 
+                border: ${isCustomPaper ? 'none' : 'none'};
+                display: ${printSettings.showPatientInfo ? 'block' : 'none'};
+              }
+              .drug-item { 
+                margin-bottom: 10px; 
+                padding: 5px; 
+                border-bottom: 1px solid #eee;
+              }
+              .notes { 
+                margin-top: 20px; 
+                padding: 10px; 
+                background-color: ${isCustomPaper ? 'transparent' : '#f5f5f5'}; 
+                border-radius: 5px; 
+              }
+              .footer { 
+                margin-top: 30px; 
+                border-top: ${isCustomPaper ? 'none' : '1px solid #ccc'}; 
+                padding-top: 15px; 
+                text-align: center; 
+                font-style: italic; 
+                display: ${printSettings.showFooter ? 'block' : 'none'};
+              }
               h1, h2, h3 { margin: 5px 0; }
             </style>
           </head>
@@ -333,7 +407,7 @@ const Dashboard: React.FC = () => {
                 ${receipt.drugs.map((drug, index) => `
                   <div class="drug-item">
                     <h4>${index + 1}. ${drug.drug}</h4>
-                    <p>التكرار: ${drug.frequency} | المدة: ${drug.period} | التوقيت: ${drug.timing}</p>
+                    <p>التكرار: ${drug.frequency} | المدة: ${drug.period} | التوقيت: ${formatDrugTiming(drug.timing)}</p>
                   </div>
                 `).join('')}
               </div>
@@ -345,7 +419,7 @@ const Dashboard: React.FC = () => {
                 </div>
               ` : ''}
               
-              ${doctorSettings.receiptFooter ? `
+              ${printSettings.showFooter && doctorSettings.receiptFooter ? `
                 <div class="footer">
                   ${doctorSettings.receiptFooter}
                 </div>

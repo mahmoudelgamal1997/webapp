@@ -12,6 +12,15 @@ interface DoctorSettings {
   clinicAddress: string;
   clinicPhone: string;
   logoUrl?: string;
+  printSettings?: {
+    paperSize: 'a4' | 'a5' | 'custom';
+    marginTop: number;
+    showHeader: boolean;
+    showFooter: boolean;
+    showPatientInfo: boolean;
+    customPaperWidth?: number;
+    customPaperHeight?: number;
+  };
 }
 
 interface DoctorContextType {
@@ -29,6 +38,13 @@ const defaultSettings: DoctorSettings = {
   doctorTitle: '',
   clinicAddress: '',
   clinicPhone: '',
+  printSettings: {
+    paperSize: 'a4',
+    marginTop: 0,
+    showHeader: true,
+    showFooter: true,
+    showPatientInfo: true,
+  }
 };
 
 const DoctorContext = createContext<DoctorContextType | undefined>(undefined);
@@ -50,7 +66,7 @@ export const DoctorProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       console.log('No doctor ID found in localStorage');
       return;
     }
-    
+
     try {
       setLoading(true);
       console.log(`Fetching doctor settings for ${doctorId}`);
@@ -78,15 +94,15 @@ export const DoctorProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       message.error('Doctor ID not found. Please log in again.');
       return false;
     }
-    
+
     try {
       setLoading(true);
       console.log(`Updating doctor settings for ${doctorId}:`, newSettings);
-      
-     const response = await axios.post(
-          `${API.BASE_URL}${API.ENDPOINTS.DOCTOR_SETTINGS(doctorId)}`, 
-          newSettings
-      );      
+
+      const response = await axios.post(
+        `${API.BASE_URL}${API.ENDPOINTS.DOCTOR_SETTINGS(doctorId)}`,
+        newSettings
+      );
       if (response.data && response.data.settings) {
         setSettings(response.data.settings);
         message.success('Settings saved successfully');
