@@ -1,7 +1,7 @@
 // src/components/Dashboard.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { Layout, Card, Typography, Button, Space, Alert, Row, Col, Drawer, Grid } from 'antd';
-import { 
+import {
   SettingOutlined,
   WarningOutlined,
   ItalicOutlined,
@@ -44,32 +44,32 @@ const Dashboard: React.FC = () => {
   const [lastRefreshTimestamp, setLastRefreshTimestamp] = useState<number>(0);
   const lastRefreshTimestampRef = useRef<number>(0);
   const [notificationModalVisible, setNotificationModalVisible] = useState<boolean>(false);
-  
+
   // Responsive breakpoints using Ant Design Grid
   const screens = useBreakpoint();
   const isMobile = !screens.md; // md breakpoint is 768px
   const isTablet = screens.md && !screens.lg; // lg breakpoint is 992px
-  
+
   const navigate = useNavigate();
-  
+
   // Get data from contexts
   const { username } = useAuth();
-  const { 
-    selectedPatient, 
+  const {
+    selectedPatient,
     setSelectedPatient,
     fetchPatients
   } = usePatientContext();
-  
+
   // Get doctor settings for receipt customization
   const { settings: doctorSettings, fetchSettings, doctorId } = useDoctorContext();
-  
+
   // Get clinic context
   const { selectedClinicId, selectedClinic, setSelectedClinicId, clinics } = useClinicContext();
 
   // Load data on component mount - only fetch settings once on mount
   useEffect(() => {
     console.log('Dashboard rendering with', selectedPatient?.patient_name || 'no selected patient');
-    
+
     // Fetch doctor settings only once on component mount
     fetchSettings();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -80,7 +80,7 @@ const Dashboard: React.FC = () => {
     if (selectedClinicId) {
       setupWaitingListListener(selectedClinicId);
     }
-    
+
     // Cleanup function to remove listener when component unmounts or clinic changes
     return () => {
       if (waitingListUnsubscribe.current) {
@@ -136,9 +136,9 @@ const Dashboard: React.FC = () => {
     try {
       const db = getFirestore();
       const currentDate = formatDate();
-      
+
       console.log('Setting up Firestore listener for clinic:', clinicId, 'date:', currentDate);
-      
+
       // Define path variations as complete strings to avoid TypeScript spread error
       const pathVariations = [
         // Variation 1: Standard path
@@ -148,34 +148,34 @@ const Dashboard: React.FC = () => {
         // Variation 3: Direct patients collection
         `clinics/${clinicId}/patients`
       ];
-      
+
       // Remove existing listener if there is one
       if (waitingListUnsubscribe.current) {
         waitingListUnsubscribe.current();
         waitingListUnsubscribe.current = null;
       }
-      
+
       // Try each path for setting up the listener
       let listenerSet = false;
-      
+
       for (const path of pathVariations) {
         try {
           console.log('Trying to set up listener on path:', path);
           // Use collection() with the path string directly
           const collRef = collection(db, path);
-          
+
           // Set up new listener
           const unsubscribe = onSnapshot(collRef, (snapshot) => {
             console.log('Waiting list update detected in path:', path);
             console.log('Snapshot size:', snapshot.size, 'documents');
-            
+
             // When waiting list changes, refresh the waiting list sidebar immediately
             refreshWaitingListOnly();
-            
+
             // Also mark patients list for refresh immediately when waiting list changes
             // This ensures patients that are removed from waiting list (status changed) appear in Patient List
             setPatientsNeedRefresh(true);
-            
+
             // Force an immediate refresh trigger as well for better responsiveness
             // Use ref to access current timestamp value
             const currentTime = Date.now();
@@ -191,7 +191,7 @@ const Dashboard: React.FC = () => {
           }, (error) => {
             console.error('Error in waiting list listener for path:', path, error);
           });
-          
+
           waitingListUnsubscribe.current = unsubscribe;
           listenerSet = true;
           console.log('Firestore waiting list listener set up for path:', path);
@@ -200,7 +200,7 @@ const Dashboard: React.FC = () => {
           console.log('Could not set up listener for path:', path, error);
         }
       }
-      
+
       if (!listenerSet) {
         console.error('Failed to set up listener for any path variation');
       }
@@ -212,19 +212,19 @@ const Dashboard: React.FC = () => {
   // Function to refresh only the waiting list data
   const refreshWaitingListOnly = () => {
     console.log('Refreshing waiting list only...');
-    
+
     // Method 1: If SidebarWaitingList exposes a refresh function through a ref
     if (sidebarWaitingListRef.current && sidebarWaitingListRef.current.refreshData) {
       console.log('Refreshing via ref method');
       sidebarWaitingListRef.current.refreshData();
-    } 
+    }
     // Method 2: Trigger a refresh through a state update
     else {
       console.log('Refreshing via trigger method');
       setWaitingListRefreshTrigger(prev => prev + 1);
     }
   };
-  
+
   // Handle clinic selection
   const handleClinicSelect = (clinicId: string) => {
     setSelectedClinicId(clinicId);
@@ -273,10 +273,10 @@ const Dashboard: React.FC = () => {
   // Handle print receipt with dynamic header
   const handlePrintReceipt = (receipt: Receipt) => {
     console.log('Printing receipt:', receipt);
-    
+
     // Format the clinic information for the header
     const clinicInfo = [];
-    
+
     // First try to use clinic from context if available
     if (selectedClinic) {
       clinicInfo.push(`<h1>${selectedClinic.name || 'عيادة'}</h1>`);
@@ -287,13 +287,13 @@ const Dashboard: React.FC = () => {
         clinicInfo.push(`<p>هاتف: ${selectedClinic.phone}</p>`);
       }
     }
-    
+
     // Then override with doctor settings if available
     if (doctorSettings.clinicName) clinicInfo.push(`<h1>${doctorSettings.clinicName}</h1>`);
     if (doctorSettings.doctorTitle) clinicInfo.push(`<h3>${doctorSettings.doctorTitle}</h3>`);
     if (doctorSettings.clinicAddress) clinicInfo.push(`<p>${doctorSettings.clinicAddress}</p>`);
     if (doctorSettings.clinicPhone) clinicInfo.push(`<p>هاتف: ${doctorSettings.clinicPhone}</p>`);
-    
+
     // Implement print functionality here
     const printWindow = window.open('', '_blank');
     if (printWindow) {
@@ -371,63 +371,68 @@ const Dashboard: React.FC = () => {
           bodyStyle={{ padding: 0 }}
           width={256}
         >
-          <DashboardSidebar collapsed={false} setCollapsed={() => {}} />
+          <DashboardSidebar collapsed={false} setCollapsed={() => { }} />
         </Drawer>
       ) : (
         <DashboardSidebar collapsed={collapsed} setCollapsed={setCollapsed} />
       )}
-      
+
       <Layout>
         {/* Header */}
-        <DashboardHeader 
+        <DashboardHeader
           onSettingsClick={handleSettingsClick}
           onMenuClick={() => isMobile && setSidebarDrawerVisible(true)}
           isMobile={isMobile}
         />
-        
+
         {/* Main content and right sidebar */}
         <Layout>
           {/* Main content area */}
-          <Content style={{ 
-            margin: isMobile ? '16px 8px' : '24px 16px', 
-            padding: isMobile ? 12 : 24, 
-            background: 'white' 
+          <Content style={{
+            margin: isMobile ? '16px 8px' : '24px 16px',
+            padding: isMobile ? 12 : 24,
+            background: 'white'
           }}>
-            {/* Clinic Selector */}
-            <ClinicSelector onClinicSelect={handleClinicSelect} />
-            
-            {/* Dashboard Controls */}
-            <Card style={{ marginBottom: 16 }}>
-              <Space direction="vertical" style={{ width: '100%' }}>
-                <Title level={isMobile ? 5 : 4}>Dr Waiting Dashboard</Title>
-                <Space direction={isMobile ? 'vertical' : 'horizontal'} style={{ width: '100%' }}>
-                  <Button 
-                    type="primary" 
-                    onClick={handleRefresh} 
-                    disabled={!selectedClinicId}
-                    loading={patientsNeedRefresh}
-                    block={isMobile}
-                  >
-                    Refresh Data
-                  </Button>
-                  <Button 
-                    type="default"
-                    onClick={() => setNotificationModalVisible(true)}
-                    disabled={!selectedClinicId || !doctorId}
-                    block={isMobile}
-                  >
-                    Send Notification
-                  </Button>
-                  <Button 
-                    icon={isMobile ? (waitingListDrawerVisible ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />) : (waitingListVisible ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />)}
-                    onClick={toggleWaitingList}
-                    block={isMobile}
-                  >
-                    {getWaitingListButtonText()}
-                  </Button>
-                </Space>
-              </Space>
-            </Card>
+            {/* Clinic Selector & Dashboard Controls - Hidden when viewing patient details */}
+            {!selectedPatient && (
+              <>
+                {/* Clinic Selector */}
+                <ClinicSelector onClinicSelect={handleClinicSelect} />
+
+                {/* Dashboard Controls */}
+                <Card style={{ marginBottom: 16 }}>
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    <Title level={isMobile ? 5 : 4}>Dr Waiting Dashboard</Title>
+                    <Space direction={isMobile ? 'vertical' : 'horizontal'} style={{ width: '100%' }}>
+                      <Button
+                        type="primary"
+                        onClick={handleRefresh}
+                        disabled={!selectedClinicId}
+                        loading={patientsNeedRefresh}
+                        block={isMobile}
+                      >
+                        Refresh Data
+                      </Button>
+                      <Button
+                        type="default"
+                        onClick={() => setNotificationModalVisible(true)}
+                        disabled={!selectedClinicId || !doctorId}
+                        block={isMobile}
+                      >
+                        Send Notification
+                      </Button>
+                      <Button
+                        icon={isMobile ? (waitingListDrawerVisible ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />) : (waitingListVisible ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />)}
+                        onClick={toggleWaitingList}
+                        block={isMobile}
+                      >
+                        {getWaitingListButtonText()}
+                      </Button>
+                    </Space>
+                  </Space>
+                </Card>
+              </>
+            )}
 
             {/* Patient data section */}
             {selectedClinicId && !selectedPatient ? (
@@ -440,7 +445,7 @@ const Dashboard: React.FC = () => {
                 </Card>
               </>
             ) : selectedPatient ? (
-              <PatientDetail 
+              <PatientDetail
                 isReceiptModalVisible={isReceiptModalVisible}
                 setIsReceiptModalVisible={setIsReceiptModalVisible}
                 onPrintReceipt={handlePrintReceipt}
@@ -465,7 +470,7 @@ const Dashboard: React.FC = () => {
               </>
             )}
           </Content>
-          
+
           {/* Right sidebar for waiting list - Drawer on mobile, Sidebar on desktop */}
           {selectedClinicId && (
             <>
@@ -478,24 +483,24 @@ const Dashboard: React.FC = () => {
                   width={280}
                   bodyStyle={{ padding: 0 }}
                 >
-                  <SidebarWaitingList 
+                  <SidebarWaitingList
                     ref={sidebarWaitingListRef}
                     refreshTrigger={waitingListRefreshTrigger}
                   />
                 </Drawer>
               ) : (
                 waitingListVisible && (
-                  <Sider 
-                    width={280} 
+                  <Sider
+                    width={280}
                     theme="light"
-                    style={{ 
+                    style={{
                       background: '#fff',
                       margin: '24px 16px 24px 0',
                       borderRadius: '4px',
                       boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
                     }}
                   >
-                    <SidebarWaitingList 
+                    <SidebarWaitingList
                       ref={sidebarWaitingListRef}
                       refreshTrigger={waitingListRefreshTrigger}
                     />
