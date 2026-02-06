@@ -215,3 +215,61 @@ export interface ClinicPerformance {
     endDate: string;
   };
 }
+
+// ============ EXTERNAL SERVICES TYPES ============
+
+// External Service definition (the "menu")
+export interface ExternalService {
+  service_id: string;
+  doctor_id: string;
+  service_name: string;
+  provider_name: string;
+  isActive?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// External Service Request (patient assignment)
+export interface ExternalServiceRequest {
+  request_id: string;
+  doctor_id: string;
+  patient_id: string;
+  patient_name?: string;
+  external_service_id: string;
+  service_name: string;
+  provider_name: string;
+  status: 'pending' | 'completed';
+  visit_id?: string;
+  requestedAt?: string;
+  completedAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// External Services Report
+export interface ExternalServiceReport {
+  overview: {
+    total: number;
+    completed: number;
+    pending: number;
+  };
+  byProvider: Array<{
+    provider: string;
+    total: number;
+    completed: number;
+    pending: number;
+  }>;
+  byServiceType: Array<{
+    serviceType: string;
+    total: number;
+    completed: number;
+    pending: number;
+  }>;
+  detailedStats: Array<{
+    serviceName: string;
+    providerName: string;
+    total: number;
+    completed: number;
+    pending: number;
+  }>;
+}

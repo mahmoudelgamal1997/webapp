@@ -12,6 +12,7 @@ import { NextVisitProvider } from './components/NextVisitContext';
 import { ClinicProvider } from './components/ClinicContext';
 import { InventoryProvider } from './components/InventoryContext';
 import InventoryManagement from './components/InventoryManagement';
+import ExternalServiceManagement from './components/ExternalServiceManagement';
 
 // Protected route component
 const ProtectedRoute = ({ children }) => {
@@ -95,6 +96,14 @@ function App() {
                     element={
                       <ProtectedRoute>
                         <InventoryManagement />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/external-services"
+                    element={
+                      <ProtectedRoute>
+                        <ExternalServiceManagement />
                       </ProtectedRoute>
                     }
                   />

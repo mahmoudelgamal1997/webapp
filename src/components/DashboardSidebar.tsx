@@ -10,7 +10,8 @@ import {
   MedicineBoxOutlined,
   BarChartOutlined,
   DollarOutlined,
-  InboxOutlined
+  InboxOutlined,
+  ExperimentOutlined
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
@@ -46,6 +47,9 @@ const DashboardSidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) =
       case 'inventory':
         navigate('/inventory');
         break;
+      case 'external-services':
+        navigate('/external-services');
+        break;
       case 'settings':
         navigate('/settings');
         break;
@@ -58,6 +62,7 @@ const DashboardSidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) =
     if (path.includes('/services')) return 'services';
     if (path.includes('/analytics')) return 'analytics';
     if (path.includes('/inventory')) return 'inventory';
+    if (path.includes('/external-services')) return 'external-services';
     if (path.includes('/settings')) return 'settings';
     return 'patients';
   };
@@ -105,6 +110,9 @@ const DashboardSidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) =
         </Menu.Item>
         <Menu.Item key="inventory" icon={<InboxOutlined />}>
           Inventory
+        </Menu.Item>
+        <Menu.Item key="external-services" icon={<ExperimentOutlined />}>
+          External Services
         </Menu.Item>
         <Menu.Item key="settings" icon={<SettingOutlined />}>
           Receipt Settings

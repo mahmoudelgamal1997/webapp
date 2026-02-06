@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Card, Row, Col, Typography, Button, Divider, Table, Modal, Space, List, Image, Tag } from 'antd';
-import { PlusOutlined, FileTextOutlined, BellOutlined, CalendarOutlined, FileImageOutlined, EyeOutlined, DollarOutlined } from '@ant-design/icons';
+import { PlusOutlined, FileTextOutlined, BellOutlined, CalendarOutlined, FileImageOutlined, EyeOutlined, DollarOutlined, ExperimentOutlined, CheckCircleOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import moment from 'moment';
 import ReceiptsList from './ReceiptsList';
-import { Receipt, Patient, Visit } from '../components/type';
+import { Receipt, Patient, Visit, ExternalService, ExternalServiceRequest } from '../components/type';
 import { usePatientContext } from './PatientContext';
 import API from '../config/api';
 import SendNotification from './SendNotification';
@@ -70,6 +70,12 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
   const [imagePreviewVisible, setImagePreviewVisible] = useState(false);
   const [previewImage, setPreviewImage] = useState<string>('');
 
+  // External Services state
+  const [externalServices, setExternalServices] = useState<ExternalService[]>([]);
+  const [externalRequests, setExternalRequests] = useState<ExternalServiceRequest[]>([]);
+  const [externalServicesLoading, setExternalServicesLoading] = useState(false);
+  const [assignServiceModalVisible, setAssignServiceModalVisible] = useState(false);
+
   useEffect(() => {
     const fetchPatientHistory = async () => {
       if (selectedPatient) {
@@ -117,8 +123,42 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
       }
     };
 
+    const fetchExternalServices = async () => {
+      const doctorId = localStorage.getItem('doctorId');
+      if (doctorId) {
+        try {
+          const response = await axios.get(`${API.BASE_URL}${API.ENDPOINTS.DOCTOR_EXTERNAL_SERVICES(doctorId)}`);
+          if (response.data.success) {
+            setExternalServices(response.data.data || []);
+          }
+        } catch (error) {
+          console.error('Error fetching external services:', error);
+        }
+      }
+    };
+
+    const fetchExternalRequests = async () => {
+      if (selectedPatient) {
+        try {
+          setExternalServicesLoading(true);
+          const response = await axios.get(`${API.BASE_URL}${API.ENDPOINTS.PATIENT_EXTERNAL_REQUESTS(selectedPatient.patient_id)}`, {
+            params: { doctorId: selectedPatient.doctor_id }
+          });
+          if (response.data.success) {
+            setExternalRequests(response.data.data || []);
+          }
+        } catch (error) {
+          console.error('Error fetching external requests:', error);
+        } finally {
+          setExternalServicesLoading(false);
+        }
+      }
+    };
+
     fetchPatientHistory();
     fetchPatientReports();
+    fetchExternalServices();
+    fetchExternalRequests();
   }, [selectedPatient]);
 
   // Get latest visit for Personal Information display
@@ -338,6 +378,159 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
         ) : (
           <div style={{ marginBottom: 24, color: '#999' }}>No reports available</div>
         )}
+
+        <Divider />
+
+        {/* External Services Section */}
+        <Title level={4}>
+          <ExperimentOutlined /> External Services / الخدمات الخارجية
+        </Title>
+        <div style={{ marginBottom: 24 }}>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => setAssignServiceModalVisible(true)}
+            style={{ marginBottom: 16, backgroundColor: '#13c2c2', borderColor: '#13c2c2' }}
+          >
+            Assign External Service
+          </Button>
+
+          {externalServicesLoading ? (
+            <div>Loading external services...</div>
+          ) : externalRequests.length > 0 ? (
+            <List
+              dataSource={externalRequests}
+              renderItem={(request) => (
+                <List.Item
+                  actions={
+                    request.status === 'pending' ? [
+                      <Button
+                        key="complete"
+                        type="primary"
+                        icon={<CheckCircleOutlined />}
+                        onClick={async () => {
+                          try {
+                            await axios.put(
+                              `${API.BASE_URL}${API.ENDPOINTS.EXTERNAL_REQUEST_STATUS(request.request_id)}`,
+                              { status: 'completed' }
+                            );
+                            // Refresh the list
+                            const response = await axios.get(
+                              `${API.BASE_URL}${API.ENDPOINTS.PATIENT_EXTERNAL_REQUESTS(selectedPatient.patient_id)}`,
+                              { params: { doctorId: selectedPatient.doctor_id } }
+                            );
+                            if (response.data.success) {
+                              setExternalRequests(response.data.data || []);
+                            }
+                          } catch (error) {
+                            console.error('Error marking as completed:', error);
+                          }
+                        }}
+                      >
+                        Mark Completed
+                      </Button>
+                    ] : []
+                  }
+                >
+                  <List.Item.Meta
+                    avatar={
+                      request.status === 'completed' ? (
+                        <CheckCircleOutlined style={{ fontSize: 24, color: '#52c41a' }} />
+                      ) : (
+                        <ClockCircleOutlined style={{ fontSize: 24, color: '#faad14' }} />
+                      )
+                    }
+                    title={
+                      <Space>
+                        <Text strong>{request.service_name}</Text>
+                        <Tag color={request.status === 'completed' ? 'green' : 'orange'}>
+                          {request.status === 'completed' ? 'Completed / مكتمل' : 'Pending / قيد الانتظار'}
+                        </Tag>
+                      </Space>
+                    }
+                    description={
+                      <div>
+                        <Text type="secondary">Provider: {request.provider_name}</Text>
+                        <br />
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          Requested: {moment(request.requestedAt).format('YYYY-MM-DD HH:mm')}
+                        </Text>
+                        {request.completedAt && (
+                          <>
+                            <br />
+                            <Text type="secondary" style={{ fontSize: 12 }}>
+                              Completed: {moment(request.completedAt).format('YYYY-MM-DD HH:mm')}
+                            </Text>
+                          </>
+                        )}
+                      </div>
+                    }
+                  />
+                </List.Item>
+              )}
+            />
+          ) : (
+            <div style={{ color: '#999' }}>No external services assigned</div>
+          )}
+        </div>
+
+        {/* Assign Service Modal */}
+        <Modal
+          title="Assign External Service"
+          open={assignServiceModalVisible}
+          onCancel={() => setAssignServiceModalVisible(false)}
+          footer={null}
+          width={600}
+        >
+          <List
+            dataSource={externalServices.filter(s => s.isActive !== false)}
+            renderItem={(service) => (
+              <List.Item
+                actions={[
+                  <Button
+                    key="assign"
+                    type="primary"
+                    onClick={async () => {
+                      try {
+                        await axios.post(`${API.BASE_URL}${API.ENDPOINTS.EXTERNAL_REQUESTS}`, {
+                          doctor_id: selectedPatient.doctor_id,
+                          patient_id: selectedPatient.patient_id,
+                          patient_name: selectedPatient.patient_name,
+                          external_service_id: service.service_id,
+                          service_name: service.service_name,
+                          provider_name: service.provider_name
+                        });
+                        setAssignServiceModalVisible(false);
+                        // Refresh the requests list
+                        const response = await axios.get(
+                          `${API.BASE_URL}${API.ENDPOINTS.PATIENT_EXTERNAL_REQUESTS(selectedPatient.patient_id)}`,
+                          { params: { doctorId: selectedPatient.doctor_id } }
+                        );
+                        if (response.data.success) {
+                          setExternalRequests(response.data.data || []);
+                        }
+                      } catch (error) {
+                        console.error('Error assigning service:', error);
+                      }
+                    }}
+                  >
+                    Assign
+                  </Button>
+                ]}
+              >
+                <List.Item.Meta
+                  title={service.service_name}
+                  description={`Provider: ${service.provider_name}`}
+                />
+              </List.Item>
+            )}
+          />
+          {externalServices.filter(s => s.isActive !== false).length === 0 && (
+            <div style={{ textAlign: 'center', padding: 20, color: '#999' }}>
+              No active external services available. Please add services in External Services Management.
+            </div>
+          )}
+        </Modal>
 
         <Divider />
 

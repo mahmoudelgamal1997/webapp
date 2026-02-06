@@ -26,6 +26,16 @@ const API = {
     SERVICES_ANALYTICS: (doctorId) => `/api/analytics/services/${doctorId}`,
     CLINIC_PERFORMANCE: (doctorId) => `/api/analytics/performance/${doctorId}`,
     PATIENT_BILLING_HISTORY: (doctorId, patientId) => `/api/analytics/patient/${doctorId}/${patientId}`,
+
+    // External Services endpoints
+    EXTERNAL_SERVICES: '/api/external-services/services',
+    DOCTOR_EXTERNAL_SERVICES: (doctorId) => `/api/external-services/services/doctor/${doctorId}`,
+    EXTERNAL_SERVICE: (doctorId, serviceId) => `/api/external-services/services/doctor/${doctorId}/${serviceId}`,
+    EXTERNAL_REQUESTS: '/api/external-services/requests',
+    PATIENT_EXTERNAL_REQUESTS: (patientId) => `/api/external-services/requests/patient/${patientId}`,
+    EXTERNAL_REQUEST_STATUS: (requestId) => `/api/external-services/requests/${requestId}/status`,
+    EXTERNAL_REQUEST_DELETE: (requestId) => `/api/external-services/requests/${requestId}`,
+    EXTERNAL_REPORTS: (doctorId) => `/api/external-services/reports/doctor/${doctorId}`,
   }
 };
 
