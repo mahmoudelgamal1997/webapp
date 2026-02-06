@@ -10,6 +10,7 @@ import API from '../config/api';
 import SendNotification from './SendNotification';
 import NextVisitForm from './NextVisitForm';
 import BillingModal from './BillingModal';
+import DynamicHistoryForm from './DynamicHistoryForm';
 
 const { Title, Text } = Typography;
 
@@ -75,6 +76,9 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
   const [externalRequests, setExternalRequests] = useState<ExternalServiceRequest[]>([]);
   const [externalServicesLoading, setExternalServicesLoading] = useState(false);
   const [assignServiceModalVisible, setAssignServiceModalVisible] = useState(false);
+
+  // Medical History state
+  const [medicalHistoryModalVisible, setMedicalHistoryModalVisible] = useState(false);
 
   useEffect(() => {
     const fetchPatientHistory = async () => {
@@ -265,6 +269,14 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
                   style={{ backgroundColor: '#722ed1', borderColor: '#722ed1' }}
                 >
                   Notify Assistant
+                </Button>
+                <Button
+                  type="primary"
+                  icon={<FileTextOutlined />}
+                  onClick={() => setMedicalHistoryModalVisible(true)}
+                  style={{ backgroundColor: '#fa8c16', borderColor: '#fa8c16' }}
+                >
+                  Medical History
                 </Button>
                 <Button
                   type="primary"
@@ -689,6 +701,14 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
           src={previewImage}
         />
       </Modal>
+
+      {/* Medical History Modal */}
+      <DynamicHistoryForm
+        visible={medicalHistoryModalVisible}
+        onCancel={() => setMedicalHistoryModalVisible(false)}
+        patient={selectedPatient}
+        doctorId={selectedPatient?.doctor_id || ''}
+      />
     </>
   );
 };

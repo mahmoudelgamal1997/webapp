@@ -177,6 +177,30 @@ const DoctorSettings: React.FC = () => {
                 </div>
                 <PrescriptionLayoutEditor />
               </Tabs.TabPane>
+
+              <Tabs.TabPane
+                tab={
+                  <span>
+                    <SettingOutlined />
+                    Medical History Template
+                  </span>
+                }
+                key="3"
+              >
+                <div style={{ marginBottom: 16 }}>
+                  <Text>
+                    Customize the medical history form template that will be used when recording patient history.
+                    You can add, remove, or modify sections and fields to match your practice needs.
+                  </Text>
+                </div>
+                <Button
+                  type="primary"
+                  onClick={() => navigate('/history-template')}
+                  style={{ marginTop: 16 }}
+                >
+                  Open Template Builder
+                </Button>
+              </Tabs.TabPane>
             </Tabs>
           </Card>
         </Content>

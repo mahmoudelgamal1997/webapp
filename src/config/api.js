@@ -36,6 +36,11 @@ const API = {
     EXTERNAL_REQUEST_STATUS: (requestId) => `/api/external-services/requests/${requestId}/status`,
     EXTERNAL_REQUEST_DELETE: (requestId) => `/api/external-services/requests/${requestId}`,
     EXTERNAL_REPORTS: (doctorId) => `/api/external-services/reports/doctor/${doctorId}`,
+
+    // Medical History endpoints
+    MEDICAL_HISTORY_TEMPLATE: '/api/medical-history/template',
+    MEDICAL_HISTORY_PATIENT: '/api/medical-history/patient',
+    MEDICAL_HISTORY_TIMELINE: '/api/medical-history/patient/timeline',
   }
 };
 

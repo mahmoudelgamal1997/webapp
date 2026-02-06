@@ -13,6 +13,8 @@ import { ClinicProvider } from './components/ClinicContext';
 import { InventoryProvider } from './components/InventoryContext';
 import InventoryManagement from './components/InventoryManagement';
 import ExternalServiceManagement from './components/ExternalServiceManagement';
+import HistoryTemplateBuilder from './components/HistoryTemplateBuilder';
+import { LanguageProvider } from './components/LanguageContext';
 
 // Protected route component
 const ProtectedRoute = ({ children }) => {
@@ -41,80 +43,90 @@ const PublicRoute = ({ children }) => {
 function App() {
   return (
     <Router>
-      <AuthProvider>
-        <DoctorProvider>
-          <ClinicProvider>
-            <InventoryProvider>
-              <NextVisitProvider>
-                <Routes>
-                  <Route
-                    path="/login"
-                    element={
-                      <PublicRoute>
-                        <LoginPage />
-                      </PublicRoute>
-                    }
-                  />
-                  <Route
-                    path="/dashboard/*"
-                    element={
-                      <ProtectedRoute>
-                        <PatientProvider>
-                          <Dashboard />
-                        </PatientProvider>
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/settings"
-                    element={
-                      <ProtectedRoute>
-                        <PatientProvider>
-                          <DoctorSettings />
-                        </PatientProvider>
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/services"
-                    element={
-                      <ProtectedRoute>
-                        <ServicesManagement />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/analytics"
-                    element={
-                      <ProtectedRoute>
-                        <RevenueAnalytics />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/inventory"
-                    element={
-                      <ProtectedRoute>
-                        <InventoryManagement />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/external-services"
-                    element={
-                      <ProtectedRoute>
-                        <ExternalServiceManagement />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route path="/" element={<Navigate to="/dashboard" />} />
-                  <Route path="*" element={<Navigate to="/login" />} />
-                </Routes>
-              </NextVisitProvider>
-            </InventoryProvider>
-          </ClinicProvider>
-        </DoctorProvider>
-      </AuthProvider>
+      <LanguageProvider>
+        <AuthProvider>
+          <DoctorProvider>
+            <ClinicProvider>
+              <InventoryProvider>
+                <NextVisitProvider>
+                  <Routes>
+                    <Route
+                      path="/login"
+                      element={
+                        <PublicRoute>
+                          <LoginPage />
+                        </PublicRoute>
+                      }
+                    />
+                    <Route
+                      path="/dashboard/*"
+                      element={
+                        <ProtectedRoute>
+                          <PatientProvider>
+                            <Dashboard />
+                          </PatientProvider>
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/settings"
+                      element={
+                        <ProtectedRoute>
+                          <PatientProvider>
+                            <DoctorSettings />
+                          </PatientProvider>
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/services"
+                      element={
+                        <ProtectedRoute>
+                          <ServicesManagement />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/analytics"
+                      element={
+                        <ProtectedRoute>
+                          <RevenueAnalytics />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/inventory"
+                      element={
+                        <ProtectedRoute>
+                          <InventoryManagement />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/external-services"
+                      element={
+                        <ProtectedRoute>
+                          <ExternalServiceManagement />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/history-template"
+                      element={
+                        <ProtectedRoute>
+                          <HistoryTemplateBuilder />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route path="/" element={<Navigate to="/dashboard" />} />
+                    <Route path="*" element={<Navigate to="/login" />} />
+                  </Routes>
+                </NextVisitProvider>
+              </InventoryProvider>
+            </ClinicProvider>
+          </DoctorProvider>
+        </AuthProvider>
+      </LanguageProvider>
     </Router>
   );
 }

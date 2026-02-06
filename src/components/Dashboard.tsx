@@ -16,6 +16,7 @@ import { useClinicContext } from './ClinicContext';
 import { Receipt } from './type';
 import moment from 'moment';
 import { getFirestore, collection, query, onSnapshot, doc } from 'firebase/firestore';
+import { useLanguage } from './LanguageContext';
 import DashboardSidebar from './DashboardSidebar';
 import DashboardHeader from './DashboardHeader';
 import PatientsList from './PatientsList';
@@ -59,6 +60,9 @@ const Dashboard: React.FC = () => {
     setSelectedPatient,
     fetchPatients
   } = usePatientContext();
+
+  // Use language context for direction
+  const { isRTL } = useLanguage();
 
   // Get doctor settings for receipt customization
   const { settings: doctorSettings, fetchSettings, doctorId } = useDoctorContext();
@@ -560,11 +564,12 @@ const Dashboard: React.FC = () => {
               {isMobile ? (
                 <Drawer
                   title="Waiting List"
-                  placement="right"
+                  placement={isRTL ? "left" : "right"}
                   onClose={() => setWaitingListDrawerVisible(false)}
                   open={waitingListDrawerVisible}
                   width={280}
-                  bodyStyle={{ padding: 0 }}
+                  // bodyStyle={{ padding: 0 }} - Deprecated in newer AntD
+                  styles={{ body: { padding: 0 } }}
                 >
                   <SidebarWaitingList
                     ref={sidebarWaitingListRef}
@@ -578,7 +583,7 @@ const Dashboard: React.FC = () => {
                     theme="light"
                     style={{
                       background: '#fff',
-                      margin: '24px 16px 24px 0',
+                      margin: isRTL ? '24px 0 24px 16px' : '24px 16px 24px 0',
                       borderRadius: '4px',
                       boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
                     }}

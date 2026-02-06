@@ -13,6 +13,7 @@ import {
   InboxOutlined,
   ExperimentOutlined
 } from '@ant-design/icons';
+import { useLanguage } from './LanguageContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 
@@ -27,6 +28,7 @@ const DashboardSidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) =
   const navigate = useNavigate();
   const location = useLocation();
   const { username, logout } = useAuth();
+  const { t } = useLanguage();
 
   const handleLogout = () => {
     logout();
@@ -100,25 +102,25 @@ const DashboardSidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) =
         onClick={({ key }) => key !== 'logout' && handleMenuClick(key)}
       >
         <Menu.Item key="patients" icon={<UserOutlined />}>
-          Patients
+          {t('patients')}
         </Menu.Item>
         <Menu.Item key="services" icon={<MedicineBoxOutlined />}>
-          Services
+          {t('services')}
         </Menu.Item>
         <Menu.Item key="analytics" icon={<BarChartOutlined />}>
-          Revenue & Analytics
+          {t('analytics')}
         </Menu.Item>
         <Menu.Item key="inventory" icon={<InboxOutlined />}>
-          Inventory
+          {t('inventory')}
         </Menu.Item>
         <Menu.Item key="external-services" icon={<ExperimentOutlined />}>
-          External Services
+          {t('externalServices')}
         </Menu.Item>
         <Menu.Item key="settings" icon={<SettingOutlined />}>
-          Receipt Settings
+          {t('settings')}
         </Menu.Item>
         <Menu.Item key="logout" icon={<LogoutOutlined />} onClick={handleLogout}>
-          Logout
+          {t('logout')}
         </Menu.Item>
       </Menu>
     </Sider>

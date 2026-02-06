@@ -8,6 +8,8 @@ import { Patient, Visit } from '../components/type';
 import SearchFilters from './SearchFilters';
 import { usePatientContext } from './PatientContext';
 import API from '../config/api';
+import { useLanguage } from './LanguageContext';
+import { ExperimentOutlined } from '@ant-design/icons';
 
 // Extended visit interface with patient information
 interface VisitWithPatientInfo {
@@ -24,6 +26,13 @@ interface VisitWithPatientInfo {
   patient_id: string;
   age?: string;
   address?: string;
+  externalServiceRequestCount?: number;
+  externalServiceRequests?: Array<{
+    service_name: string;
+    provider_name: string;
+    status: string;
+    requestedAt: Date;
+  }>;
   _original_patient_id: string; // To reference back to original patient
 }
 
@@ -32,15 +41,17 @@ interface PatientsListProps {
 }
 
 const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
-  const { 
+  const {
     patients,
     filteredPatients,
-    setSelectedPatient, 
+    setSelectedPatient,
     setFilteredPatients,
     fetchPatients,
     pagination: contextPagination
   } = usePatientContext();
-  
+
+  const { t } = useLanguage();
+
   const [loading, setLoading] = useState(false);
   const [visitsToDisplay, setVisitsToDisplay] = useState<VisitWithPatientInfo[]>([]);
   const [pagination, setPagination] = useState({
@@ -55,7 +66,7 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
   // Backend already handles date filtering, so we trust the API response
   const extractVisits = (patientData: Patient[]): VisitWithPatientInfo[] => {
     const allVisits: VisitWithPatientInfo[] = [];
-    
+
     patientData.forEach(patient => {
       if (patient.visits && patient.visits.length > 0) {
         patient.visits.forEach(visit => {
@@ -79,17 +90,17 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
               visitDateStr = String(visitDateAny);
             }
           }
-          
+
           if (!visitDateStr) return; // Skip visits without date
-          
+
           // Parse date string directly (format: YYYY-MM-DD or YYYY-M-D)
           const visitMoment = moment(visitDateStr, ['YYYY-MM-DD', 'YYYY-M-D', 'YYYY/MM/DD', 'YYYY/M/D', moment.ISO_8601]).startOf('day');
-          
+
           // Skip if date is invalid
           if (!visitMoment.isValid()) return;
-          
+
           // No need to filter by "today" - backend already handles date filtering via endDate parameter
-          
+
           // Visit is valid (today or past) - create a new object with explicit properties
           // Use the processed visitDateStr for consistent date format
           allVisits.push({
@@ -106,19 +117,22 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
             patient_phone: patient.patient_phone,
             patient_id: patient.patient_id,
             age: patient.age,
+
             address: patient.address,
+            externalServiceRequestCount: patient.externalServiceRequestCount,
+            externalServiceRequests: patient.externalServiceRequests,
             _original_patient_id: patient.patient_id
           });
         });
       }
     });
-    
+
     // Sort visits by date and time (newest first) - this ensures recent visits appear at the top
     return allVisits.sort((a, b) => {
       // Parse dates with times to get accurate sorting
       const dateTimeA = parseDateAndTime(a.date, a.time);
       const dateTimeB = parseDateAndTime(b.date, b.time);
-      
+
       // Sort newest first (descending order)
       return dateTimeB - dateTimeA;
     });
@@ -139,11 +153,11 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
   // Helper function to properly parse dates with times (handles Arabic numerals)
   const parseDateAndTime = (dateStr: string, timeStr: string): number => {
     if (!dateStr) return 0;
-    
+
     // Convert Arabic numerals to regular numerals
     const convertedDateStr = convertArabicNumerals(dateStr);
     const convertedTimeStr = convertArabicNumerals(timeStr || '');
-    
+
     // First try to parse with time
     if (convertedTimeStr) {
       const fullDateStr = `${convertedDateStr} ${convertedTimeStr}`;
@@ -155,18 +169,18 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
         'YYYY-MM-DD HH:mm:ss',
         'YYYY-M-D HH:mm:ss'
       ], true); // Strict mode
-      
+
       if (momentDate.isValid()) {
         return momentDate.valueOf();
       }
     }
-    
+
     // Fallback to just date
     const momentDate = moment(convertedDateStr, [
       'YYYY-MM-DD',
       'YYYY-M-D'
     ], true); // Strict mode
-    
+
     return momentDate.isValid() ? momentDate.valueOf() : 0;
   };
 
@@ -175,7 +189,7 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
     setLoading(true);
     try {
       console.log('Fetching patients data for PatientsList component with pagination:', { page, pageSize });
-      
+
       // Use fetchPatients from context with pagination params for server-side pagination
       // Match mobile API: sortBy=created_at, sortOrder=desc
       const result = await fetchPatients({
@@ -184,17 +198,17 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
         sortBy: 'created_at',
         sortOrder: 'desc'
       });
-      
+
       // Update timestamp of last refresh
       setLastRefreshTime(Date.now());
-      
+
       // Get the latest patients data from context
       const patientsData = result.patients;
-      
+
       // Extract visits for display
       const visits = extractVisits(patientsData);
       setVisitsToDisplay(visits);
-      
+
       // Update pagination from API response if available
       if (result.pagination) {
         setPagination({
@@ -222,7 +236,7 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
   useEffect(() => {
     fetchVisits();
   }, []); // Only fetch once on mount - no longer depends on clinic selection
-  
+
   // Listen for refresh triggers from parent component
   useEffect(() => {
     if (refreshTrigger > 0) {
@@ -236,7 +250,7 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
       }
     }
   }, [refreshTrigger, lastRefreshTime]);
-  
+
   // Get paginated visits - no need for client-side pagination if server-side is used
   const getPaginatedVisits = () => {
     // If we have server-side pagination, return all visits (already paginated by server)
@@ -249,7 +263,7 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
       return visitsToDisplay.slice(startIndex, endIndex);
     }
   };
-  
+
   // Update visits when filtered patients change
   useEffect(() => {
     if (filteredPatients) {
@@ -270,7 +284,7 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
   // Define columns for the visits table
   const columns = [
     {
-      title: 'Patient',
+      title: t('patient'),
       key: 'patient',
       render: (record: VisitWithPatientInfo) => (
         <Space direction="vertical" size="small">
@@ -280,7 +294,7 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
       )
     },
     {
-      title: 'Visit Date',
+      title: t('visitDate'),
       dataIndex: 'date',
       key: 'date',
       render: (text: string) => (
@@ -289,15 +303,15 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
       // No sorter - display data in API order without client-side sorting
     },
     {
-      title: 'Time',
+      title: t('time'),
       dataIndex: 'time',
       key: 'time',
       render: (timeStr: string) => {
         if (!timeStr) return 'N/A';
-        
+
         // Convert Arabic numerals to regular numerals
         const convertedTime = convertArabicNumerals(timeStr);
-        
+
         // Parse 24-hour time and convert to 12-hour format
         try {
           // Handle formats like "14:35" or "02:35" or "2:35"
@@ -317,17 +331,33 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
       },
     },
     {
-      title: 'Address',
-      dataIndex: 'address',
-      key: 'address',
+      title: t('externalServicesCount'),
+      key: 'externalServices',
+      render: (record: VisitWithPatientInfo) => {
+        const count = record.externalServiceRequestCount || 0;
+        const services = record.externalServiceRequests || [];
+
+        if (count === 0) {
+          return <span style={{ color: '#ccc' }}>-</span>;
+        }
+
+        // Create a list of service names
+        const serviceNames = services.map((s: any) => s.service_name).join(', ');
+
+        return (
+          <Tag icon={<ExperimentOutlined />} color="purple" style={{ cursor: 'help' }} title={serviceNames}>
+            {serviceNames.length > 30 ? serviceNames.substring(0, 30) + '...' : serviceNames}
+          </Tag>
+        );
+      }
     },
     {
-      title: 'Age',
+      title: t('age'),
       dataIndex: 'age',
       key: 'age',
     },
     {
-      title: 'Visit Type',
+      title: t('visitType'),
       dataIndex: 'visit_type',
       key: 'visit_type',
       render: (type: string) => (
@@ -335,24 +365,24 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
       ),
     },
     {
-      title: 'Receipts',
+      title: t('receipts'),
       key: 'receipts',
       render: (record: VisitWithPatientInfo) => {
         const count = record.receipts?.length || 0;
-        return count > 0 ? 
-          <Tag color="green">{count} receipt(s)</Tag> : 
+        return count > 0 ?
+          <Tag color="green">{count} receipt(s)</Tag> :
           <Tag color="gray">No receipts</Tag>;
       }
     },
     {
-      title: 'Actions',
+      title: t('actions'),
       key: 'actions',
       render: (text: string, record: VisitWithPatientInfo) => {
         // Find the original patient
         const patient = patients.find(p => p.patient_id === record._original_patient_id);
-        
+
         return (
-          <a 
+          <a
             onClick={(e) => {
               e.stopPropagation(); // Prevent row click from triggering
               if (patient) {
@@ -360,7 +390,7 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
               }
             }}
           >
-            View Patient
+            {t('viewPatient')}
           </a>
         );
       },
@@ -371,7 +401,7 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
   const handleTableChange = (newPagination: any) => {
     const newPage = newPagination.current || pagination.current;
     const newPageSize = newPagination.pageSize || pagination.pageSize;
-    
+
     // If page or page size changed, fetch new data from server
     if (newPage !== pagination.current || newPageSize !== pagination.pageSize) {
       fetchVisits(newPage, newPageSize);
@@ -387,15 +417,15 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
   return (
     <>
       <SearchFilters />
-      
+
       <div style={{ overflowX: 'auto', marginTop: 16 }}>
-        <Table 
-          columns={columns} 
+        <Table
+          columns={columns}
           dataSource={getPaginatedVisits()}
           rowKey={record => `${record.patient_id || ''}-${record.visit_id || ''}-${record.date || ''}-${record.time || ''}`}
           loading={loading}
           locale={{
-            emptyText: visitsToDisplay.length === 0 && !loading ? 'No visits found' : undefined
+            emptyText: visitsToDisplay.length === 0 && !loading ? t('noVisits') : undefined
           }}
           pagination={{
             current: pagination.current,
@@ -405,7 +435,7 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
             pageSizeOptions: ['10', '20', '50', '100'],
             showTotal: (total, range) => {
               if (total === 0) {
-                return 'No visits found';
+                return t('noVisits');
               }
               if (contextPagination) {
                 return `Showing ${range[0]}-${range[1]} of ${total} visits`;

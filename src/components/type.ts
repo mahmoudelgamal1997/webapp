@@ -42,6 +42,13 @@ export interface Patient {
   fcmToken?: string;
   visit_type?: string;
   clinic_id?: string; // Clinic ID for billing
+  externalServiceRequestCount?: number; // Count of external service requests
+  externalServiceRequests?: Array<{
+    service_name: string;
+    provider_name: string;
+    status: string;
+    requestedAt: Date;
+  }>; // Details of external service requests
 }
 
 // Filter state interface
