@@ -236,14 +236,68 @@ const DynamicHistoryForm: React.FC<DynamicHistoryFormProps> = ({
                 <>
                     {/* Timeline View */}
                     {showTimeline && historyTimeline.length > 0 && (
-                        <div style={{ marginBottom: 24, padding: 16, background: '#f5f5f5', borderRadius: 8 }}>
-                            <h4>السجل الطبي السابق</h4>
-                            {historyTimeline.map((record, index) => (
-                                <div key={record._id} style={{ marginBottom: 8 }}>
-                                    <strong>{moment(record.createdAt).format('YYYY-MM-DD HH:mm')}</strong>
-                                    {index === 0 && <span style={{ marginLeft: 8, color: '#1890ff' }}>(الأحدث)</span>}
-                                </div>
-                            ))}
+                        <div style={{ marginBottom: 24, maxHeight: '400px', overflowY: 'auto' }}>
+                            <h4 style={{ marginBottom: 16 }}>السجل الطبي السابق</h4>
+                            <Collapse accordion>
+                                {historyTimeline.map((record, index) => {
+                                    const recordTemplate = record.template_snapshot || template;
+                                    const recordData = record.data || {};
+
+                                    return (
+                                        <Panel
+                                            key={record._id}
+                                            header={
+                                                <div>
+                                                    <strong>{moment(record.createdAt).format('YYYY-MM-DD HH:mm')}</strong>
+                                                    {index === 0 && <span style={{ marginLeft: 8, color: '#1890ff' }}>(الأحدث)</span>}
+                                                </div>
+                                            }
+                                        >
+                                            {recordTemplate?.sections?.map((section: any) => {
+                                                // Get filled fields for this section
+                                                const filledFields = section.fields?.filter((field: any) => {
+                                                    const fieldKey = `${section.section_id}.${field.field_id}`;
+                                                    const value = recordData[fieldKey];
+                                                    return value && value !== 'false' && value !== '';
+                                                });
+
+                                                if (!filledFields || filledFields.length === 0) return null;
+
+                                                return (
+                                                    <div key={section.section_id} style={{ marginBottom: 16 }}>
+                                                        <Divider orientation="right" style={{ margin: '12px 0' }}>
+                                                            {section.title}
+                                                        </Divider>
+                                                        {filledFields.map((field: any) => {
+                                                            const fieldKey = `${section.section_id}.${field.field_id}`;
+                                                            const value = recordData[fieldKey];
+
+                                                            return (
+                                                                <div key={fieldKey} style={{ marginBottom: 8, paddingRight: 16 }}>
+                                                                    <span style={{ color: '#666', fontWeight: 500 }}>{field.label}: </span>
+                                                                    <span>
+                                                                        {field.type === 'checkbox'
+                                                                            ? (value === 'true' ? '✓ نعم' : '✗ لا')
+                                                                            : value
+                                                                        }
+                                                                    </span>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                );
+                                            })}
+
+                                            {/* Show message if no data */}
+                                            {Object.keys(recordData).length === 0 && (
+                                                <div style={{ color: '#999', fontStyle: 'italic' }}>
+                                                    لا توجد بيانات مسجلة
+                                                </div>
+                                            )}
+                                        </Panel>
+                                    );
+                                })}
+                            </Collapse>
                         </div>
                     )}
 
