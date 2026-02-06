@@ -11,7 +11,8 @@ import {
   BarChartOutlined,
   DollarOutlined,
   InboxOutlined,
-  ExperimentOutlined
+  ExperimentOutlined,
+  DollarCircleOutlined
 } from '@ant-design/icons';
 import { useLanguage } from './LanguageContext';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -52,6 +53,9 @@ const DashboardSidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) =
       case 'external-services':
         navigate('/external-services');
         break;
+      case 'visit-types':
+        navigate('/visit-types');
+        break;
       case 'settings':
         navigate('/settings');
         break;
@@ -65,6 +69,7 @@ const DashboardSidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) =
     if (path.includes('/analytics')) return 'analytics';
     if (path.includes('/inventory')) return 'inventory';
     if (path.includes('/external-services')) return 'external-services';
+    if (path.includes('/visit-types')) return 'visit-types';
     if (path.includes('/settings')) return 'settings';
     return 'patients';
   };
@@ -115,6 +120,9 @@ const DashboardSidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) =
         </Menu.Item>
         <Menu.Item key="external-services" icon={<ExperimentOutlined />}>
           {t('externalServices')}
+        </Menu.Item>
+        <Menu.Item key="visit-types" icon={<DollarCircleOutlined />}>
+          Visit Types
         </Menu.Item>
         <Menu.Item key="settings" icon={<SettingOutlined />}>
           {t('settings')}

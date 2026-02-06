@@ -14,6 +14,7 @@ import { InventoryProvider } from './components/InventoryContext';
 import InventoryManagement from './components/InventoryManagement';
 import ExternalServiceManagement from './components/ExternalServiceManagement';
 import HistoryTemplateBuilder from './components/HistoryTemplateBuilder';
+import VisitTypeSettings from './components/VisitTypeSettings';
 import { LanguageProvider } from './components/LanguageContext';
 
 // Protected route component
@@ -115,6 +116,14 @@ function App() {
                       element={
                         <ProtectedRoute>
                           <HistoryTemplateBuilder />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/visit-types"
+                      element={
+                        <ProtectedRoute>
+                          <VisitTypeSettings />
                         </ProtectedRoute>
                       }
                     />

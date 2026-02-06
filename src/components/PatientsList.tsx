@@ -9,7 +9,7 @@ import SearchFilters from './SearchFilters';
 import { usePatientContext } from './PatientContext';
 import API from '../config/api';
 import { useLanguage } from './LanguageContext';
-import { ExperimentOutlined } from '@ant-design/icons';
+import { ExperimentOutlined, WarningOutlined } from '@ant-design/icons';
 
 // Extended visit interface with patient information
 interface VisitWithPatientInfo {
@@ -18,6 +18,7 @@ interface VisitWithPatientInfo {
   date: string;
   time: string;
   visit_type: string;
+  visit_urgency?: string; // Add urgency field
   complaint: string;
   diagnosis: string;
   receipts: any[];
@@ -83,8 +84,7 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
               } else {
                 visitDateStr = visitDateAny;
               }
-            } else if (visitDateAny instanceof Date || visitDateAny?.toISOString) {
-              // Handle Date object or MongoDB date
+            } else if (visitDateAny instanceof Date) {
               visitDateStr = visitDateAny.toISOString().split('T')[0];
             } else {
               visitDateStr = String(visitDateAny);
@@ -101,28 +101,49 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
 
           // No need to filter by "today" - backend already handles date filtering via endDate parameter
 
-          // Visit is valid (today or past) - create a new object with explicit properties
-          // Use the processed visitDateStr for consistent date format
+          // Create the flattened visit object
+          // Map properties safely with fallbacks
           allVisits.push({
-            _id: visit._id || '',
+            _id: visit._id || `temp-${Date.now()}-${Math.random()}`,
             visit_id: visit.visit_id || '',
             date: visitDateStr || '',
             time: visit.time || '',
-            visit_type: visit.visit_type || '',
+            visit_type: visit.visit_type || patient.visit_type || '', // Use patient's current visit type as fallback
+            visit_urgency: (patient as any).visit_urgency || 'normal', // Use patient's urgency (visits don't have urgency history yet)
             complaint: visit.complaint || '',
             diagnosis: visit.diagnosis || '',
-            receipts: visit.receipts || [],
-            // Add patient info
-            patient_name: patient.patient_name,
-            patient_phone: patient.patient_phone,
-            patient_id: patient.patient_id,
-            age: patient.age,
-
-            address: patient.address,
-            externalServiceRequestCount: patient.externalServiceRequestCount,
-            externalServiceRequests: patient.externalServiceRequests,
-            _original_patient_id: patient.patient_id
+            receipts: typeof visit.receipts === 'string' ? [] : (visit.receipts || []),
+            patient_name: patient.patient_name || '',
+            patient_phone: patient.patient_phone || '',
+            patient_id: patient.patient_id || '',
+            age: patient.age || '',
+            address: patient.address || '',
+            externalServiceRequestCount: (patient as any).externalServiceRequestCount || 0,
+            externalServiceRequests: (patient as any).externalServiceRequests || [],
+            _original_patient_id: patient.patient_id || ''
           });
+        });
+      } else {
+        // If patient has no visits array but has basic info, create a pseudo-visit to display them
+        // This ensures patients without historical visits still show up in the list
+        allVisits.push({
+          _id: `generated-${patient.patient_id}`,
+          visit_id: '',
+          date: patient.date || '',
+          time: patient.time || '',
+          visit_type: patient.visit_type || '',
+          visit_urgency: (patient as any).visit_urgency || 'normal',
+          complaint: '',
+          diagnosis: '',
+          receipts: [],
+          patient_name: patient.patient_name || '',
+          patient_phone: patient.patient_phone || '',
+          patient_id: patient.patient_id || '',
+          age: patient.age || '',
+          address: patient.address || '',
+          externalServiceRequestCount: (patient as any).externalServiceRequestCount || 0,
+          externalServiceRequests: (patient as any).externalServiceRequests || [],
+          _original_patient_id: patient.patient_id || ''
         });
       }
     });
@@ -288,7 +309,14 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
       key: 'patient',
       render: (record: VisitWithPatientInfo) => (
         <Space direction="vertical" size="small">
-          <Typography.Text strong>{record.patient_name}</Typography.Text>
+          <Space>
+            <Typography.Text strong>{record.patient_name}</Typography.Text>
+            {record.visit_urgency === 'urgent' && (
+              <Tag color="red" icon={<WarningOutlined />}>
+                عاجل
+              </Tag>
+            )}
+          </Space>
           <Typography.Text type="secondary">{record.patient_phone}</Typography.Text>
         </Space>
       )
@@ -300,7 +328,6 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
       render: (text: string) => (
         <span>{text ? moment(text).format('YYYY-MM-DD') : 'N/A'}</span>
       )
-      // No sorter - display data in API order without client-side sorting
     },
     {
       title: t('time'),
@@ -366,10 +393,14 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
     },
     {
       title: t('visitType'),
-      dataIndex: 'visit_type',
       key: 'visit_type',
-      render: (type: string) => (
-        <Tag color="blue">{type || 'Regular'}</Tag>
+      render: (record: VisitWithPatientInfo) => (
+        <Space direction="vertical" size={2}>
+          <Tag color="blue">{record.visit_type || 'Regular'}</Tag>
+          {record.visit_urgency === 'urgent' && (
+            <Tag color="volcano" style={{ fontSize: '11px' }}>Urgent</Tag>
+          )}
+        </Space>
       ),
     },
     {
@@ -424,6 +455,19 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
 
   return (
     <>
+      <style>
+        {`
+          .urgent-patient-row {
+            background-color: #fff1f0 !important;
+          }
+          .urgent-patient-row:hover {
+            background-color: #ffe7e7 !important;
+          }
+          .urgent-patient-row td {
+            background-color: #fff1f0 !important;
+          }
+        `}
+      </style>
       <SearchFilters />
 
       <div style={{ overflowX: 'auto', marginTop: 16 }}>
@@ -454,6 +498,7 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
           }}
           onChange={handleTableChange}
           scroll={{ x: 'max-content' }}
+          rowClassName={(record) => record.visit_urgency === 'urgent' ? 'urgent-patient-row' : ''}
           onRow={(record) => ({
             onClick: () => {
               // Find the original patient

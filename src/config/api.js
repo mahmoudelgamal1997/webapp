@@ -6,6 +6,7 @@ const API = {
     DOCTOR_PATIENTS: (doctorId) => `/api/patients/doctor/${doctorId}`,
     HISTORY: '/api/history', // Use history endpoint which works correctly
     PATIENT_BY_ID: (patientId) => `/api/patients/${patientId}`,
+    UPDATE_VISIT_TYPE: (patientId) => `/api/patients/${patientId}/visit-type`,
     DOCTOR_SETTINGS: (doctorId) => `/api/doctors/${doctorId}/settings`,
 
     // Services endpoints
@@ -41,6 +42,10 @@ const API = {
     MEDICAL_HISTORY_TEMPLATE: '/api/medical-history/template',
     MEDICAL_HISTORY_PATIENT: '/api/medical-history/patient',
     MEDICAL_HISTORY_TIMELINE: '/api/medical-history/patient/timeline',
+
+    // Visit Type Configuration endpoints
+    VISIT_TYPE_CONFIG: (doctorId) => `/api/visit-types/${doctorId}`,
+    VISIT_TYPE_CALCULATE_PRICE: (doctorId) => `/api/visit-types/${doctorId}/calculate-price`,
   }
 };
 

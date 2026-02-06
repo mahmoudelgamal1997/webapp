@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Card, Row, Col, Typography, Button, Divider, Table, Modal, Space, List, Image, Tag } from 'antd';
-import { PlusOutlined, FileTextOutlined, BellOutlined, CalendarOutlined, FileImageOutlined, EyeOutlined, DollarOutlined, ExperimentOutlined, CheckCircleOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import { Card, Row, Col, Typography, Button, Divider, Table, Modal, Space, List, Image, Tag, Select, Radio, Input, Form, message } from 'antd';
+import { PlusOutlined, FileTextOutlined, BellOutlined, CalendarOutlined, FileImageOutlined, EyeOutlined, DollarOutlined, ExperimentOutlined, CheckCircleOutlined, ClockCircleOutlined, EditOutlined, WarningOutlined } from '@ant-design/icons';
 import moment from 'moment';
 import ReceiptsList from './ReceiptsList';
 import { Receipt, Patient, Visit, ExternalService, ExternalServiceRequest } from '../components/type';
@@ -79,6 +79,13 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
 
   // Medical History state
   const [medicalHistoryModalVisible, setMedicalHistoryModalVisible] = useState(false);
+
+  // Visit Type Editing
+  const [editingVisitType, setEditingVisitType] = useState(false);
+  const [availableVisitTypes, setAvailableVisitTypes] = useState<any[]>([]);
+  const [selectedVisitTypeId, setSelectedVisitTypeId] = useState<string>('');
+  const [selectedUrgency, setSelectedUrgency] = useState<string>('normal');
+  const [savingVisitType, setSavingVisitType] = useState(false);
 
   useEffect(() => {
     const fetchPatientHistory = async () => {
@@ -163,7 +170,65 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
     fetchPatientReports();
     fetchExternalServices();
     fetchExternalRequests();
+
+    // Reset visit type editing state
+    setEditingVisitType(false);
+    if (selectedPatient) {
+      setSelectedVisitTypeId(selectedPatient.visit_type || '');
+      setSelectedUrgency((selectedPatient as any).visit_urgency || 'normal');
+    }
   }, [selectedPatient]);
+
+  // Load visit types configuration
+  useEffect(() => {
+    const loadVisitTypes = async () => {
+      const doctorId = localStorage.getItem('doctorId');
+      if (doctorId) {
+        try {
+          const response = await axios.get(`${API.BASE_URL}${API.ENDPOINTS.VISIT_TYPE_CONFIG(doctorId)}`);
+          if (response.data.success) {
+            setAvailableVisitTypes(response.data.data.visit_types || []);
+          }
+        } catch (error) {
+          console.error('Error loading visit types:', error);
+        }
+      }
+    };
+    loadVisitTypes();
+  }, []);
+
+  const handleUpdateVisitType = async () => {
+    if (!selectedPatient) return;
+
+    try {
+      setSavingVisitType(true);
+      const doctorId = localStorage.getItem('doctorId');
+
+      const response = await axios.put(`${API.BASE_URL}${API.ENDPOINTS.UPDATE_VISIT_TYPE(selectedPatient.patient_id)}`, {
+        visit_type: selectedVisitTypeId,
+        visit_urgency: selectedUrgency,
+        doctor_id: doctorId,
+        changed_by: 'doctor'
+      });
+
+      if (response.data.success) {
+        message.success('Visit type updated successfully');
+        setEditingVisitType(false);
+
+        // Refresh patient details to show updated data
+        // We might need to bubble this up or manually update selectedPatient in context if possible
+        // For now, let's trigger a refresh of history which is local
+        const updatedPatient = response.data.data.patient;
+        // Optimistically update local state if we had access to setPatients, but here we only have selectedPatient
+        // We can rely on the user navigating or refresh
+      }
+    } catch (error) {
+      console.error('Error updating visit type:', error);
+      message.error('Failed to update visit type');
+    } finally {
+      setSavingVisitType(false);
+    }
+  };
 
   // Get latest visit for Personal Information display
   const latestVisit = React.useMemo(() => {
@@ -295,6 +360,88 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
       >
         {/* Personal Information Section */}
         <Title level={4}>Personal Information</Title>
+        <Card size="small" style={{ marginBottom: 16, backgroundColor: '#f9f9f9' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <Text strong>Current Visit Information</Text>
+            {!editingVisitType && (
+              <Button
+                type="link"
+                icon={<EditOutlined />}
+                onClick={() => setEditingVisitType(true)}
+              >
+                Change Type
+              </Button>
+            )}
+          </div>
+
+          {editingVisitType ? (
+            <div style={{ padding: 12, backgroundColor: '#fff', borderRadius: 4, border: '1px solid #d9d9d9' }}>
+              <Form layout="vertical">
+                <Row gutter={16}>
+                  <Col span={12}>
+                    <Form.Item label="Visit Type" style={{ marginBottom: 12 }}>
+                      <Select
+                        value={selectedVisitTypeId}
+                        onChange={setSelectedVisitTypeId}
+                        style={{ width: '100%' }}
+                      >
+                        {availableVisitTypes.map(type => (
+                          <Select.Option key={type.type_id} value={type.type_id}>
+                            {type.name} ({type.name_ar})
+                          </Select.Option>
+                        ))}
+                        {/* Add current type if not in list (legacy support) */}
+                        {selectedVisitTypeId && !availableVisitTypes.find(t => t.type_id === selectedVisitTypeId) && (
+                          <Select.Option key={selectedVisitTypeId} value={selectedVisitTypeId}>
+                            {selectedVisitTypeId}
+                          </Select.Option>
+                        )}
+                      </Select>
+                    </Form.Item>
+                  </Col>
+                  <Col span={12}>
+                    <Form.Item label="Urgency" style={{ marginBottom: 12 }}>
+                      <Radio.Group
+                        value={selectedUrgency}
+                        onChange={(e) => setSelectedUrgency(e.target.value)}
+                        buttonStyle="solid"
+                      >
+                        <Radio.Button value="normal">Normal</Radio.Button>
+                        <Radio.Button value="urgent">Urgent</Radio.Button>
+                      </Radio.Group>
+                    </Form.Item>
+                  </Col>
+                </Row>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                  <Button size="small" onClick={() => setEditingVisitType(false)}>Cancel</Button>
+                  <Button
+                    type="primary"
+                    size="small"
+                    loading={savingVisitType}
+                    onClick={handleUpdateVisitType}
+                  >
+                    Save Changes
+                  </Button>
+                </div>
+              </Form>
+            </div>
+          ) : (
+            <Row gutter={[16, 16]}>
+              <Col span={12}>
+                <Text type="secondary" style={{ display: 'block', fontSize: 12 }}>Visit Type</Text>
+                <Tag color="blue">{selectedPatient.visit_type || 'Regular'}</Tag>
+              </Col>
+              <Col span={12}>
+                <Text type="secondary" style={{ display: 'block', fontSize: 12 }}>Urgency</Text>
+                {(selectedPatient as any).visit_urgency === 'urgent' ? (
+                  <Tag color="red" icon={<WarningOutlined />}>Urgent / عاجل</Tag>
+                ) : (
+                  <Tag color="green">Normal / عادي</Tag>
+                )}
+              </Col>
+            </Row>
+          )}
+        </Card>
 
         <Divider />
 

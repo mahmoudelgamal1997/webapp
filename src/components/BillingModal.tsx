@@ -81,7 +81,7 @@ const BillingModal: React.FC<BillingModalProps> = ({
 
   const fetchServices = async () => {
     if (!doctorId) return;
-    
+
     try {
       setLoading(true);
       const response = await axios.get(`${API.BASE_URL}${API.ENDPOINTS.DOCTOR_SERVICES(doctorId)}`);
@@ -137,7 +137,7 @@ const BillingModal: React.FC<BillingModalProps> = ({
   // Calculate totals - NO consultation fee (already paid on patient arrival)
   const servicesTotal = selectedServices.reduce((sum, s) => sum + s.subtotal, 0);
   const subtotal = servicesTotal;
-  
+
   let discountAmount = 0;
   if (discountValue > 0) {
     if (discountType === 'percentage') {
@@ -146,7 +146,7 @@ const BillingModal: React.FC<BillingModalProps> = ({
       discountAmount = Math.min(discountValue, subtotal);
     }
   }
-  
+
   const totalAmount = Math.max(0, subtotal - discountAmount);
 
   const handleSubmit = async () => {
@@ -190,35 +190,35 @@ const BillingModal: React.FC<BillingModalProps> = ({
 
       if (response.data.success) {
         message.success('Services bill created successfully');
-        
+
         // Send notification to assistant about the additional services
         // Also saves billing to patient document for real-time display
         try {
           // Use patient's date (visit date) in the same format as Firebase path (yyyy-M-d)
           // If patient.date is in different format, parse it
           let dateString = patient.date || '';
-          
+
           // If date is in format "2026-1-31" or "2026-01-31", use as is
           // If in other format like "2026-01-31T00:00:00Z", extract date part
           if (dateString.includes('T')) {
             dateString = dateString.split('T')[0];
           }
-          
+
           // Ensure format is yyyy-M-d (single digit month/day if needed)
           if (dateString && dateString.match(/^\d{4}-\d{1,2}-\d{1,2}$/)) {
             // Format is already correct, but ensure single digits for month/day
             const parts = dateString.split('-');
             dateString = `${parts[0]}-${parseInt(parts[1])}-${parseInt(parts[2])}`;
           }
-          
+
           // Fallback to today if patient.date is missing
           if (!dateString) {
             const today = new Date();
             dateString = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
           }
-          
+
           console.log('📅 Using patient date for billing:', dateString);
-          
+
           await sendBillingNotificationToAllAssistants({
             doctor_id: doctorId,
             clinic_id: selectedClinicId || patient.clinic_id || '',
@@ -243,7 +243,7 @@ const BillingModal: React.FC<BillingModalProps> = ({
           console.error('Failed to send notification:', notifError);
           message.warning('Bill created but notification failed. Please notify assistant manually!');
         }
-        
+
         onBillingComplete?.();
         onCancel();
       }
@@ -275,7 +275,7 @@ const BillingModal: React.FC<BillingModalProps> = ({
       render: (qty: number, record: BillingServiceItem) => (
         <InputNumber
           min={1}
-          max={99}
+          max={100000}
           value={qty}
           size="small"
           onChange={(val) => handleQuantityChange(record.service_id, val || 1)}
@@ -356,8 +356,8 @@ const BillingModal: React.FC<BillingModalProps> = ({
             optionFilterProp="children"
           >
             {services.map(service => (
-              <Option 
-                key={service.service_id} 
+              <Option
+                key={service.service_id}
                 value={service.service_id}
                 disabled={selectedServices.some(s => s.service_id === service.service_id)}
               >
@@ -384,8 +384,8 @@ const BillingModal: React.FC<BillingModalProps> = ({
           <Row gutter={16}>
             <Col span={8}>
               <Form.Item label="Discount Type">
-                <Radio.Group 
-                  value={discountType} 
+                <Radio.Group
+                  value={discountType}
                   onChange={(e) => setDiscountType(e.target.value)}
                   size="small"
                 >
@@ -459,8 +459,8 @@ const BillingModal: React.FC<BillingModalProps> = ({
         </Card>
 
         {/* Summary */}
-        <Card 
-          size="small" 
+        <Card
+          size="small"
           style={{ backgroundColor: '#f6ffed', border: '1px solid #b7eb8f' }}
         >
           <Title level={5} style={{ margin: 0, marginBottom: 8 }}>Bill Summary</Title>
