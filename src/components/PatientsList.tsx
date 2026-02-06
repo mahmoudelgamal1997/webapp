@@ -130,7 +130,7 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
           _id: `generated-${patient.patient_id}`,
           visit_id: '',
           date: patient.date || '',
-          time: patient.time || '',
+          time: (patient as any).time || '',
           visit_type: patient.visit_type || '',
           visit_urgency: (patient as any).visit_urgency || 'normal',
           complaint: '',
