@@ -434,33 +434,49 @@ const ExternalServiceManagement: React.FC = () => {
                                 {reports && (
                                     <>
                                         <Row gutter={16} style={{ marginBottom: 24 }}>
-                                            <Col span={8}>
-                                                <Card>
-                                                    <Statistic
-                                                        title="Total Requests"
-                                                        value={reports.overview.total}
-                                                        valueStyle={{ color: '#1890ff' }}
-                                                    />
-                                                </Card>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Card>
-                                                    <Statistic
-                                                        title="Completed"
-                                                        value={reports.overview.completed}
-                                                        valueStyle={{ color: '#52c41a' }}
-                                                    />
-                                                </Card>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Card>
-                                                    <Statistic
-                                                        title="Pending"
-                                                        value={reports.overview.pending}
-                                                        valueStyle={{ color: '#faad14' }}
-                                                    />
-                                                </Card>
-                                            </Col>
+                                            {(() => {
+                                                const filteredStats = selectedProvider === 'all'
+                                                    ? reports.overview
+                                                    : reports.detailedStats
+                                                        .filter(p => p.providerName === selectedProvider)
+                                                        .reduce((acc, curr) => ({
+                                                            total: acc.total + curr.total,
+                                                            completed: acc.completed + curr.completed,
+                                                            pending: acc.pending + curr.pending
+                                                        }), { total: 0, completed: 0, pending: 0 });
+
+                                                return (
+                                                    <>
+                                                        <Col span={8}>
+                                                            <Card>
+                                                                <Statistic
+                                                                    title="Total Requests"
+                                                                    value={filteredStats.total}
+                                                                    valueStyle={{ color: '#1890ff' }}
+                                                                />
+                                                            </Card>
+                                                        </Col>
+                                                        <Col span={8}>
+                                                            <Card>
+                                                                <Statistic
+                                                                    title="Completed"
+                                                                    value={filteredStats.completed}
+                                                                    valueStyle={{ color: '#52c41a' }}
+                                                                />
+                                                            </Card>
+                                                        </Col>
+                                                        <Col span={8}>
+                                                            <Card>
+                                                                <Statistic
+                                                                    title="Pending"
+                                                                    value={filteredStats.pending}
+                                                                    valueStyle={{ color: '#faad14' }}
+                                                                />
+                                                            </Card>
+                                                        </Col>
+                                                    </>
+                                                );
+                                            })()}
                                         </Row>
 
                                         <Card title="Detailed Report / تقرير مفصل" style={{ marginBottom: 16 }}>
