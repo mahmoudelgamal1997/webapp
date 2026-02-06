@@ -341,13 +341,21 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
           return <span style={{ color: '#ccc' }}>-</span>;
         }
 
-        // Create a list of service names
-        const serviceNames = services.map((s: any) => s.service_name).join(', ');
-
+        // Show each service as a separate tag with color based on status
         return (
-          <Tag icon={<ExperimentOutlined />} color="purple" style={{ cursor: 'help' }} title={serviceNames}>
-            {serviceNames.length > 30 ? serviceNames.substring(0, 30) + '...' : serviceNames}
-          </Tag>
+          <Space size={4} wrap>
+            {services.map((service: any, index: number) => (
+              <Tag
+                key={index}
+                icon={<ExperimentOutlined />}
+                color={service.status === 'completed' ? 'green' : 'orange'}
+                style={{ cursor: 'help', marginBottom: 4 }}
+                title={`${service.service_name} - ${service.provider_name} (${service.status})`}
+              >
+                {service.service_name}
+              </Tag>
+            ))}
+          </Space>
         );
       }
     },

@@ -295,37 +295,6 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
       >
         {/* Personal Information Section */}
         <Title level={4}>Personal Information</Title>
-        <Col xs={24}>
-          <Divider orientation="left">Medical History</Divider>
-          <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-            {(patientHistory?.visits || [])
-              .sort((a, b) => moment(b.date).valueOf() - moment(a.date).valueOf())
-              .map((visit, index) => (
-                <div key={index} style={{ marginBottom: '12px', padding: '8px', border: '1px solid #f0f0f0', borderRadius: '4px', backgroundColor: index === 0 ? '#e6f7ff' : 'transparent' }}>
-                  <Space direction="vertical" style={{ width: '100%' }} size={0}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                      <Text type="secondary" style={{ fontSize: '12px' }}>{moment(visit.date).format('YYYY-MM-DD HH:mm')}</Text>
-                      <Tag color={index === 0 ? "blue" : "default"}>{index === 0 ? "Latest" : "Past"}</Tag>
-                    </div>
-
-                    <Row gutter={[16, 8]}>
-                      <Col xs={24} md={12}>
-                        <Text strong style={{ color: index === 0 ? '#1890ff' : 'inherit' }}>Diagnosis: </Text>
-                        <Text>{visit.diagnosis || 'None'}</Text>
-                      </Col>
-                      <Col xs={24} md={12}>
-                        <Text strong style={{ color: index === 0 ? '#1890ff' : 'inherit' }}>Complaint: </Text>
-                        <Text>{visit.complaint || 'None'}</Text>
-                      </Col>
-                    </Row>
-                  </Space>
-                </div>
-              ))}
-            {(!patientHistory?.visits || patientHistory.visits.length === 0) && (
-              <Text type="secondary">No medical history recorded.</Text>
-            )}
-          </div>
-        </Col>
 
         <Divider />
 

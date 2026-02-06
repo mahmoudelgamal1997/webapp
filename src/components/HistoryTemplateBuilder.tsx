@@ -32,11 +32,22 @@ const HistoryTemplateBuilder: React.FC = () => {
     const [editingField, setEditingField] = useState<{ sectionIdx: number; fieldIdx: number } | null>(null);
 
     useEffect(() => {
-        loadTemplate();
+        if (doctorId) {
+            loadTemplate();
+        }
     }, [doctorId]);
 
     const loadTemplate = async () => {
         try {
+            console.log('HistoryTemplateBuilder - doctorId:', doctorId);
+
+            if (!doctorId) {
+                message.error('Doctor ID not found. Please log in again.');
+                console.error('Doctor ID is missing!');
+                navigate('/login');
+                return;
+            }
+
             setLoading(true);
             const response = await axios.get(`${API.BASE_URL}${API.ENDPOINTS.MEDICAL_HISTORY_TEMPLATE}`, {
                 params: { doctor_id: doctorId }
@@ -57,6 +68,26 @@ const HistoryTemplateBuilder: React.FC = () => {
 
     const handleSaveTemplate = async () => {
         try {
+            // Validate sections and fields before saving
+            for (let i = 0; i < sections.length; i++) {
+                const section = sections[i];
+
+                // Check if section title is empty
+                if (!section.title || section.title.trim() === '') {
+                    message.error(`القسم رقم ${i + 1} يجب أن يحتوي على عنوان`);
+                    return;
+                }
+
+                // Check if any field has empty label
+                for (let j = 0; j < section.fields.length; j++) {
+                    const field = section.fields[j];
+                    if (!field.label || field.label.trim() === '') {
+                        message.error(`الحقل رقم ${j + 1} في القسم "${section.title}" يجب أن يحتوي على تسمية`);
+                        return;
+                    }
+                }
+            }
+
             setLoading(true);
             await axios.post(`${API.BASE_URL}${API.ENDPOINTS.MEDICAL_HISTORY_TEMPLATE}`, {
                 doctor_id: doctorId,
