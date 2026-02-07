@@ -119,14 +119,6 @@ function App() {
                         </ProtectedRoute>
                       }
                     />
-                    <Route
-                      path="/visit-types"
-                      element={
-                        <ProtectedRoute>
-                          <VisitTypeSettings />
-                        </ProtectedRoute>
-                      }
-                    />
                     <Route path="/" element={<Navigate to="/dashboard" />} />
                     <Route path="*" element={<Navigate to="/login" />} />
                   </Routes>

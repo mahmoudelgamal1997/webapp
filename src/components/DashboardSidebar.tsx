@@ -121,9 +121,6 @@ const DashboardSidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) =
         <Menu.Item key="external-services" icon={<ExperimentOutlined />}>
           {t('externalServices')}
         </Menu.Item>
-        <Menu.Item key="visit-types" icon={<DollarCircleOutlined />}>
-          Visit Types
-        </Menu.Item>
         <Menu.Item key="settings" icon={<SettingOutlined />}>
           {t('settings')}
         </Menu.Item>
