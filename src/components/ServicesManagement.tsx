@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Layout, 
-  Card, 
-  Table, 
-  Button, 
-  Modal, 
-  Form, 
-  Input, 
-  InputNumber, 
-  Select, 
-  Space, 
-  Typography, 
-  Popconfirm, 
-  message, 
+import {
+  Layout,
+  Card,
+  Table,
+  Button,
+  Modal,
+  Form,
+  Input,
+  InputNumber,
+  Select,
+  Space,
+  Typography,
+  Popconfirm,
+  message,
   Tag,
   Switch,
   Row,
@@ -20,10 +20,10 @@ import {
   Divider,
   Spin
 } from 'antd';
-import { 
-  PlusOutlined, 
-  EditOutlined, 
-  DeleteOutlined, 
+import {
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
   ArrowLeftOutlined,
   MedicineBoxOutlined,
   DollarOutlined,
@@ -57,13 +57,14 @@ const ServicesManagement: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [form] = Form.useForm();
   const navigate = useNavigate();
-  
+
   // Consultation fees state
   const [consultationFee, setConsultationFee] = useState<number>(0);
   const [revisitFee, setRevisitFee] = useState<number>(0);
+  const [estisharaFee, setEstisharaFee] = useState<number>(0);
   const [feesLoading, setFeesLoading] = useState(false);
   const [feesSaving, setFeesSaving] = useState(false);
-  
+
   const doctorId = localStorage.getItem('doctorId');
 
   useEffect(() => {
@@ -73,13 +74,13 @@ const ServicesManagement: React.FC = () => {
 
   const fetchServices = async () => {
     if (!doctorId) return;
-    
+
     try {
       setLoading(true);
       const response = await axios.get(`${API.BASE_URL}${API.ENDPOINTS.DOCTOR_SERVICES(doctorId)}`, {
         params: { includeInactive: 'true' }
       });
-      
+
       if (response.data.success) {
         setServices(response.data.data || []);
       }
@@ -94,14 +95,15 @@ const ServicesManagement: React.FC = () => {
   // Fetch consultation fees from doctor settings
   const fetchConsultationFees = async () => {
     if (!doctorId) return;
-    
+
     try {
       setFeesLoading(true);
       const response = await axios.get(`${API.BASE_URL}${API.ENDPOINTS.DOCTOR_SETTINGS(doctorId)}`);
-      
+
       if (response.data.settings) {
         setConsultationFee(response.data.settings.consultationFee || 0);
         setRevisitFee(response.data.settings.revisitFee || 0);
+        setEstisharaFee(response.data.settings.estisharaFee || 0);
       }
     } catch (error) {
       console.error('Error fetching consultation fees:', error);
@@ -113,14 +115,15 @@ const ServicesManagement: React.FC = () => {
   // Save consultation fees
   const saveConsultationFees = async () => {
     if (!doctorId) return;
-    
+
     try {
       setFeesSaving(true);
       const response = await axios.put(`${API.BASE_URL}${API.ENDPOINTS.DOCTOR_SETTINGS(doctorId)}`, {
         consultationFee,
-        revisitFee
+        revisitFee,
+        estisharaFee
       });
-      
+
       if (response.data.settings) {
         message.success('Consultation fees saved successfully');
       }
@@ -153,12 +156,12 @@ const ServicesManagement: React.FC = () => {
 
   const handleDeleteService = async (service: ClinicService) => {
     if (!doctorId) return;
-    
+
     try {
       const response = await axios.delete(
         `${API.BASE_URL}${API.ENDPOINTS.SERVICE(doctorId, service.service_id)}`
       );
-      
+
       if (response.data.success) {
         message.success('Service deactivated successfully');
         fetchServices();
@@ -182,7 +185,7 @@ const ServicesManagement: React.FC = () => {
           `${API.BASE_URL}${API.ENDPOINTS.SERVICE(doctorId, editingService.service_id)}`,
           values
         );
-        
+
         if (response.data.success) {
           message.success('Service updated successfully');
           setModalVisible(false);
@@ -194,7 +197,7 @@ const ServicesManagement: React.FC = () => {
           ...values,
           doctor_id: doctorId
         });
-        
+
         if (response.data.success) {
           message.success('Service created successfully');
           setModalVisible(false);
@@ -258,9 +261,9 @@ const ServicesManagement: React.FC = () => {
       key: 'actions',
       render: (_: any, record: ClinicService) => (
         <Space>
-          <Button 
-            type="link" 
-            icon={<EditOutlined />} 
+          <Button
+            type="link"
+            icon={<EditOutlined />}
             onClick={() => handleEditService(record)}
           >
             Edit
@@ -283,20 +286,20 @@ const ServicesManagement: React.FC = () => {
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <DashboardSidebar collapsed={collapsed} setCollapsed={setCollapsed} />
-      
+
       <Layout>
-        <DashboardHeader 
+        <DashboardHeader
           onSettingsClick={() => navigate('/settings')}
-          onMenuClick={() => {}}
+          onMenuClick={() => { }}
           isMobile={false}
         />
-        
+
         <Content style={{ margin: '24px 16px', padding: 24, background: '#f5f5f5' }}>
           <Row justify="space-between" align="middle" style={{ marginBottom: 24 }}>
             <Col>
               <Space>
-                <Button 
-                  icon={<ArrowLeftOutlined />} 
+                <Button
+                  icon={<ArrowLeftOutlined />}
                   onClick={() => navigate('/dashboard')}
                 >
                   Back to Dashboard
@@ -308,9 +311,9 @@ const ServicesManagement: React.FC = () => {
               </Space>
             </Col>
             <Col>
-              <Button 
-                type="primary" 
-                icon={<PlusOutlined />} 
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
                 onClick={handleAddService}
                 size="large"
               >
@@ -320,7 +323,7 @@ const ServicesManagement: React.FC = () => {
           </Row>
 
           {/* Consultation Fees Card */}
-          <Card 
+          <Card
             style={{ marginBottom: 24 }}
             title={
               <Space>
@@ -331,7 +334,7 @@ const ServicesManagement: React.FC = () => {
           >
             <Spin spinning={feesLoading}>
               <Row gutter={24} align="middle">
-                <Col xs={24} sm={12} md={8}>
+                <Col xs={24} sm={12} md={6}>
                   <Text strong style={{ display: 'block', marginBottom: 8 }}>
                     Consultation Fee / كشف
                   </Text>
@@ -346,7 +349,7 @@ const ServicesManagement: React.FC = () => {
                     addonAfter="EGP"
                   />
                 </Col>
-                <Col xs={24} sm={12} md={8}>
+                <Col xs={24} sm={12} md={6}>
                   <Text strong style={{ display: 'block', marginBottom: 8 }}>
                     Revisit Fee / اعاده كشف
                   </Text>
@@ -361,14 +364,29 @@ const ServicesManagement: React.FC = () => {
                     addonAfter="EGP"
                   />
                 </Col>
-                <Col xs={24} sm={24} md={8} style={{ marginTop: 24 }}>
-                  <Button 
+                <Col xs={24} sm={12} md={6}>
+                  <Text strong style={{ display: 'block', marginBottom: 8 }}>
+                    Estishara Fee / استشارة
+                  </Text>
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    size="large"
+                    min={0}
+                    value={estisharaFee}
+                    onChange={(val) => setEstisharaFee(val || 0)}
+                    formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                    parser={value => Number(value!.replace(/\$\s?|(,*)/g, '')) as any}
+                    addonAfter="EGP"
+                  />
+                </Col>
+                <Col xs={24} sm={24} md={6} style={{ marginTop: 24 }}>
+                  <Button
                     type="primary"
                     icon={<SaveOutlined />}
                     onClick={saveConsultationFees}
                     loading={feesSaving}
                     size="large"
-                    style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
+                    style={{ backgroundColor: '#52c41a', borderColor: '#52c41a', width: '100%' }}
                   >
                     Save Fees
                   </Button>
@@ -484,7 +502,7 @@ const ServicesManagement: React.FC = () => {
           </Modal>
         </Content>
       </Layout>
-    </Layout>
+    </Layout >
   );
 };
 
