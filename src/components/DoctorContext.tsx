@@ -12,6 +12,9 @@ interface DoctorSettings {
   clinicAddress: string;
   clinicPhone: string;
   logoUrl?: string;
+  consultationFee?: number;
+  revisitFee?: number;
+  estisharaFee?: number;
   printSettings?: {
     paperSize: 'a4' | 'a5' | 'custom';
     marginTop: number;
@@ -38,6 +41,9 @@ const defaultSettings: DoctorSettings = {
   doctorTitle: '',
   clinicAddress: '',
   clinicPhone: '',
+  consultationFee: 0,
+  revisitFee: 0,
+  estisharaFee: 0,
   printSettings: {
     paperSize: 'a4',
     marginTop: 0,
