@@ -231,11 +231,26 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
             if (dateString.includes('T')) {
               dateString = dateString.split('T')[0];
             }
+
+            // Format to ensure single digits for month/day (Firebase path convention: e.g. 2026-1-5 NOT 2026-01-05)
+            if (dateString && dateString.match(/^\d{4}-\d{1,2}-\d{1,2}$/)) {
+              const parts = dateString.split('-');
+              dateString = `${parts[0]}-${parseInt(parts[1])}-${parseInt(parts[2])}`;
+            }
+
             // Fallback to today if date is missing
             if (!dateString) {
               const today = new Date();
               dateString = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
             }
+
+            const diffService = {
+              service_id: 'visit_type_diff',
+              service_name: isRefund ? 'استرداد فرق زيارة' : 'فرق تغيير نوع الكشف',
+              price: absDiff,
+              quantity: 1,
+              subtotal: absDiff
+            };
 
             // Create billing notification
             await sendBillingNotificationToAllAssistants({
@@ -250,12 +265,12 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
               paymentMethod: 'cash',
               consultationFee: 0,
               consultationType: isRefund ? 'استرداد فرق زيارة' : 'فرق زيارة',
-              services: [],
-              servicesTotal: 0,
+              services: [diffService],
+              servicesTotal: absDiff, // Match total amount
               billing_id: 'diff_' + Date.now(),
               clinic_name: '',
               doctor_name: '',
-              notes: `Changed visit type from ${selectedPatient.visit_type} to ${selectedVisitTypeId}. ${typeLabel} of ${absDiff} EGP due.`
+              notes: `Changed visit type from ${selectedPatient.visit_type} to ${selectedVisitTypeId}.`
             });
             message.info(`${typeLabel} notification sent: ${absDiff} EGP`);
           } catch (notifError) {
