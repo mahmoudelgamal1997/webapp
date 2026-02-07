@@ -56,7 +56,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
   onPrintReceipt,
   onBackToList
 }) => {
-  const { selectedPatient } = usePatientContext();
+  const { selectedPatient, setSelectedPatient, fetchPatients } = usePatientContext();
 
   const [patientHistory, setPatientHistory] = useState<PatientHistoryResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -219,8 +219,10 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
         // We might need to bubble this up or manually update selectedPatient in context if possible
         // For now, let's trigger a refresh of history which is local
         const updatedPatient = response.data.data.patient;
-        // Optimistically update local state if we had access to setPatients, but here we only have selectedPatient
-        // We can rely on the user navigating or refresh
+        // Update selected patient in context immediately
+        setSelectedPatient(updatedPatient);
+        // Refresh the global patient list to ensure 'outside' view is updated
+        fetchPatients();
       }
     } catch (error) {
       console.error('Error updating visit type:', error);
