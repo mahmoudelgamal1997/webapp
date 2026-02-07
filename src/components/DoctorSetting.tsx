@@ -18,6 +18,9 @@ interface SettingsFormValues {
   doctorTitle: string;
   clinicAddress: string;
   clinicPhone: string;
+  consultationFee?: number;
+  revisitFee?: number;
+  estisharaFee?: number;
 }
 
 const DoctorSettings: React.FC = () => {
@@ -115,6 +118,17 @@ const DoctorSettings: React.FC = () => {
                     label="Clinic Phone"
                   >
                     <Input placeholder="Enter your clinic phone number" />
+                  </Form.Item>
+
+                  <Divider orientation="left">Consultation Fees / رسوم الكشف</Divider>
+                  <Form.Item name="consultationFee" label="Examination Fee (Kashf) / رسوم الكشف">
+                    <Input type="number" suffix="EGP" placeholder="Example: 500" />
+                  </Form.Item>
+                  <Form.Item name="revisitFee" label="Re-visit Fee (Eada) / رسوم الإعادة">
+                    <Input type="number" suffix="EGP" placeholder="Example: 200" />
+                  </Form.Item>
+                  <Form.Item name="estisharaFee" label="Consultation Fee (Estishara) / رسوم الاستشارة">
+                    <Input type="number" suffix="EGP" placeholder="Example: 150" />
                   </Form.Item>
 
                   <Divider />
