@@ -11,6 +11,7 @@ import SendNotification from './SendNotification';
 import NextVisitForm from './NextVisitForm';
 import BillingModal from './BillingModal';
 import DynamicHistoryForm from './DynamicHistoryForm';
+import { sendBillingNotificationToAllAssistants } from '../services/notificationService';
 
 const { Title, Text } = Typography;
 
@@ -214,6 +215,54 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
       if (response.data.success) {
         message.success('Visit type updated successfully');
         setEditingVisitType(false);
+
+        // Handle billing notification if price changed
+        const { newPrice, oldPrice, priceDifference } = response.data.data;
+
+        // If there's a price difference, notify assistant
+        if (priceDifference && priceDifference !== 0) {
+          const isRefund = priceDifference < 0;
+          const absDiff = Math.abs(priceDifference);
+          const typeLabel = isRefund ? 'Refund' : 'Payment';
+
+          try {
+            // Parse date to ensure correct format for Firebase path
+            let dateString = selectedPatient.date || '';
+            if (dateString.includes('T')) {
+              dateString = dateString.split('T')[0];
+            }
+            // Fallback to today if date is missing
+            if (!dateString) {
+              const today = new Date();
+              dateString = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
+            }
+
+            // Create billing notification
+            await sendBillingNotificationToAllAssistants({
+              doctor_id: doctorId || '',
+              clinic_id: selectedPatient.clinic_id || '',
+              patient_id: selectedPatient.patient_id,
+              date: dateString,
+              patient_name: selectedPatient.patient_name,
+              totalAmount: absDiff,
+              amountPaid: 0,
+              paymentStatus: isRefund ? 'refund_due' : 'pending',
+              paymentMethod: 'cash',
+              consultationFee: 0,
+              consultationType: isRefund ? 'استرداد فرق زيارة' : 'فرق زيارة',
+              services: [],
+              servicesTotal: 0,
+              billing_id: 'diff_' + Date.now(),
+              clinic_name: '',
+              doctor_name: '',
+              notes: `Changed visit type from ${selectedPatient.visit_type} to ${selectedVisitTypeId}. ${typeLabel} of ${absDiff} EGP due.`
+            });
+            message.info(`${typeLabel} notification sent: ${absDiff} EGP`);
+          } catch (notifError) {
+            console.error('Failed to send billing notification:', notifError);
+            message.warning('Failed to send billing notification to assistant');
+          }
+        }
 
         // Refresh patient details to show updated data
         // We might need to bubble this up or manually update selectedPatient in context if possible
