@@ -261,17 +261,21 @@ const SidebarWaitingList = forwardRef<{ refreshData: () => Promise<void> }, Side
       fetchData();
     };
 
-    // Define status tag display
+    // Define status tag display (estshara/استشاره normalized so they don't fall through to كشف)
     const getStatusTag = (status: string) => {
-      switch (status) {
-        case 'كشف':
+      const v = (status || '').trim();
+      const isEstshara = v.toLowerCase() === 'estshara' || v.includes('استشارة') || v.includes('استشاره');
+      switch (true) {
+        case isEstshara:
+          return <Tag color="purple">استشارة</Tag>;
+        case v === 'كشف':
           return <Tag color="blue">كشف</Tag>;
-        case 'إعادة كشف':
+        case v === 'إعادة كشف' || v.includes('إعادة') || v.includes('اعادة'):
           return <Tag color="orange">إعادة كشف</Tag>;
-        case 'أخرى':
+        case v === 'أخرى':
           return <Tag color="green">أخرى</Tag>;
         default:
-          return <Tag color="blue">كشف</Tag>;
+          return <Tag color="blue">{v || 'كشف'}</Tag>;
       }
     };
 
