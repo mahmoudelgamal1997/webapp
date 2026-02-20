@@ -12,6 +12,7 @@ import NextVisitForm from './NextVisitForm';
 import BillingModal from './BillingModal';
 import DynamicHistoryForm from './DynamicHistoryForm';
 import { sendBillingNotificationToAllAssistants } from '../services/notificationService';
+import { useDoctorContext } from './DoctorContext';
 
 const { Title, Text } = Typography;
 
@@ -58,6 +59,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
   onBackToList
 }) => {
   const { selectedPatient, setSelectedPatient, fetchPatients } = usePatientContext();
+  const { settings: doctorSettings } = useDoctorContext();
 
   const [patientHistory, setPatientHistory] = useState<PatientHistoryResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -371,14 +373,49 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
+    const printSettings = doctorSettings.printSettings || {
+      paperSize: 'a4',
+      marginTop: 0,
+      showHeader: true,
+      showFooter: true,
+      showPatientInfo: true
+    };
+
+    // Same logic as prescription: when showHeader is false, content is positioned on pre-printed paper
+    const isCustomPaper = !printSettings.showHeader;
+
     printWindow.document.write(`
       <html>
         <head>
           <title>طلب فحوصات</title>
           <style>
-            body { font-family: Arial, sans-serif; direction: rtl; margin: 0; padding: 20px; }
-            @page { size: a4; margin: 15mm; }
-            .patient-info { margin-bottom: 16px; }
+            body {
+              font-family: Arial, sans-serif;
+              direction: rtl;
+              margin: 0;
+              padding: 0;
+            }
+            @page {
+              size: ${printSettings.paperSize === 'custom' ? 'auto' : printSettings.paperSize};
+              margin: 0;
+            }
+            .content {
+              position: ${isCustomPaper ? 'absolute' : 'static'};
+              top: ${isCustomPaper ? (printSettings.marginTop || 0) + 'mm' : 'auto'};
+              left: 0;
+              right: 0;
+              padding: 0 20px;
+              max-width: 800px;
+              margin: 0 auto;
+              width: 100%;
+              box-sizing: border-box;
+            }
+            .patient-info {
+              margin-bottom: 16px;
+              padding: 10px;
+              background-color: ${isCustomPaper ? 'transparent' : '#f8f8f8'};
+              display: ${printSettings.showPatientInfo ? 'block' : 'none'};
+            }
             .patient-info p { margin: 4px 0; font-size: 14px; }
             .section-title { font-size: 16px; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 6px; margin-bottom: 12px; }
             .service-item { display: flex; align-items: center; padding: 8px 4px; border-bottom: 1px dashed #ddd; font-size: 15px; }
@@ -387,21 +424,23 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
           </style>
         </head>
         <body>
-          <div class="patient-info">
-            <p><strong>اسم المريض:</strong> ${selectedPatient?.patient_name || ''}</p>
-            <p><strong>العمر:</strong> ${selectedPatient?.age || ''}</p>
-            <p><strong>الهاتف:</strong> ${selectedPatient?.patient_phone || ''}</p>
-            <p><strong>التاريخ:</strong> ${moment().format('YYYY-MM-DD')}</p>
-          </div>
-
-          <div class="section-title">طلب فحوصات راديولوجية ومعملية</div>
-
-          ${pendingRequests.map((req, i) => `
-            <div class="service-item">
-              <span class="service-num">${i + 1}.</span>
-              <span class="service-name">${req.service_name}</span>
+          <div class="content">
+            <div class="patient-info">
+              <p><strong>اسم المريض:</strong> ${selectedPatient?.patient_name || ''}</p>
+              <p><strong>العمر:</strong> ${selectedPatient?.age || ''}</p>
+              <p><strong>الهاتف:</strong> ${selectedPatient?.patient_phone || ''}</p>
+              <p><strong>التاريخ:</strong> ${moment().format('YYYY-MM-DD')}</p>
             </div>
-          `).join('')}
+
+            <div class="section-title">طلب فحوصات راديولوجية ومعملية</div>
+
+            ${pendingRequests.map((req, i) => `
+              <div class="service-item">
+                <span class="service-num">${i + 1}.</span>
+                <span class="service-name">${req.service_name}</span>
+              </div>
+            `).join('')}
+          </div>
         </body>
       </html>
     `);
