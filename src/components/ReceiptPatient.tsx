@@ -97,23 +97,19 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
         payload
       );
 
-      // Send notification to patient
-      try {
-        if (patient.patient_phone) {
-          await sendReceiptNotificationToPatient({
-            patientPhone: patient.patient_phone,
-            patientName: patient.patient_name || '',
-            patientId: patient._id || patient.patient_id || '',
-            clinicId: selectedClinicId || patient.clinic_id || '',
-            doctorId: doctorId || patient.doctor_id || '',
-            doctorName: patient.doctor_name || '',
-            receiptId: response.data?.patient?.visits?.[response.data.patient.visits.length - 1]?.receipts?.[response.data.patient.visits[response.data.patient.visits.length - 1].receipts.length - 1]?._id || ''
-          });
-          console.log('✅ Receipt notification sent to patient');
-        }
-      } catch (notificationError) {
-        console.error('Error sending receipt notification:', notificationError);
-        // Don't fail the whole operation if notification fails
+      // Fire-and-forget: send notification without blocking the dialog close
+      if (patient.patient_phone) {
+        sendReceiptNotificationToPatient({
+          patientPhone: patient.patient_phone,
+          patientName: patient.patient_name || '',
+          patientId: patient._id || patient.patient_id || '',
+          clinicId: selectedClinicId || patient.clinic_id || '',
+          doctorId: doctorId || patient.doctor_id || '',
+          doctorName: patient.doctor_name || '',
+          receiptId: response.data?.patient?.visits?.[response.data.patient.visits.length - 1]?.receipts?.[response.data.patient.visits[response.data.patient.visits.length - 1].receipts.length - 1]?._id || ''
+        }).catch((notificationError: any) => {
+          console.error('Error sending receipt notification:', notificationError);
+        });
       }
 
       // Record inventory usage
