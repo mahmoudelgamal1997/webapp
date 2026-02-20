@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Card, Row, Col, Typography, Button, Divider, Table, Modal, Space, List, Image, Tag, Select, Radio, Input, Form, message } from 'antd';
-import { PlusOutlined, FileTextOutlined, BellOutlined, CalendarOutlined, FileImageOutlined, EyeOutlined, DollarOutlined, ExperimentOutlined, CheckCircleOutlined, ClockCircleOutlined, EditOutlined, WarningOutlined } from '@ant-design/icons';
+import { PlusOutlined, FileTextOutlined, BellOutlined, CalendarOutlined, FileImageOutlined, EyeOutlined, DollarOutlined, ExperimentOutlined, CheckCircleOutlined, ClockCircleOutlined, EditOutlined, WarningOutlined, PrinterOutlined } from '@ant-design/icons';
 import moment from 'moment';
 import ReceiptsList from './ReceiptsList';
 import { Receipt, Patient, Visit, ExternalService, ExternalServiceRequest } from '../components/type';
@@ -12,6 +12,7 @@ import NextVisitForm from './NextVisitForm';
 import BillingModal from './BillingModal';
 import DynamicHistoryForm from './DynamicHistoryForm';
 import { sendBillingNotificationToAllAssistants } from '../services/notificationService';
+import { useDoctorContext } from './DoctorContext';
 
 const { Title, Text } = Typography;
 
@@ -58,6 +59,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
   onBackToList
 }) => {
   const { selectedPatient, setSelectedPatient, fetchPatients } = usePatientContext();
+  const { settings: doctorSettings } = useDoctorContext();
 
   const [patientHistory, setPatientHistory] = useState<PatientHistoryResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -361,6 +363,73 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
     }
   ];
 
+  const handlePrintExternalServices = () => {
+    const pendingRequests = externalRequests.filter(r => r.status !== 'completed');
+
+    if (pendingRequests.length === 0) {
+      return;
+    }
+
+    const clinicInfo: string[] = [];
+    if (doctorSettings.clinicName) clinicInfo.push(`<h1 style="margin:4px 0">${doctorSettings.clinicName}</h1>`);
+    if (doctorSettings.doctorTitle) clinicInfo.push(`<h3 style="margin:4px 0">${doctorSettings.doctorTitle}</h3>`);
+    if (doctorSettings.clinicAddress) clinicInfo.push(`<p style="margin:2px 0">${doctorSettings.clinicAddress}</p>`);
+    if (doctorSettings.clinicPhone) clinicInfo.push(`<p style="margin:2px 0">هاتف: ${doctorSettings.clinicPhone}</p>`);
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Lab & Radiology Orders</title>
+          <style>
+            body { font-family: Arial, sans-serif; direction: rtl; margin: 0; padding: 20px; }
+            @page { size: a4; margin: 15mm; }
+            .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 12px; margin-bottom: 16px; }
+            .patient-info { background: #f8f8f8; padding: 10px 14px; border-radius: 6px; margin-bottom: 20px; }
+            .patient-info p { margin: 4px 0; font-size: 14px; }
+            .section-title { font-size: 16px; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 6px; margin-bottom: 12px; }
+            .service-item { display: flex; align-items: center; padding: 8px 4px; border-bottom: 1px dashed #ddd; font-size: 15px; }
+            .service-num { font-weight: bold; margin-left: 10px; min-width: 24px; }
+            .service-name { flex: 1; }
+            .provider { color: #555; font-size: 13px; margin-right: 8px; }
+            .footer { margin-top: 30px; text-align: center; color: #666; font-size: 12px; border-top: 1px solid #ccc; padding-top: 10px; }
+            h1, h2, h3 { margin: 5px 0; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            ${clinicInfo.length > 0 ? clinicInfo.join('') : '<h2>طلب فحوصات خارجية</h2>'}
+          </div>
+
+          <div class="patient-info">
+            <p><strong>اسم المريض:</strong> ${selectedPatient?.patient_name || ''}</p>
+            <p><strong>العمر:</strong> ${selectedPatient?.age || ''}</p>
+            <p><strong>الهاتف:</strong> ${selectedPatient?.patient_phone || ''}</p>
+            <p><strong>التاريخ:</strong> ${moment().format('YYYY-MM-DD')}</p>
+          </div>
+
+          <div class="section-title">طلب فحوصات راديولوجية ومعملية</div>
+
+          ${pendingRequests.map((req, i) => `
+            <div class="service-item">
+              <span class="service-num">${i + 1}.</span>
+              <span class="service-name">${req.service_name}</span>
+              ${req.provider_name ? `<span class="provider">(${req.provider_name})</span>` : ''}
+            </div>
+          `).join('')}
+
+          ${doctorSettings.receiptFooter ? `
+            <div class="footer">${doctorSettings.receiptFooter}</div>
+          ` : ''}
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
+  };
+
   if (loading) {
     return <div>Loading patient history...</div>;
   }
@@ -414,7 +483,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
                   icon={<PlusOutlined />}
                   onClick={() => setIsReceiptModalVisible(true)}
                 >
-                  Add Receipt
+                  Add Prescription
                 </Button>
                 <Button onClick={onBackToList}>
                   Back to List
@@ -580,14 +649,24 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
           <ExperimentOutlined /> External Services / الخدمات الخارجية
         </Title>
         <div style={{ marginBottom: 24 }}>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => setAssignServiceModalVisible(true)}
-            style={{ marginBottom: 16, backgroundColor: '#13c2c2', borderColor: '#13c2c2' }}
-          >
-            Assign External Service
-          </Button>
+          <Space style={{ marginBottom: 16 }}>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => setAssignServiceModalVisible(true)}
+              style={{ backgroundColor: '#13c2c2', borderColor: '#13c2c2' }}
+            >
+              Assign External Service
+            </Button>
+            <Button
+              icon={<PrinterOutlined />}
+              onClick={handlePrintExternalServices}
+              disabled={externalRequests.filter(r => r.status !== 'completed').length === 0}
+              title={externalRequests.filter(r => r.status !== 'completed').length === 0 ? 'No pending orders to print' : 'Print pending lab/radiology orders'}
+            >
+              طباعة الفحوصات المطلوبة
+            </Button>
+          </Space>
 
           {externalServicesLoading ? (
             <div>Loading external services...</div>
