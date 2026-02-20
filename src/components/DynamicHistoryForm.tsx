@@ -147,7 +147,7 @@ const DynamicHistoryForm: React.FC<DynamicHistoryFormProps> = ({
                         key={fieldKey}
                         name={fieldKey}
                         label={field.label}
-                        rules={field.required ? [{ required: true, message: 'هذا الحقل مطلوب' }] : []}
+                        rules={field.required ? [{ required: true, message: 'This field is required' }] : []}
                     >
                         <TextArea rows={3} placeholder={field.label} />
                     </Form.Item>
@@ -159,7 +159,7 @@ const DynamicHistoryForm: React.FC<DynamicHistoryFormProps> = ({
                         key={fieldKey}
                         name={fieldKey}
                         label={field.label}
-                        rules={field.required ? [{ required: true, message: 'هذا الحقل مطلوب' }] : []}
+                        rules={field.required ? [{ required: true, message: 'This field is required' }] : []}
                     >
                         <Radio.Group>
                             <Space direction="horizontal">
@@ -191,7 +191,7 @@ const DynamicHistoryForm: React.FC<DynamicHistoryFormProps> = ({
                         key={fieldKey}
                         name={fieldKey}
                         label={field.label}
-                        rules={field.required ? [{ required: true, message: 'هذا الحقل مطلوب' }] : []}
+                        rules={field.required ? [{ required: true, message: 'This field is required' }] : []}
                     >
                         <Input placeholder={field.label} />
                     </Form.Item>
@@ -201,7 +201,7 @@ const DynamicHistoryForm: React.FC<DynamicHistoryFormProps> = ({
 
     return (
         <Modal
-            title={`التاريخ الطبي - ${patient?.patient_name}`}
+            title={`Medical History — ${patient?.patient_name}`}
             open={visible}
             onCancel={onCancel}
             width={900}
@@ -211,10 +211,10 @@ const DynamicHistoryForm: React.FC<DynamicHistoryFormProps> = ({
                     icon={<HistoryOutlined />}
                     onClick={() => setShowTimeline(!showTimeline)}
                 >
-                    {showTimeline ? 'إخفاء السجل' : 'عرض السجل'}
+                    {showTimeline ? 'Hide History' : 'View History'}
                 </Button>,
                 <Button key="cancel" onClick={onCancel}>
-                    إلغاء
+                    Cancel
                 </Button>,
                 <Button
                     key="save"
@@ -223,10 +223,9 @@ const DynamicHistoryForm: React.FC<DynamicHistoryFormProps> = ({
                     loading={loading}
                     onClick={handleSave}
                 >
-                    حفظ
+                    Save
                 </Button>
             ]}
-            style={{ direction: 'rtl' }}
         >
             {loading && !template ? (
                 <div style={{ textAlign: 'center', padding: 40 }}>
@@ -237,7 +236,7 @@ const DynamicHistoryForm: React.FC<DynamicHistoryFormProps> = ({
                     {/* Timeline View */}
                     {showTimeline && historyTimeline.length > 0 && (
                         <div style={{ marginBottom: 24, maxHeight: '400px', overflowY: 'auto' }}>
-                            <h4 style={{ marginBottom: 16 }}>السجل الطبي السابق</h4>
+                            <h4 style={{ marginBottom: 16 }}>Previous Medical History</h4>
                             <Collapse accordion>
                                 {historyTimeline.map((record, index) => {
                                     const recordTemplate = record.template_snapshot || template;
@@ -249,7 +248,7 @@ const DynamicHistoryForm: React.FC<DynamicHistoryFormProps> = ({
                                             header={
                                                 <div>
                                                     <strong>{moment(record.createdAt).format('YYYY-MM-DD HH:mm')}</strong>
-                                                    {index === 0 && <span style={{ marginLeft: 8, color: '#1890ff' }}>(الأحدث)</span>}
+                                                    {index === 0 && <span style={{ marginLeft: 8, color: '#1890ff' }}>(Latest)</span>}
                                                 </div>
                                             }
                                         >
@@ -277,7 +276,7 @@ const DynamicHistoryForm: React.FC<DynamicHistoryFormProps> = ({
                                                                     <span style={{ color: '#666', fontWeight: 500 }}>{field.label}: </span>
                                                                     <span>
                                                                         {field.type === 'checkbox'
-                                                                            ? (value === 'true' ? '✓ نعم' : '✗ لا')
+                                                                            ? (value === 'true' ? '✓ Yes' : '✗ No')
                                                                             : value
                                                                         }
                                                                     </span>
@@ -288,10 +287,9 @@ const DynamicHistoryForm: React.FC<DynamicHistoryFormProps> = ({
                                                 );
                                             })}
 
-                                            {/* Show message if no data */}
                                             {Object.keys(recordData).length === 0 && (
                                                 <div style={{ color: '#999', fontStyle: 'italic' }}>
-                                                    لا توجد بيانات مسجلة
+                                                    No data recorded
                                                 </div>
                                             )}
                                         </Panel>

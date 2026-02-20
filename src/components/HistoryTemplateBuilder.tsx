@@ -74,15 +74,14 @@ const HistoryTemplateBuilder: React.FC = () => {
 
                 // Check if section title is empty
                 if (!section.title || section.title.trim() === '') {
-                    message.error(`القسم رقم ${i + 1} يجب أن يحتوي على عنوان`);
+                    message.error(`Section ${i + 1} must have a title`);
                     return;
                 }
 
-                // Check if any field has empty label
                 for (let j = 0; j < section.fields.length; j++) {
                     const field = section.fields[j];
                     if (!field.label || field.label.trim() === '') {
-                        message.error(`الحقل رقم ${j + 1} في القسم "${section.title}" يجب أن يحتوي على تسمية`);
+                        message.error(`Field ${j + 1} in section "${section.title}" must have a label`);
                         return;
                     }
                 }
@@ -176,24 +175,24 @@ const HistoryTemplateBuilder: React.FC = () => {
     return (
         <div style={{ padding: 24 }}>
             <Card
-                title="تخصيص نموذج التاريخ الطبي"
+                title="Medical History Template Builder"
                 extra={
                     <Space>
-                        <Button onClick={() => navigate('/settings')}>العودة للإعدادات</Button>
+                        <Button onClick={() => navigate('/settings')}>Back to Settings</Button>
                         <Button
                             type="primary"
                             icon={<SaveOutlined />}
                             onClick={handleSaveTemplate}
                             loading={loading}
                         >
-                            حفظ النموذج
+                            Save Template
                         </Button>
                     </Space>
                 }
             >
                 <div style={{ marginBottom: 16 }}>
                     <Button type="dashed" block icon={<PlusOutlined />} onClick={addSection}>
-                        إضافة قسم جديد
+                        Add New Section
                     </Button>
                 </div>
 
@@ -250,17 +249,17 @@ const HistoryTemplateBuilder: React.FC = () => {
                                         <Input
                                             value={field.label}
                                             onChange={(e) => updateField(sectionIdx, fieldIdx, { label: e.target.value })}
-                                            placeholder="تسمية الحقل"
+                                            placeholder="Field label"
                                         />
                                         <Select
                                             value={field.type}
                                             onChange={(value) => updateField(sectionIdx, fieldIdx, { type: value })}
                                             style={{ width: 200 }}
                                         >
-                                            <Option value="text">نص قصير</Option>
-                                            <Option value="long-text">نص طويل</Option>
-                                            <Option value="checkbox">خانة اختيار</Option>
-                                            <Option value="radio">اختيار من متعدد</Option>
+                                            <Option value="text">Short Text</Option>
+                                            <Option value="long-text">Long Text</Option>
+                                            <Option value="checkbox">Checkbox</Option>
+                                            <Option value="radio">Multiple Choice</Option>
                                         </Select>
                                         {field.type === 'radio' && (
                                             <Input
@@ -268,7 +267,7 @@ const HistoryTemplateBuilder: React.FC = () => {
                                                 onChange={(e) => updateField(sectionIdx, fieldIdx, {
                                                     options: e.target.value.split(',').map(s => s.trim())
                                                 })}
-                                                placeholder="الخيارات (مفصولة بفاصلة)"
+                                                placeholder="Options (comma separated)"
                                             />
                                         )}
                                     </Space>
@@ -282,7 +281,7 @@ const HistoryTemplateBuilder: React.FC = () => {
                             onClick={() => addField(sectionIdx)}
                             style={{ marginTop: 8 }}
                         >
-                            إضافة حقل
+                            Add Field
                         </Button>
                     </Card>
                 ))}
