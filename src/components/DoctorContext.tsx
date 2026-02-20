@@ -15,6 +15,8 @@ interface DoctorSettings {
   consultationFee?: number;
   revisitFee?: number;
   estisharaFee?: number;
+  urgentFee?: number;
+  referralSources?: string[];
   printSettings?: {
     paperSize: 'a4' | 'a5' | 'custom';
     marginTop: number;
@@ -44,6 +46,8 @@ const defaultSettings: DoctorSettings = {
   consultationFee: 0,
   revisitFee: 0,
   estisharaFee: 0,
+  urgentFee: 0,
+  referralSources: [],
   printSettings: {
     paperSize: 'a4',
     marginTop: 0,

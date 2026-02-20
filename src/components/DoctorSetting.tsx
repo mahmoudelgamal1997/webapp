@@ -21,6 +21,7 @@ interface SettingsFormValues {
   consultationFee?: number;
   revisitFee?: number;
   estisharaFee?: number;
+  urgentFee?: number;
 }
 
 const DoctorSettings: React.FC = () => {
@@ -129,6 +130,9 @@ const DoctorSettings: React.FC = () => {
                   </Form.Item>
                   <Form.Item name="estisharaFee" label="Consultation Fee (Estishara) / رسوم الاستشارة">
                     <Input type="number" suffix="EGP" placeholder="Example: 150" />
+                  </Form.Item>
+                  <Form.Item name="urgentFee" label="Urgent Fee (Mustajal) / رسوم المستعجل">
+                    <Input type="number" suffix="EGP" placeholder="Example: 700" />
                   </Form.Item>
 
                   <Divider />

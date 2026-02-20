@@ -12,7 +12,8 @@ import {
   DollarOutlined,
   InboxOutlined,
   ExperimentOutlined,
-  DollarCircleOutlined
+  DollarCircleOutlined,
+  TeamOutlined
 } from '@ant-design/icons';
 import { useLanguage } from './LanguageContext';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -56,6 +57,9 @@ const DashboardSidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) =
       case 'visit-types':
         navigate('/visit-types');
         break;
+      case 'referral-sources':
+        navigate('/referral-sources');
+        break;
       case 'settings':
         navigate('/settings');
         break;
@@ -70,6 +74,7 @@ const DashboardSidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) =
     if (path.includes('/inventory')) return 'inventory';
     if (path.includes('/external-services')) return 'external-services';
     if (path.includes('/visit-types')) return 'visit-types';
+    if (path.includes('/referral-sources')) return 'referral-sources';
     if (path.includes('/settings')) return 'settings';
     return 'patients';
   };
@@ -120,6 +125,9 @@ const DashboardSidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) =
         </Menu.Item>
         <Menu.Item key="external-services" icon={<ExperimentOutlined />}>
           {t('externalServices')}
+        </Menu.Item>
+        <Menu.Item key="referral-sources" icon={<TeamOutlined />}>
+          مصادر التعريف
         </Menu.Item>
         <Menu.Item key="settings" icon={<SettingOutlined />}>
           {t('settings')}
