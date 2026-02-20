@@ -23,12 +23,22 @@ const { Title, Text } = Typography;
  */
 const getImageUrl = (imageUrl: string): string => {
   if (!imageUrl) return '';
-  // If it's already a full URL (Firebase Storage or any http/https URL), use it directly
   if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
     return imageUrl;
   }
-  // Otherwise, it's a legacy local path - prepend the API base URL
   return `${API.BASE_URL}${imageUrl}`;
+};
+
+/** Returns true if the URL points to a PDF file */
+const isPdf = (url: string): boolean => {
+  if (!url) return false;
+  // Firebase Storage URLs encode the path — decode to check extension
+  try {
+    const decoded = decodeURIComponent(url);
+    return decoded.toLowerCase().includes('.pdf');
+  } catch {
+    return url.toLowerCase().includes('.pdf');
+  }
 };
 
 interface PatientDetailProps {
@@ -617,55 +627,78 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
         ) : patientReports.length > 0 ? (
           <div style={{ marginBottom: 24 }}>
             <Row gutter={[16, 16]}>
-              {patientReports.map((report) => (
-                <Col xs={24} sm={12} md={8} lg={6} key={report.report_id}>
-                  <Card
-                    hoverable
-                    cover={
-                      <div style={{ height: 150, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f5f5f5' }}>
-                        <img
-                          alt={report.description || 'Report'}
-                          src={getImageUrl(report.image_url)}
-                          style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
-                          onClick={() => {
-                            setPreviewImage(getImageUrl(report.image_url));
-                            setImagePreviewVisible(true);
-                          }}
-                        />
-                      </div>
-                    }
-                    actions={[
-                      <EyeOutlined
-                        key="view"
-                        onClick={() => {
-                          setPreviewImage(getImageUrl(report.image_url));
-                          setImagePreviewVisible(true);
-                        }}
-                      />
-                    ]}
-                  >
-                    <Card.Meta
-                      title={
-                        <div>
-                          <div style={{ textTransform: 'capitalize', marginBottom: 4 }}>
-                            {report.report_type || 'Examination'}
-                          </div>
-                          <div style={{ fontSize: 12, color: '#999' }}>
-                            {moment(report.uploaded_at).format('YYYY-MM-DD HH:mm')}
-                          </div>
+              {patientReports.map((report) => {
+                const url = getImageUrl(report.image_url);
+                const pdf = isPdf(url);
+                const handleOpen = () => {
+                  if (pdf) {
+                    window.open(url, '_blank');
+                  } else {
+                    setPreviewImage(url);
+                    setImagePreviewVisible(true);
+                  }
+                };
+                return (
+                  <Col xs={24} sm={12} md={8} lg={6} key={report.report_id}>
+                    <Card
+                      hoverable
+                      cover={
+                        <div
+                          onClick={handleOpen}
+                          style={{ height: 150, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f5f5f5', cursor: 'pointer' }}
+                        >
+                          {pdf ? (
+                            <div style={{ textAlign: 'center', color: '#d32f2f' }}>
+                              <div style={{ fontSize: 52 }}>📄</div>
+                              <div style={{ fontSize: 12, fontWeight: 600, marginTop: 6 }}>PDF</div>
+                              <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>Click to open</div>
+                            </div>
+                          ) : (
+                            <img
+                              alt={report.description || 'Report'}
+                              src={url}
+                              style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                            />
+                          )}
                         </div>
                       }
-                      description={
-                        report.description ? (
-                          <div style={{ fontSize: 12, marginTop: 4 }}>
-                            {report.description}
+                      actions={[
+                        pdf ? (
+                          <span
+                            key="open"
+                            onClick={handleOpen}
+                            style={{ cursor: 'pointer', color: '#1677ff', fontSize: 13 }}
+                          >
+                            <PrinterOutlined /> Open PDF
+                          </span>
+                        ) : (
+                          <EyeOutlined key="view" onClick={handleOpen} />
+                        )
+                      ]}
+                    >
+                      <Card.Meta
+                        title={
+                          <div>
+                            <div style={{ textTransform: 'capitalize', marginBottom: 4 }}>
+                              {report.report_type || 'Examination'}
+                            </div>
+                            <div style={{ fontSize: 12, color: '#999' }}>
+                              {moment(report.uploaded_at).format('YYYY-MM-DD HH:mm')}
+                            </div>
                           </div>
-                        ) : null
-                      }
-                    />
-                  </Card>
-                </Col>
-              ))}
+                        }
+                        description={
+                          report.description ? (
+                            <div style={{ fontSize: 12, marginTop: 4 }}>
+                              {report.description}
+                            </div>
+                          ) : null
+                        }
+                      />
+                    </Card>
+                  </Col>
+                );
+              })}
             </Row>
           </div>
         ) : (
