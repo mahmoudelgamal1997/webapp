@@ -12,7 +12,6 @@ import NextVisitForm from './NextVisitForm';
 import BillingModal from './BillingModal';
 import DynamicHistoryForm from './DynamicHistoryForm';
 import { sendBillingNotificationToAllAssistants } from '../services/notificationService';
-import { useDoctorContext } from './DoctorContext';
 
 const { Title, Text } = Typography;
 
@@ -59,7 +58,6 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
   onBackToList
 }) => {
   const { selectedPatient, setSelectedPatient, fetchPatients } = usePatientContext();
-  const { settings: doctorSettings } = useDoctorContext();
 
   const [patientHistory, setPatientHistory] = useState<PatientHistoryResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -370,39 +368,25 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
       return;
     }
 
-    const clinicInfo: string[] = [];
-    if (doctorSettings.clinicName) clinicInfo.push(`<h1 style="margin:4px 0">${doctorSettings.clinicName}</h1>`);
-    if (doctorSettings.doctorTitle) clinicInfo.push(`<h3 style="margin:4px 0">${doctorSettings.doctorTitle}</h3>`);
-    if (doctorSettings.clinicAddress) clinicInfo.push(`<p style="margin:2px 0">${doctorSettings.clinicAddress}</p>`);
-    if (doctorSettings.clinicPhone) clinicInfo.push(`<p style="margin:2px 0">هاتف: ${doctorSettings.clinicPhone}</p>`);
-
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
     printWindow.document.write(`
       <html>
         <head>
-          <title>Lab & Radiology Orders</title>
+          <title>طلب فحوصات</title>
           <style>
             body { font-family: Arial, sans-serif; direction: rtl; margin: 0; padding: 20px; }
             @page { size: a4; margin: 15mm; }
-            .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 12px; margin-bottom: 16px; }
-            .patient-info { background: #f8f8f8; padding: 10px 14px; border-radius: 6px; margin-bottom: 20px; }
+            .patient-info { margin-bottom: 16px; }
             .patient-info p { margin: 4px 0; font-size: 14px; }
             .section-title { font-size: 16px; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 6px; margin-bottom: 12px; }
             .service-item { display: flex; align-items: center; padding: 8px 4px; border-bottom: 1px dashed #ddd; font-size: 15px; }
             .service-num { font-weight: bold; margin-left: 10px; min-width: 24px; }
             .service-name { flex: 1; }
-            .provider { color: #555; font-size: 13px; margin-right: 8px; }
-            .footer { margin-top: 30px; text-align: center; color: #666; font-size: 12px; border-top: 1px solid #ccc; padding-top: 10px; }
-            h1, h2, h3 { margin: 5px 0; }
           </style>
         </head>
         <body>
-          <div class="header">
-            ${clinicInfo.length > 0 ? clinicInfo.join('') : '<h2>طلب فحوصات خارجية</h2>'}
-          </div>
-
           <div class="patient-info">
             <p><strong>اسم المريض:</strong> ${selectedPatient?.patient_name || ''}</p>
             <p><strong>العمر:</strong> ${selectedPatient?.age || ''}</p>
@@ -416,13 +400,8 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
             <div class="service-item">
               <span class="service-num">${i + 1}.</span>
               <span class="service-name">${req.service_name}</span>
-              ${req.provider_name ? `<span class="provider">(${req.provider_name})</span>` : ''}
             </div>
           `).join('')}
-
-          ${doctorSettings.receiptFooter ? `
-            <div class="footer">${doctorSettings.receiptFooter}</div>
-          ` : ''}
         </body>
       </html>
     `);
