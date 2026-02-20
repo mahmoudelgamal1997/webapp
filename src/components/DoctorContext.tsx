@@ -68,10 +68,14 @@ let endpoint = `${API.BASE_URL}${API.ENDPOINTS.DOCTOR_SETTINGS}`;
 export const DoctorProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [settings, setSettings] = useState<DoctorSettings>(defaultSettings);
   const [loading, setLoading] = useState<boolean>(false);
-  const doctorId = localStorage.getItem('doctorId');
+
+  // Always read fresh from localStorage so we never use a stale closure value
+  const getDoctorId = () => localStorage.getItem('doctorId');
+  const doctorId = getDoctorId();
 
   // Fetch doctor's settings
   const fetchSettings = async (): Promise<void> => {
+    const doctorId = getDoctorId();
     if (!doctorId) {
       console.log('No doctor ID found in localStorage');
       return;
@@ -80,7 +84,7 @@ export const DoctorProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     try {
       setLoading(true);
       console.log(`Fetching doctor settings for ${doctorId}`);
-      const response = await axios.get(`${API.BASE_URL}${API.ENDPOINTS.DOCTOR_SETTINGS(doctorId)}`);
+      const response = await axios.get(`${API.BASE_URL}${API.ENDPOINTS.DOCTOR_SETTINGS(doctorId!)}`);
 
       // The API returns { message, settings }
       if (response.data && response.data.settings) {
@@ -100,6 +104,7 @@ export const DoctorProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   // Update doctor's settings
   const updateSettings = async (newSettings: DoctorSettings): Promise<boolean> => {
+    const doctorId = getDoctorId();
     if (!doctorId) {
       message.error('Doctor ID not found. Please log in again.');
       return false;
