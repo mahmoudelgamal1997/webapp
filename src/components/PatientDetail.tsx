@@ -11,6 +11,7 @@ import SendNotification from './SendNotification';
 import NextVisitForm from './NextVisitForm';
 import BillingModal from './BillingModal';
 import DynamicHistoryForm from './DynamicHistoryForm';
+import MedicalReportModal from './MedicalReportModal';
 import { sendBillingNotificationToAllAssistants } from '../services/notificationService';
 import { useDoctorContext } from './DoctorContext';
 
@@ -82,6 +83,9 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
 
   // Medical History state
   const [medicalHistoryModalVisible, setMedicalHistoryModalVisible] = useState(false);
+
+  // Medical Report state
+  const [medicalReportModalVisible, setMedicalReportModalVisible] = useState(false);
 
   // Visit Type Editing
   const [editingVisitType, setEditingVisitType] = useState(false);
@@ -502,6 +506,14 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
                   onClick={() => setIsReceiptModalVisible(true)}
                 >
                   Add Prescription
+                </Button>
+                <Button
+                  type="primary"
+                  icon={<FileTextOutlined />}
+                  onClick={() => setMedicalReportModalVisible(true)}
+                  style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
+                >
+                  تقرير طبي
                 </Button>
                 <Button onClick={onBackToList}>
                   Back to List
@@ -987,6 +999,19 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
         onCancel={() => setMedicalHistoryModalVisible(false)}
         patient={selectedPatient}
         doctorId={selectedPatient?.doctor_id || ''}
+      />
+
+      {/* Medical Report Modal */}
+      <MedicalReportModal
+        visible={medicalReportModalVisible}
+        onCancel={() => setMedicalReportModalVisible(false)}
+        patient={selectedPatient}
+        previousDiagnoses={
+          patientHistory?.visits
+            ?.map(v => v.diagnosis)
+            .filter((d): d is string => !!(d && d.trim())) ?? []
+        }
+        onReportSaved={() => setMedicalReportModalVisible(false)}
       />
     </>
   );

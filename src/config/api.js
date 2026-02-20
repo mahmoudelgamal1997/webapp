@@ -46,6 +46,9 @@ const API = {
     // Visit Type Configuration endpoints
     VISIT_TYPE_CONFIG: (doctorId) => `/api/visit-types/${doctorId}`,
     VISIT_TYPE_CALCULATE_PRICE: (doctorId) => `/api/visit-types/${doctorId}/calculate-price`,
+
+    // Medical Report endpoints
+    MEDICAL_REPORTS: (patientId) => `/api/medical-reports/patient/${patientId}`,
   }
 };
 
