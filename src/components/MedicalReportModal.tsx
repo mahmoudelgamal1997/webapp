@@ -105,32 +105,35 @@ const MedicalReportModal: React.FC<MedicalReportModalProps> = ({
     }
   };
 
-  const handlePrint = () => {
-    const values = form.getFieldsValue();
-    const diagnosis = values.diagnosis || '';
-    const medicalReportText = values.medical_report || '';
-    const signature = values.signature || '';
-
-    if (!medicalReportText && !diagnosis) {
-      message.warning('الرجاء إدخال بيانات التقرير قبل الطباعة');
-      return;
-    }
+  const buildMedicalReportHtml = (
+    diagnosis: string,
+    medicalReportText: string,
+    signature: string,
+    reportDate: string,
+    patientName: string,
+    patientAge: string
+  ): string => {
+    const printSettings = (doctorSettings as any).printSettings || {
+      paperSize: 'a4',
+      marginTop: 0,
+      showHeader: true,
+      showFooter: true,
+      showPatientInfo: true,
+    };
+    const isCustomPaper = !printSettings.showHeader;
 
     const clinicInfoParts: string[] = [];
     if (selectedClinic) {
-      clinicInfoParts.push(`<h1 style="margin:4px 0">${selectedClinic.name || 'عيادة'}</h1>`);
-      if (selectedClinic.address) clinicInfoParts.push(`<p style="margin:2px 0">${selectedClinic.address}</p>`);
-      if (selectedClinic.phone) clinicInfoParts.push(`<p style="margin:2px 0">هاتف: ${selectedClinic.phone}</p>`);
+      clinicInfoParts.push(`<h1 style="margin:4px 0">${(selectedClinic as any).name || 'عيادة'}</h1>`);
+      if ((selectedClinic as any).address) clinicInfoParts.push(`<p style="margin:2px 0">${(selectedClinic as any).address}</p>`);
+      if ((selectedClinic as any).phone) clinicInfoParts.push(`<p style="margin:2px 0">هاتف: ${(selectedClinic as any).phone}</p>`);
     }
     if (doctorSettings.clinicName) clinicInfoParts.push(`<h1 style="margin:4px 0">${doctorSettings.clinicName}</h1>`);
     if (doctorSettings.doctorTitle) clinicInfoParts.push(`<h3 style="margin:4px 0">${doctorSettings.doctorTitle}</h3>`);
     if (doctorSettings.clinicAddress) clinicInfoParts.push(`<p style="margin:2px 0">${doctorSettings.clinicAddress}</p>`);
     if (doctorSettings.clinicPhone) clinicInfoParts.push(`<p style="margin:2px 0">هاتف: ${doctorSettings.clinicPhone}</p>`);
 
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-
-    printWindow.document.write(`
+    return `
       <html>
         <head>
           <title>تقرير طبي</title>
@@ -140,15 +143,28 @@ const MedicalReportModal: React.FC<MedicalReportModalProps> = ({
               font-family: Arial, sans-serif;
               direction: rtl;
               margin: 0;
-              padding: 20px 30px;
+              padding: 0;
               color: #222;
             }
-            @page { size: a4; margin: 15mm; }
+            @page {
+              size: ${printSettings.paperSize === 'custom' ? 'auto' : (printSettings.paperSize || 'a4')};
+              margin: 0;
+            }
+            .receipt {
+              position: ${isCustomPaper ? 'absolute' : 'static'};
+              top: ${isCustomPaper ? (printSettings.marginTop || 0) + 'mm' : 'auto'};
+              left: 0; right: 0;
+              padding: 0 30px;
+              max-width: 800px;
+              margin: 0 auto;
+              width: 100%;
+            }
             .header {
               text-align: center;
-              border-bottom: 2px solid #333;
+              border-bottom: ${isCustomPaper ? 'none' : '2px solid #333'};
               padding-bottom: 14px;
               margin-bottom: 20px;
+              display: ${isCustomPaper ? 'none' : 'block'};
             }
             .title {
               font-size: 20px;
@@ -158,16 +174,15 @@ const MedicalReportModal: React.FC<MedicalReportModalProps> = ({
               letter-spacing: 1px;
             }
             .patient-info {
-              background: #f8f8f8;
+              background: ${isCustomPaper ? 'transparent' : '#f8f8f8'};
               border-radius: 6px;
               padding: 12px 16px;
               margin-bottom: 20px;
               font-size: 14px;
+              display: ${printSettings.showPatientInfo ? 'block' : 'none'};
             }
             .patient-info p { margin: 4px 0; }
-            .section {
-              margin-bottom: 18px;
-            }
+            .section { margin-bottom: 18px; }
             .section-label {
               font-weight: bold;
               font-size: 15px;
@@ -186,10 +201,7 @@ const MedicalReportModal: React.FC<MedicalReportModalProps> = ({
               display: flex;
               justify-content: flex-end;
             }
-            .signature-box {
-              text-align: center;
-              min-width: 180px;
-            }
+            .signature-box { text-align: center; min-width: 180px; }
             .signature-line {
               border-top: 1px solid #333;
               margin-top: 40px;
@@ -198,51 +210,83 @@ const MedicalReportModal: React.FC<MedicalReportModalProps> = ({
             }
             .footer {
               margin-top: 30px;
-              border-top: 1px solid #ccc;
+              border-top: ${isCustomPaper ? 'none' : '1px solid #ccc'};
               padding-top: 10px;
               text-align: center;
               font-style: italic;
               font-size: 12px;
               color: #666;
+              display: ${printSettings.showFooter ? 'block' : 'none'};
+              position: ${isCustomPaper ? 'absolute' : 'static'};
+              bottom: ${isCustomPaper ? '0' : 'auto'};
+              width: 100%;
             }
+            h1, h2, h3 { margin: 5px 0; }
           </style>
         </head>
         <body>
-          <div class="header">
-            ${clinicInfoParts.length > 0 ? clinicInfoParts.join('') : '<h2>عيادة طبية</h2>'}
-          </div>
-
-          <div class="title">تقـريـر طـبـي &nbsp;|&nbsp; Medical Report</div>
-
-          <div class="patient-info">
-            <p><strong>اسم المريض:</strong> ${patient?.patient_name || ''}</p>
-            <p><strong>العمر:</strong> ${patient?.age || ''}</p>
-            <p><strong>التاريخ:</strong> ${moment().format('DD / MM / YYYY')}</p>
-          </div>
-
-          ${diagnosis ? `
-          <div class="section">
-            <div class="section-label">التشخيص</div>
-            <div class="section-content">${diagnosis.replace(/\n/g, '<br/>')}</div>
-          </div>` : ''}
-
-          ${medicalReportText ? `
-          <div class="section">
-            <div class="section-label">التقرير الطبي</div>
-            <div class="section-content">${medicalReportText.replace(/\n/g, '<br/>')}</div>
-          </div>` : ''}
-
-          <div class="signature-area">
-            <div class="signature-box">
-              <div class="signature-line">${signature || 'توقيع الطبيب'}</div>
+          <div class="receipt">
+            <div class="header">
+              ${clinicInfoParts.length > 0 ? clinicInfoParts.join('') : '<h2>عيادة طبية</h2>'}
+              ${doctorSettings.receiptHeader ? `<div class="custom-header">${doctorSettings.receiptHeader}</div>` : ''}
             </div>
-          </div>
 
-          ${doctorSettings.receiptFooter ? `
-          <div class="footer">${doctorSettings.receiptFooter}</div>` : ''}
+            <div class="title">تقـريـر طـبـي &nbsp;|&nbsp; Medical Report</div>
+
+            <div class="patient-info">
+              <p><strong>اسم المريض:</strong> ${patientName}</p>
+              <p><strong>العمر:</strong> ${patientAge}</p>
+              <p><strong>التاريخ:</strong> ${reportDate}</p>
+            </div>
+
+            ${diagnosis ? `
+            <div class="section">
+              <div class="section-label">التشخيص</div>
+              <div class="section-content">${diagnosis.replace(/\n/g, '<br/>')}</div>
+            </div>` : ''}
+
+            ${medicalReportText ? `
+            <div class="section">
+              <div class="section-label">التقرير الطبي</div>
+              <div class="section-content">${medicalReportText.replace(/\n/g, '<br/>')}</div>
+            </div>` : ''}
+
+            <div class="signature-area">
+              <div class="signature-box">
+                <div class="signature-line">${signature || 'توقيع الطبيب'}</div>
+              </div>
+            </div>
+
+            ${printSettings.showFooter && doctorSettings.receiptFooter ? `
+            <div class="footer">${doctorSettings.receiptFooter}</div>` : ''}
+          </div>
         </body>
       </html>
-    `);
+    `;
+  };
+
+  const handlePrint = () => {
+    const values = form.getFieldsValue();
+    const diagnosis = values.diagnosis || '';
+    const medicalReportText = values.medical_report || '';
+    const signature = values.signature || '';
+
+    if (!medicalReportText && !diagnosis) {
+      message.warning('الرجاء إدخال بيانات التقرير قبل الطباعة');
+      return;
+    }
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    printWindow.document.write(buildMedicalReportHtml(
+      diagnosis,
+      medicalReportText,
+      signature,
+      moment().format('DD / MM / YYYY'),
+      patient?.patient_name || '',
+      patient?.age || ''
+    ));
     printWindow.document.close();
     printWindow.print();
   };

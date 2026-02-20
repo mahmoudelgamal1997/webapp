@@ -96,6 +96,8 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
 
   // Medical Report state
   const [medicalReportModalVisible, setMedicalReportModalVisible] = useState(false);
+  const [patientMedicalReports, setPatientMedicalReports] = useState<any[]>([]);
+  const [medicalReportsLoading, setMedicalReportsLoading] = useState(false);
 
   // Visit Type Editing
   const [editingVisitType, setEditingVisitType] = useState(false);
@@ -183,10 +185,29 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
       }
     };
 
+    const fetchMedicalReports = async () => {
+      if (!selectedPatient?._id) return;
+      try {
+        setMedicalReportsLoading(true);
+        const response = await axios.get(
+          `${API.BASE_URL}${API.ENDPOINTS.MEDICAL_REPORTS(selectedPatient._id)}`
+        );
+        if (response.data?.success) {
+          const sorted = (response.data.medical_reports || []).slice().reverse();
+          setPatientMedicalReports(sorted);
+        }
+      } catch (error) {
+        console.error('Error fetching medical reports:', error);
+      } finally {
+        setMedicalReportsLoading(false);
+      }
+    };
+
     fetchPatientHistory();
     fetchPatientReports();
     fetchExternalServices();
     fetchExternalRequests();
+    fetchMedicalReports();
 
     // Reset visit type editing state
     setEditingVisitType(false);
@@ -333,6 +354,110 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
   ) || [];
 
 
+
+  const handlePrintSavedMedicalReport = (report: any) => {
+    const printSettings = (doctorSettings as any).printSettings || {
+      paperSize: 'a4',
+      marginTop: 0,
+      showHeader: true,
+      showFooter: true,
+      showPatientInfo: true,
+    };
+    const isCustomPaper = !printSettings.showHeader;
+
+    const clinicInfoParts: string[] = [];
+    if (doctorSettings.clinicName) clinicInfoParts.push(`<h1 style="margin:4px 0">${doctorSettings.clinicName}</h1>`);
+    if (doctorSettings.doctorTitle) clinicInfoParts.push(`<h3 style="margin:4px 0">${doctorSettings.doctorTitle}</h3>`);
+    if (doctorSettings.clinicAddress) clinicInfoParts.push(`<p style="margin:2px 0">${doctorSettings.clinicAddress}</p>`);
+    if (doctorSettings.clinicPhone) clinicInfoParts.push(`<p style="margin:2px 0">هاتف: ${doctorSettings.clinicPhone}</p>`);
+
+    const diagnosis = report.diagnosis || '';
+    const medicalReportText = report.medical_report || '';
+    const signature = report.signature || '';
+    const reportDate = report.date ? moment(report.date).format('DD / MM / YYYY') : moment().format('DD / MM / YYYY');
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>تقرير طبي</title>
+          <style>
+            * { box-sizing: border-box; }
+            body { font-family: Arial, sans-serif; direction: rtl; margin: 0; padding: 0; color: #222; }
+            @page {
+              size: ${printSettings.paperSize === 'custom' ? 'auto' : (printSettings.paperSize || 'a4')};
+              margin: 0;
+            }
+            .receipt {
+              position: ${isCustomPaper ? 'absolute' : 'static'};
+              top: ${isCustomPaper ? (printSettings.marginTop || 0) + 'mm' : 'auto'};
+              left: 0; right: 0;
+              padding: 0 30px;
+              max-width: 800px;
+              margin: 0 auto;
+              width: 100%;
+            }
+            .header {
+              text-align: center;
+              border-bottom: ${isCustomPaper ? 'none' : '2px solid #333'};
+              padding-bottom: 14px;
+              margin-bottom: 20px;
+              display: ${isCustomPaper ? 'none' : 'block'};
+            }
+            .title { font-size: 20px; font-weight: bold; margin: 16px 0 6px; text-align: center; letter-spacing: 1px; }
+            .patient-info {
+              background: ${isCustomPaper ? 'transparent' : '#f8f8f8'};
+              border-radius: 6px; padding: 12px 16px; margin-bottom: 20px; font-size: 14px;
+              display: ${printSettings.showPatientInfo ? 'block' : 'none'};
+            }
+            .patient-info p { margin: 4px 0; }
+            .section { margin-bottom: 18px; }
+            .section-label { font-weight: bold; font-size: 15px; border-bottom: 1px solid #ccc; padding-bottom: 4px; margin-bottom: 8px; color: #444; }
+            .section-content { font-size: 14px; line-height: 1.8; white-space: pre-wrap; }
+            .signature-area { margin-top: 50px; display: flex; justify-content: flex-end; }
+            .signature-box { text-align: center; min-width: 180px; }
+            .signature-line { border-top: 1px solid #333; margin-top: 40px; padding-top: 6px; font-size: 13px; }
+            .footer {
+              margin-top: 30px;
+              border-top: ${isCustomPaper ? 'none' : '1px solid #ccc'};
+              padding-top: 10px; text-align: center; font-style: italic; font-size: 12px; color: #666;
+              display: ${printSettings.showFooter ? 'block' : 'none'};
+              position: ${isCustomPaper ? 'absolute' : 'static'};
+              bottom: ${isCustomPaper ? '0' : 'auto'};
+              width: 100%;
+            }
+            h1, h2, h3 { margin: 5px 0; }
+          </style>
+        </head>
+        <body>
+          <div class="receipt">
+            <div class="header">
+              ${clinicInfoParts.length > 0 ? clinicInfoParts.join('') : '<h2>عيادة طبية</h2>'}
+              ${(doctorSettings as any).receiptHeader ? `<div>${(doctorSettings as any).receiptHeader}</div>` : ''}
+            </div>
+            <div class="title">تقـريـر طـبـي &nbsp;|&nbsp; Medical Report</div>
+            <div class="patient-info">
+              <p><strong>اسم المريض:</strong> ${selectedPatient?.patient_name || ''}</p>
+              <p><strong>العمر:</strong> ${selectedPatient?.age || ''}</p>
+              <p><strong>التاريخ:</strong> ${reportDate}</p>
+            </div>
+            ${diagnosis ? `<div class="section"><div class="section-label">التشخيص</div><div class="section-content">${diagnosis.replace(/\n/g, '<br/>')}</div></div>` : ''}
+            ${medicalReportText ? `<div class="section"><div class="section-label">التقرير الطبي</div><div class="section-content">${medicalReportText.replace(/\n/g, '<br/>')}</div></div>` : ''}
+            <div class="signature-area">
+              <div class="signature-box">
+                <div class="signature-line">${signature || 'توقيع الطبيب'}</div>
+              </div>
+            </div>
+            ${printSettings.showFooter && (doctorSettings as any).receiptFooter ? `<div class="footer">${(doctorSettings as any).receiptFooter}</div>` : ''}
+          </div>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
+  };
 
   // Function to show visit details modal
   const showVisitDetails = (visit: Visit) => {
@@ -707,6 +832,78 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
 
         <Divider />
 
+        {/* Medical Reports Section */}
+        <Title level={4}>
+          <FileTextOutlined style={{ color: '#52c41a' }} /> Medical Reports / التقارير الطبية
+        </Title>
+        {medicalReportsLoading ? (
+          <div style={{ marginBottom: 24, color: '#999' }}>Loading reports...</div>
+        ) : patientMedicalReports.length > 0 ? (
+          <div style={{ marginBottom: 24 }}>
+            {patientMedicalReports.map((report: any, idx: number) => (
+              <Card
+                key={report.report_id || idx}
+                style={{ marginBottom: 12, borderLeft: '4px solid #52c41a' }}
+                size="small"
+                extra={
+                  <Button
+                    size="small"
+                    icon={<PrinterOutlined />}
+                    onClick={() => handlePrintSavedMedicalReport(report)}
+                  >
+                    Print
+                  </Button>
+                }
+              >
+                <Row gutter={[16, 8]}>
+                  <Col xs={24} sm={12}>
+                    <Text type="secondary" style={{ fontSize: 12 }}>Date</Text>
+                    <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                      {report.date ? moment(report.date).format('DD MMM YYYY, HH:mm') : '—'}
+                    </div>
+                    {report.doctor_name && (
+                      <div style={{ fontSize: 12, color: '#888' }}>Dr. {report.doctor_name}</div>
+                    )}
+                  </Col>
+                  {report.diagnosis && (
+                    <Col xs={24} sm={12}>
+                      <Text type="secondary" style={{ fontSize: 12 }}>Diagnosis / التشخيص</Text>
+                      <div style={{ marginTop: 2 }}>{report.diagnosis}</div>
+                    </Col>
+                  )}
+                  <Col xs={24}>
+                    <Text type="secondary" style={{ fontSize: 12 }}>Medical Report / التقرير الطبي</Text>
+                    <div
+                      style={{
+                        marginTop: 4,
+                        padding: '8px 12px',
+                        background: '#f8fff8',
+                        borderRadius: 6,
+                        fontSize: 14,
+                        lineHeight: 1.7,
+                        whiteSpace: 'pre-wrap',
+                        border: '1px solid #e8f5e9',
+                      }}
+                    >
+                      {report.medical_report}
+                    </div>
+                  </Col>
+                  {report.signature && (
+                    <Col xs={24}>
+                      <Text type="secondary" style={{ fontSize: 12 }}>Signature / التوقيع</Text>
+                      <div style={{ marginTop: 2, fontStyle: 'italic' }}>{report.signature}</div>
+                    </Col>
+                  )}
+                </Row>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <div style={{ marginBottom: 24, color: '#999' }}>No medical reports yet</div>
+        )}
+
+        <Divider />
+
         {/* External Services Section */}
         <Title level={4}>
           <ExperimentOutlined /> External Services / الخدمات الخارجية
@@ -1044,7 +1241,20 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
             ?.map(v => v.diagnosis)
             .filter((d): d is string => !!(d && d.trim())) ?? []
         }
-        onReportSaved={() => setMedicalReportModalVisible(false)}
+        onReportSaved={async () => {
+          setMedicalReportModalVisible(false);
+          if (selectedPatient?._id) {
+            try {
+              const res = await axios.get(
+                `${API.BASE_URL}${API.ENDPOINTS.MEDICAL_REPORTS(selectedPatient._id)}`
+              );
+              if (res.data?.success) {
+                const sorted = (res.data.medical_reports || []).slice().reverse();
+                setPatientMedicalReports(sorted);
+              }
+            } catch {}
+          }
+        }}
       />
     </>
   );
