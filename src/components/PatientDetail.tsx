@@ -832,78 +832,6 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
 
         <Divider />
 
-        {/* Medical Reports Section */}
-        <Title level={4}>
-          <FileTextOutlined style={{ color: '#52c41a' }} /> Medical Reports / التقارير الطبية
-        </Title>
-        {medicalReportsLoading ? (
-          <div style={{ marginBottom: 24, color: '#999' }}>Loading reports...</div>
-        ) : patientMedicalReports.length > 0 ? (
-          <div style={{ marginBottom: 24 }}>
-            {patientMedicalReports.map((report: any, idx: number) => (
-              <Card
-                key={report.report_id || idx}
-                style={{ marginBottom: 12, borderLeft: '4px solid #52c41a' }}
-                size="small"
-                extra={
-                  <Button
-                    size="small"
-                    icon={<PrinterOutlined />}
-                    onClick={() => handlePrintSavedMedicalReport(report)}
-                  >
-                    Print
-                  </Button>
-                }
-              >
-                <Row gutter={[16, 8]}>
-                  <Col xs={24} sm={12}>
-                    <Text type="secondary" style={{ fontSize: 12 }}>Date</Text>
-                    <div style={{ fontWeight: 600, marginBottom: 4 }}>
-                      {report.date ? moment(report.date).format('DD MMM YYYY, HH:mm') : '—'}
-                    </div>
-                    {report.doctor_name && (
-                      <div style={{ fontSize: 12, color: '#888' }}>Dr. {report.doctor_name}</div>
-                    )}
-                  </Col>
-                  {report.diagnosis && (
-                    <Col xs={24} sm={12}>
-                      <Text type="secondary" style={{ fontSize: 12 }}>Diagnosis / التشخيص</Text>
-                      <div style={{ marginTop: 2 }}>{report.diagnosis}</div>
-                    </Col>
-                  )}
-                  <Col xs={24}>
-                    <Text type="secondary" style={{ fontSize: 12 }}>Medical Report / التقرير الطبي</Text>
-                    <div
-                      style={{
-                        marginTop: 4,
-                        padding: '8px 12px',
-                        background: '#f8fff8',
-                        borderRadius: 6,
-                        fontSize: 14,
-                        lineHeight: 1.7,
-                        whiteSpace: 'pre-wrap',
-                        border: '1px solid #e8f5e9',
-                      }}
-                    >
-                      {report.medical_report}
-                    </div>
-                  </Col>
-                  {report.signature && (
-                    <Col xs={24}>
-                      <Text type="secondary" style={{ fontSize: 12 }}>Signature / التوقيع</Text>
-                      <div style={{ marginTop: 2, fontStyle: 'italic' }}>{report.signature}</div>
-                    </Col>
-                  )}
-                </Row>
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <div style={{ marginBottom: 24, color: '#999' }}>No medical reports yet</div>
-        )}
-
-        <Divider />
-
         {/* External Services Section */}
         <Title level={4}>
           <ExperimentOutlined /> External Services / الخدمات الخارجية
@@ -1067,8 +995,8 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
 
         <Divider />
 
-        {/* Receipts History - Updated with Visit Type instead of Drug Model */}
-        <Title level={4}>Receipts History</Title>
+        {/* Prescription History */}
+        <Title level={4}>Prescription History</Title>
         <div style={{ overflowX: 'auto' }}>
           <Table
             dataSource={allReceipts}
@@ -1078,7 +1006,6 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
             onRow={(record) => {
               return {
                 onClick: () => {
-                  // Find the visit that contains this receipt
                   const visit = patientHistory?.visits.find(v =>
                     v.receipts?.some(r => r._id === record._id)
                   );
@@ -1094,6 +1021,78 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
             }}
           />
         </div>
+
+        <Divider />
+
+        {/* Medical Reports Section */}
+        <Title level={4}>
+          <FileTextOutlined style={{ color: '#52c41a' }} /> Medical Reports / التقارير الطبية
+        </Title>
+        {medicalReportsLoading ? (
+          <div style={{ marginBottom: 24, color: '#999' }}>Loading reports...</div>
+        ) : patientMedicalReports.length > 0 ? (
+          <div style={{ marginBottom: 24 }}>
+            {patientMedicalReports.map((report: any, idx: number) => (
+              <Card
+                key={report.report_id || idx}
+                style={{ marginBottom: 12, borderLeft: '4px solid #52c41a' }}
+                size="small"
+                extra={
+                  <Button
+                    size="small"
+                    icon={<PrinterOutlined />}
+                    onClick={() => handlePrintSavedMedicalReport(report)}
+                  >
+                    Print
+                  </Button>
+                }
+              >
+                <Row gutter={[16, 8]}>
+                  <Col xs={24} sm={12}>
+                    <Text type="secondary" style={{ fontSize: 12 }}>Date</Text>
+                    <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                      {report.date ? moment(report.date).format('DD MMM YYYY, HH:mm') : '—'}
+                    </div>
+                    {report.doctor_name && (
+                      <div style={{ fontSize: 12, color: '#888' }}>Dr. {report.doctor_name}</div>
+                    )}
+                  </Col>
+                  {report.diagnosis && (
+                    <Col xs={24} sm={12}>
+                      <Text type="secondary" style={{ fontSize: 12 }}>Diagnosis / التشخيص</Text>
+                      <div style={{ marginTop: 2 }}>{report.diagnosis}</div>
+                    </Col>
+                  )}
+                  <Col xs={24}>
+                    <Text type="secondary" style={{ fontSize: 12 }}>Medical Report / التقرير الطبي</Text>
+                    <div
+                      style={{
+                        marginTop: 4,
+                        padding: '8px 12px',
+                        background: '#f8fff8',
+                        borderRadius: 6,
+                        fontSize: 14,
+                        lineHeight: 1.7,
+                        whiteSpace: 'pre-wrap',
+                        border: '1px solid #e8f5e9',
+                      }}
+                    >
+                      {report.medical_report}
+                    </div>
+                  </Col>
+                  {report.signature && (
+                    <Col xs={24}>
+                      <Text type="secondary" style={{ fontSize: 12 }}>Signature / التوقيع</Text>
+                      <div style={{ marginTop: 2, fontStyle: 'italic' }}>{report.signature}</div>
+                    </Col>
+                  )}
+                </Row>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <div style={{ marginBottom: 24, color: '#999' }}>No medical reports yet</div>
+        )}
 
         {/* Visit Details Modal */}
         <Modal
