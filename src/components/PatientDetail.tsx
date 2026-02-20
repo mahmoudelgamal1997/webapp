@@ -364,7 +364,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
   ];
 
   const handlePrintExternalServices = () => {
-    const pendingRequests = externalRequests.filter(r => r.status !== 'completed');
+    const pendingRequests = externalRequests.filter(r => r.status === 'pending');
 
     if (pendingRequests.length === 0) {
       return;
@@ -432,7 +432,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
               <p><strong>التاريخ:</strong> ${moment().format('YYYY-MM-DD')}</p>
             </div>
 
-            <div class="section-title">طلب فحوصات راديولوجية ومعملية</div>
+            <div class="section-title">Lab & Radiology Orders</div>
 
             ${pendingRequests.map((req, i) => `
               <div class="service-item">
@@ -679,8 +679,8 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
             <Button
               icon={<PrinterOutlined />}
               onClick={handlePrintExternalServices}
-              disabled={externalRequests.filter(r => r.status !== 'completed').length === 0}
-              title={externalRequests.filter(r => r.status !== 'completed').length === 0 ? 'No pending orders to print' : 'Print pending lab/radiology orders'}
+              disabled={externalRequests.filter(r => r.status === 'pending').length === 0}
+              title={externalRequests.filter(r => r.status === 'pending').length === 0 ? 'No pending orders to print' : 'Print pending lab/radiology orders'}
             >
               طباعة الفحوصات المطلوبة
             </Button>
