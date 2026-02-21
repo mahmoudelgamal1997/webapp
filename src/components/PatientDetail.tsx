@@ -660,6 +660,16 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
       >
         {/* Personal Information Section */}
         <Title level={4}>Personal Information</Title>
+
+        {/* File Number */}
+        {(selectedPatient as any).file_number && (
+          <div style={{ marginBottom: 16 }}>
+            <Tag color="gold" style={{ fontSize: 15, padding: '4px 14px', fontWeight: 700, letterSpacing: 1 }}>
+              رقم ملف: {(selectedPatient as any).file_number}
+            </Tag>
+          </div>
+        )}
+
         <Card size="small" style={{ marginBottom: 16, backgroundColor: '#f9f9f9' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <Text strong>Current Visit Information</Text>

@@ -30,7 +30,7 @@ const SearchFilters: React.FC = () => {
       <Row gutter={[16, 16]} align="middle">
         <Col xs={24} md={8}>
           <Input.Search 
-            placeholder="Search by name, phone, email or address" 
+            placeholder="Search by name, phone or file number (رقم ملف)" 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             allowClear

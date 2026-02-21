@@ -312,7 +312,8 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
         (patient.patient_name?.toLowerCase().includes(lowerSearchTerm)) ||
         (patient.patient_phone?.toLowerCase().includes(lowerSearchTerm)) ||
         (patient.email?.toLowerCase().includes(lowerSearchTerm)) ||
-        (patient.address?.toLowerCase().includes(lowerSearchTerm))
+        (patient.address?.toLowerCase().includes(lowerSearchTerm)) ||
+        ((patient as any).file_number?.toLowerCase().includes(lowerSearchTerm))
       );
     }
     

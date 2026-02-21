@@ -25,6 +25,7 @@ interface VisitWithPatientInfo {
   patient_name: string;
   patient_phone: string;
   patient_id: string;
+  file_number?: string;
   age?: string;
   address?: string;
   externalServiceRequestCount?: number;
@@ -116,6 +117,7 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
             patient_name: patient.patient_name || '',
             patient_phone: patient.patient_phone || '',
             patient_id: patient.patient_id || '',
+            file_number: (patient as any).file_number || '',
             age: patient.age || '',
             address: patient.address || '',
             externalServiceRequestCount: (patient as any).externalServiceRequestCount || 0,
@@ -139,6 +141,7 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
           patient_name: patient.patient_name || '',
           patient_phone: patient.patient_phone || '',
           patient_id: patient.patient_id || '',
+          file_number: (patient as any).file_number || '',
           age: patient.age || '',
           address: patient.address || '',
           externalServiceRequestCount: (patient as any).externalServiceRequestCount || 0,
@@ -318,6 +321,9 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
             )}
           </Space>
           <Typography.Text type="secondary">{record.patient_phone}</Typography.Text>
+          {record.file_number && (
+            <Tag color="gold" style={{ fontSize: 11 }}>رقم ملف: {record.file_number}</Tag>
+          )}
         </Space>
       )
     },
