@@ -40,6 +40,7 @@ export interface Patient {
   receipts?: Receipt[];
   visits?: Visit[]; // Add this to match the API response
   fcmToken?: string;
+  file_number?: string;
   visit_type?: string;
   clinic_id?: string; // Clinic ID for billing
   externalServiceRequestCount?: number; // Count of external service requests

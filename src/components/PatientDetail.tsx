@@ -662,10 +662,10 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
         <Title level={4}>Personal Information</Title>
 
         {/* File Number */}
-        {(selectedPatient as any).file_number && (
+        {selectedPatient.file_number && (
           <div style={{ marginBottom: 16 }}>
             <Tag color="gold" style={{ fontSize: 15, padding: '4px 14px', fontWeight: 700, letterSpacing: 1 }}>
-              رقم ملف: {(selectedPatient as any).file_number}
+              رقم ملف: {selectedPatient.file_number}
             </Tag>
           </div>
         )}

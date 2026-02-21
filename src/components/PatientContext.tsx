@@ -183,7 +183,6 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
       
       params.doctor_id = userId;
       
-      // Only send pagination and sorting parameters (like mobile app)
       if (options?.page) {
         params.page = options.page;
       }
@@ -195,6 +194,9 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
       }
       if (options?.sortOrder) {
         params.sortOrder = options.sortOrder;
+      }
+      if (options?.search) {
+        params.search = options.search;
       }
 
       // Always send params (backend handles pagination only when page/limit are provided)
@@ -374,24 +376,34 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
     loadData();
   }, [userId]); // Re-fetch when doctorId changes (e.g., after login)
   
-  // Apply filters effect with dependencies
-  // Only re-apply filters when search term or date range changes
-  // Don't re-sort - backend already sorted correctly
+  // When searchTerm changes, fetch from API so all patients are searched (not just the loaded page)
+  useEffect(() => {
+    if (!userId) return;
+    const term = searchTerm.trim();
+    const timer = setTimeout(() => {
+      fetchPatients({
+        page: 1,
+        limit: 20,
+        sortBy: 'created_at',
+        sortOrder: 'desc',
+        ...(term ? { search: term } : {})
+      });
+    }, 350); // debounce 350ms
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // When dateRange changes, apply locally
   useEffect(() => {
     if (patients.length === 0) {
       setFilteredPatients([]);
       return;
     }
-    
-    // Only apply filters if user has set any filters
-    if (searchTerm.trim() || (dateRange[0] && dateRange[1])) {
-      console.log('Filter effect running, searchTerm:', searchTerm, 'patients:', patients.length);
+    if (dateRange[0] && dateRange[1]) {
       applyFilters();
     } else {
-      // No filters - use API data directly (preserve backend sorting)
       setFilteredPatients([...patients]);
     }
-  }, [searchTerm, dateRange, patients]); // Include all dependencies
+  }, [dateRange, patients]);
   
   // Sort receipts by date when selected patient changes
   useEffect(() => {
