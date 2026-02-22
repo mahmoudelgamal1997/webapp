@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Form, Input, Button, Modal, Select, message, Card } from 'antd';
+import { Form, Input, Button, Modal, Select, message, Card, AutoComplete } from 'antd';
 import axios from 'axios';
 import API from '../config/api';
 import dayjs from 'dayjs';
@@ -7,9 +7,38 @@ import { sendReceiptNotificationToPatient } from '../services/notificationServic
 import { useDoctorContext } from './DoctorContext';
 import { useClinicContext } from './ClinicContext';
 import { useInventoryContext } from './InventoryContext';
+import { useLanguage } from './LanguageContext';
+import { useDoctorSuggestions } from '../hooks/useDoctorSuggestions';
 
 const { Option } = Select;
 const { TextArea } = Input;
+
+// Wrapper so Form.Item value/onChange and filtering coexist inside Form.List
+interface DrugAutoCompleteProps {
+  value?: string;
+  onChange?: (v: string) => void;
+  options: { value: string }[];
+  onSearch: (text: string) => void;
+  placeholder?: string;
+}
+const DrugAutoComplete: React.FC<DrugAutoCompleteProps> = ({
+  value,
+  onChange,
+  options,
+  onSearch,
+  placeholder,
+}) => (
+  <AutoComplete
+    value={value}
+    options={options}
+    filterOption={false}
+    placeholder={placeholder}
+    onChange={(v) => {
+      onSearch(v || '');
+      onChange?.(v);
+    }}
+  />
+);
 
 interface InventoryUsageItem {
   inventory_id: string;
@@ -57,14 +86,20 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
   patient,
   onReceiptAdded
 }) => {
+  const { t, isRTL } = useLanguage();
   const [form] = Form.useForm();
   const [isLoading, setIsLoading] = useState(false);
-  const [drugModel, setDrugModel] = useState<string>('new');
+  const [, setDrugModel] = useState<string>('new');
   const doctorContext = useDoctorContext();
   const doctorId = doctorContext?.doctorId || localStorage.getItem('doctorId') || '';
   const { selectedClinicId } = useClinicContext();
   const { items: inventoryItems, recordUsage } = useInventoryContext();
   const [selectedInventoryItems, setSelectedInventoryItems] = useState<InventoryUsageItem[]>([]);
+
+  // Autocomplete suggestions per doctor
+  const { saveDiagnosis, saveDrug, filterDiagnoses, filterDrugs } = useDoctorSuggestions(doctorId);
+  const [diagnosisOptions, setDiagnosisOptions] = useState<{ value: string }[]>([]);
+  const [drugFieldOptions, setDrugFieldOptions] = useState<Record<number, { value: string }[]>>({});
 
   // Reset form when modal opens/closes
   React.useEffect(() => {
@@ -72,6 +107,8 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
       form.resetFields();
       setDrugModel('new');
       setSelectedInventoryItems([]);
+      setDiagnosisOptions([]);
+      setDrugFieldOptions({});
     }
   }, [visible, form]);
 
@@ -126,16 +163,24 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
           console.log('✅ Inventory usage recorded');
         } catch (inventoryError) {
           console.error('Error recording inventory usage:', inventoryError);
-          message.warning('Receipt saved but inventory update failed');
+          message.warning(t('receiptSavedInventoryFailed'));
         }
       }
 
-      message.success('Receipt added successfully');
+      message.success(t('receiptSavedSuccess'));
+
+      // Persist new diagnosis and drug names as suggestions for this doctor
+      if (values.diagnosis?.trim()) saveDiagnosis(values.diagnosis);
+      if (Array.isArray(values.drugs)) {
+        values.drugs.forEach((d: any) => { if (d?.drug?.trim()) saveDrug(d.drug); });
+      }
+
       form.resetFields();
+      setDrugFieldOptions({});
       onReceiptAdded();
     } catch (error) {
       console.error('Error adding receipt:', error);
-      message.error('Failed to add receipt');
+      message.error(t('receiptSaveFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -187,11 +232,11 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
 
   return (
     <Modal
-      title="إضافة روشتة"
+      title={t('addPrescription')}
       open={visible}
       onCancel={onCancel}
       footer={null}
-      style={{ direction: 'rtl', textAlign: 'right' }}
+      style={{ direction: isRTL ? 'rtl' : 'ltr', textAlign: isRTL ? 'right' : 'left' }}
       width={700}
       destroyOnClose={true}
     >
@@ -206,24 +251,24 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
       >
         <Form.Item
           name="drugModel"
-          label="نموذج روشتة"
-          rules={[{ required: true, message: 'الرجاء اختيار نموذج الروشتة' }]}
+          label={t('prescriptionTemplate')}
+          rules={[{ required: true, message: t('selectPrescriptionTemplateRequired') }]}
         >
           <Select
-            placeholder="اختر نموذج روشتة"
+            placeholder={t('selectPrescriptionTemplatePlaceholder')}
             onChange={handleTemplateChange}
           >
-            <Option value="new">روشتة جديدة</Option>
+            <Option value="new">{t('newPrescription')}</Option>
           </Select>
         </Form.Item>
 
         {/* Complaint Field */}
         <Form.Item
           name="complaint"
-          label="الشكوى"
+          label={t('complaint')}
         >
           <TextArea
-            placeholder="أدخل شكوى المريض"
+            placeholder={t('complaintPlaceholder')}
             rows={2}
           />
         </Form.Item>
@@ -231,17 +276,21 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
         {/* Diagnosis Field */}
         <Form.Item
           name="diagnosis"
-          label="التشخيص"
+          label={t('diagnosis')}
         >
-          <TextArea
-            placeholder="أدخل التشخيص"
-            rows={2}
-          />
+          <AutoComplete
+            options={diagnosisOptions}
+            onSearch={(text) => setDiagnosisOptions(filterDiagnoses(text))}
+            filterOption={false}
+            style={{ width: '100%' }}
+          >
+            <TextArea placeholder={t('diagnosisPlaceholder')} rows={2} />
+          </AutoComplete>
         </Form.Item>
 
         {/* Drug Details Section */}
         <Card
-          title="تفاصيل الأدوية"
+          title={t('drugDetails')}
           bordered={true}
           style={{ marginBottom: '16px' }}
         >
@@ -259,20 +308,29 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
                       name={[name, 'drug']}
                       style={{ flex: 2, marginLeft: '8px' }}
                     >
-                      <Input placeholder="اسم الدواء" />
+                      <DrugAutoComplete
+                        options={drugFieldOptions[key] || []}
+                        onSearch={(text) =>
+                          setDrugFieldOptions(prev => ({
+                            ...prev,
+                            [key]: filterDrugs(text),
+                          }))
+                        }
+                        placeholder={t('drugNamePlaceholder')}
+                      />
                     </Form.Item>
                     <Form.Item
                       {...restField}
                       name={[name, 'frequency']}
                       style={{ flex: 1, marginLeft: '8px' }}
                     >
-                      <Select placeholder="التكرار">
+                      <Select placeholder={t('frequency')}>
                         <Option value="_">_</Option>
-                        <Option value="مرة واحدة">مرة واحدة</Option>
-                        <Option value="مرتين">مرتين</Option>
-                        <Option value="3 مرات">3 مرات</Option>
-                        <Option value="4 مرات">4 مرات</Option>
-                        <Option value="يومياً">يومياً</Option>
+                        <Option value="مرة واحدة">{t('frequencyOnce')}</Option>
+                        <Option value="مرتين">{t('frequencyTwice')}</Option>
+                        <Option value="3 مرات">{t('frequency3Times')}</Option>
+                        <Option value="4 مرات">{t('frequency4Times')}</Option>
+                        <Option value="يومياً">{t('frequencyDaily')}</Option>
                       </Select>
                     </Form.Item>
                     <Form.Item
@@ -280,18 +338,18 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
                       name={[name, 'period']}
                       style={{ flex: 1, marginLeft: '8px' }}
                     >
-                      <Select placeholder="المدة">
-                        <Option value="يوميًا">يوميًا</Option>
-                        <Option value="1 يوم">1 يوم</Option>
-                        <Option value="2 يوم">2 يوم</Option>
-                        <Option value="3 يوم">3 يوم</Option>
-                        <Option value="4 يوم">4 يوم</Option>
-                        <Option value="5 يوم">5 يوم</Option>
-                        <Option value="6 يوم">6 يوم</Option>
-                        <Option value="أسبوع">أسبوع</Option>
-                        <Option value="أسبوعين">أسبوعين</Option>
-                        <Option value="3 اسابيع">3 اسابيع</Option>
-                        <Option value="شهر">شهر</Option>
+                      <Select placeholder={t('period')}>
+                        <Option value="يوميًا">{t('periodDaily')}</Option>
+                        <Option value="1 يوم">{t('period1Day')}</Option>
+                        <Option value="2 يوم">{t('period2Days')}</Option>
+                        <Option value="3 يوم">{t('period3Days')}</Option>
+                        <Option value="4 يوم">{t('period4Days')}</Option>
+                        <Option value="5 يوم">{t('period5Days')}</Option>
+                        <Option value="6 يوم">{t('period6Days')}</Option>
+                        <Option value="أسبوع">{t('periodWeek')}</Option>
+                        <Option value="أسبوعين">{t('period2Weeks')}</Option>
+                        <Option value="3 اسابيع">{t('period3Weeks')}</Option>
+                        <Option value="شهر">{t('periodMonth')}</Option>
                       </Select>
                     </Form.Item>
                     <Form.Item
@@ -299,11 +357,11 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
                       name={[name, 'timing']}
                       style={{ flex: 1, marginLeft: '8px' }}
                     >
-                      <Select placeholder="توقيت الدواء">
+                      <Select placeholder={t('timing')}>
                         <Option value="_">_</Option>
-                        <Option value="قبل النوم">قبل النوم</Option>
-                        <Option value="بعد الأكل">بعد الأكل</Option>
-                        <Option value="قبل الأكل">قبل الأكل</Option>
+                        <Option value="قبل النوم">{t('timingBeforeSleep')}</Option>
+                        <Option value="بعد الأكل">{t('timingAfterMeals')}</Option>
+                        <Option value="قبل الأكل">{t('timingBeforeMeals')}</Option>
                       </Select>
                     </Form.Item>
                     {fields.length > 1 && (
@@ -313,7 +371,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
                         onClick={() => remove(name)}
                         style={{ marginRight: '8px' }}
                       >
-                        حذف
+                        {t('delete')}
                       </Button>
                     )}
                   </div>
@@ -324,7 +382,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
                   block
                   style={{ marginTop: '8px' }}
                 >
-                  إضافة دواء آخر
+                  {t('addAnotherDrug')}
                 </Button>
               </>
             )}
@@ -333,14 +391,14 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
 
         {/* Inventory Items Used */}
         <Card
-          title="المستلزمات المستخدمة"
+          title={t('suppliesUsed')}
           style={{ marginBottom: '16px' }}
           size="small"
         >
           {selectedInventoryItems.map((item, index) => (
             <div key={index} style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
               <Select
-                placeholder="اختر مستلزم"
+                placeholder={t('selectSupplyPlaceholder')}
                 style={{ flex: 2 }}
                 value={item.inventory_id || undefined}
                 onChange={(value) => handleInventoryItemChange(index, 'inventory_id', value)}
@@ -355,7 +413,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
               </Select>
               <Input
                 type="number"
-                placeholder="الكمية"
+                placeholder={t('quantity')}
                 style={{ width: '100px' }}
                 min={1}
                 value={item.quantity}
@@ -367,7 +425,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
                 danger
                 onClick={() => handleRemoveInventoryItem(index)}
               >
-                حذف
+                {t('delete')}
               </Button>
             </div>
           ))}
@@ -377,17 +435,17 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
             block
             style={{ marginTop: '8px' }}
           >
-            إضافة مستلزم
+            {t('addSupply')}
           </Button>
         </Card>
 
         {/* Additional Notes */}
         <Form.Item
           name="notes"
-          label="ملاحظات إضافية"
+          label={t('additionalNotes')}
         >
           <TextArea
-            placeholder="أي ملاحظات أو تعليمات إضافية"
+            placeholder={t('additionalNotesPlaceholder')}
             rows={3}
           />
         </Form.Item>
@@ -399,7 +457,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
             block
             loading={isLoading}
           >
-            حفظ الروشتة
+            {t('savePrescription')}
           </Button>
         </Form.Item>
       </Form>
