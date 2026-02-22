@@ -13,33 +13,6 @@ import { useDoctorSuggestions } from '../hooks/useDoctorSuggestions';
 const { Option } = Select;
 const { TextArea } = Input;
 
-// Wrapper so Form.Item value/onChange and filtering coexist inside Form.List
-interface DrugAutoCompleteProps {
-  value?: string;
-  onChange?: (v: string) => void;
-  options: { value: string }[];
-  onSearch: (text: string) => void;
-  placeholder?: string;
-}
-const DrugAutoComplete: React.FC<DrugAutoCompleteProps> = ({
-  value,
-  onChange,
-  options,
-  onSearch,
-  placeholder,
-}) => (
-  <AutoComplete
-    value={value}
-    options={options}
-    filterOption={false}
-    placeholder={placeholder}
-    onChange={(v) => {
-      onSearch(v || '');
-      onChange?.(v);
-    }}
-  />
-);
-
 interface InventoryUsageItem {
   inventory_id: string;
   name: string;
@@ -96,10 +69,20 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
   const { items: inventoryItems, recordUsage } = useInventoryContext();
   const [selectedInventoryItems, setSelectedInventoryItems] = useState<InventoryUsageItem[]>([]);
 
-  // Autocomplete suggestions per doctor
+  // Suggestions
   const { saveDiagnosis, saveDrug, filterDiagnoses, filterDrugs } = useDoctorSuggestions(doctorId);
-  const [diagnosisOptions, setDiagnosisOptions] = useState<{ value: string }[]>([]);
-  const [drugFieldOptions, setDrugFieldOptions] = useState<Record<number, { value: string }[]>>({});
+  const watchedDiagnosis = Form.useWatch('diagnosis', form) as string | undefined;
+
+  // Drug names tracked outside the form entirely — this is the source of truth
+  const [drugInputs, setDrugInputs] = useState<Record<number, string>>({});
+
+  const setDrugInput = (index: number, value: string) => {
+    setDrugInputs(prev => ({ ...prev, [index]: value }));
+    // Also sync to form so it gets submitted in the payload
+    const drugs = form.getFieldValue('drugs') || [];
+    drugs[index] = { ...drugs[index], drug: value };
+    form.setFieldsValue({ drugs });
+  };
 
   // Reset form when modal opens/closes
   React.useEffect(() => {
@@ -107,18 +90,20 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
       form.resetFields();
       setDrugModel('new');
       setSelectedInventoryItems([]);
-      setDiagnosisOptions([]);
-      setDrugFieldOptions({});
+      setDrugInputs({});
     }
   }, [visible, form]);
 
   const handleSubmit = async (values: any) => {
     if (!patient) return;
 
+    // Capture what to save BEFORE async
+    const diagToSave = values.diagnosis?.trim() || '';
+    const drugNamesToSave = Object.values(drugInputs).filter((v): v is string => !!v?.trim());
+
     try {
       setIsLoading(true);
 
-      // Prepare the payload for the backend - match the format that works in Postman
       const payload = {
         drugModel: values.drugModel || 'new',
         drugs: values.drugs || [],
@@ -128,13 +113,11 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
         date: dayjs().format('YYYY-MM-DD')
       };
 
-      // Send update to backend
       const response = await axios.put(
         `${API.BASE_URL}${API.ENDPOINTS.PATIENT_BY_ID(patient._id)}`,
         payload
       );
 
-      // Fire-and-forget: send notification without blocking the dialog close
       if (patient.patient_phone) {
         sendReceiptNotificationToPatient({
           patientPhone: patient.patient_phone,
@@ -149,7 +132,6 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
         });
       }
 
-      // Record inventory usage
       if (selectedInventoryItems.length > 0) {
         try {
           for (const item of selectedInventoryItems) {
@@ -160,7 +142,6 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
               `Used during visit on ${dayjs().format('YYYY-MM-DD')}`
             );
           }
-          console.log('✅ Inventory usage recorded');
         } catch (inventoryError) {
           console.error('Error recording inventory usage:', inventoryError);
           message.warning(t('receiptSavedInventoryFailed'));
@@ -169,14 +150,12 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
 
       message.success(t('receiptSavedSuccess'));
 
-      // Persist new diagnosis and drug names as suggestions for this doctor
-      if (values.diagnosis?.trim()) saveDiagnosis(values.diagnosis);
-      if (Array.isArray(values.drugs)) {
-        values.drugs.forEach((d: any) => { if (d?.drug?.trim()) saveDrug(d.drug); });
-      }
+      // Save suggestions
+      if (diagToSave) saveDiagnosis(diagToSave);
+      drugNamesToSave.forEach(name => saveDrug(name.trim()));
 
       form.resetFields();
-      setDrugFieldOptions({});
+      setDrugInputs({});
       onReceiptAdded();
     } catch (error) {
       console.error('Error adding receipt:', error);
@@ -186,13 +165,10 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
     }
   };
 
-  // Handle template selection if you implement saved templates
   const handleTemplateChange = (value: string) => {
     setDrugModel(value);
 
     if (value === 'existing' && patient?.receipts && patient.receipts.length > 0) {
-      // You could implement logic to select a previous receipt template
-      // This is just a placeholder - you would need to implement template selection
       message.info('Template selection feature can be implemented here');
     }
   };
@@ -246,7 +222,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
         onFinish={handleSubmit}
         initialValues={{
           drugModel: 'new',
-          drugs: [{}] // Start with one empty drug entry
+          drugs: [{}]
         }}
       >
         <Form.Item
@@ -273,19 +249,17 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
           />
         </Form.Item>
 
-        {/* Diagnosis Field */}
+        {/* Diagnosis Field — same pattern: AutoComplete + Form.useWatch */}
         <Form.Item
           name="diagnosis"
           label={t('diagnosis')}
         >
           <AutoComplete
-            options={diagnosisOptions}
-            onSearch={(text) => setDiagnosisOptions(filterDiagnoses(text))}
+            options={filterDiagnoses(watchedDiagnosis || '')}
             filterOption={false}
+            placeholder={t('diagnosisPlaceholder')}
             style={{ width: '100%' }}
-          >
-            <TextArea placeholder={t('diagnosisPlaceholder')} rows={2} />
-          </AutoComplete>
+          />
         </Form.Item>
 
         {/* Drug Details Section */}
@@ -303,22 +277,17 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
                     marginBottom: '8px',
                     alignItems: 'center'
                   }}>
-                    <Form.Item
-                      {...restField}
-                      name={[name, 'drug']}
-                      style={{ flex: 2, marginLeft: '8px' }}
-                    >
-                      <DrugAutoComplete
-                        options={drugFieldOptions[key] || []}
-                        onSearch={(text) =>
-                          setDrugFieldOptions(prev => ({
-                            ...prev,
-                            [key]: filterDrugs(text),
-                          }))
-                        }
+                    {/* Drug name — NOT using Form.Item for this field, managed via local state */}
+                    <div style={{ flex: 2, marginLeft: '8px' }}>
+                      <AutoComplete
+                        value={drugInputs[name] ?? ''}
+                        options={filterDrugs(drugInputs[name] || '')}
+                        filterOption={false}
                         placeholder={t('drugNamePlaceholder')}
+                        onChange={(val) => setDrugInput(name, val)}
+                        style={{ width: '100%' }}
                       />
-                    </Form.Item>
+                    </div>
                     <Form.Item
                       {...restField}
                       name={[name, 'frequency']}
