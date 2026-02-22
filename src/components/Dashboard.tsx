@@ -320,129 +320,134 @@ const Dashboard: React.FC = () => {
     if (doctorSettings.clinicAddress) clinicInfo.push(`<p>${doctorSettings.clinicAddress}</p>`);
     if (doctorSettings.clinicPhone) clinicInfo.push(`<p>هاتف: ${doctorSettings.clinicPhone}</p>`);
 
-    // Implement print functionality here
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      const printSettings = doctorSettings.printSettings || {
-        paperSize: 'a4',
-        marginTop: 0,
-        showHeader: true,
-        showFooter: true,
-        showPatientInfo: true
-      };
+    const printSettings = doctorSettings.printSettings || {
+      paperSize: 'a4',
+      marginTop: 0,
+      showHeader: true,
+      showFooter: true,
+      showPatientInfo: true
+    };
 
-      const isCustomPaper = !printSettings.showHeader; // Simplified check for custom paper mode
+    const isCustomPaper = !printSettings.showHeader;
 
-      printWindow.document.write(`
-        <html>
-          <head>
-            <title>Patient Receipt</title>
-            <style>
-              body { 
-                font-family: Arial, sans-serif; 
-                direction: rtl; 
-                margin: 0; 
-                padding: 0;
-              }
-              @page {
-                size: ${printSettings.paperSize === 'custom' ? 'auto' : printSettings.paperSize};
-                margin: 0;
-              }
-              .receipt { 
-                position: ${isCustomPaper ? 'absolute' : 'static'};
-                top: ${isCustomPaper ? (printSettings.marginTop || 0) + 'mm' : 'auto'};
-                left: 0;
-                right: 0;
-                padding: 0 20px;
-                max-width: 800px; 
-                margin: 0 auto; 
-                width: 100%;
-                box-sizing: border-box;
-              }
-              .header { 
-                text-align: center; 
-                margin-bottom: 20px; 
-                border-bottom: ${isCustomPaper ? 'none' : '1px solid #ccc'}; 
-                padding-bottom: 15px; 
-                display: ${isCustomPaper ? 'none' : 'block'};
-              }
-              .clinic-info { margin-bottom: 15px; }
-              .patient-info { 
-                margin-bottom: 20px; 
-                padding: 10px; 
-                background-color: ${isCustomPaper ? 'transparent' : '#f8f8f8'}; 
-                border-radius: 5px; 
-                border: ${isCustomPaper ? 'none' : 'none'};
-                display: ${printSettings.showPatientInfo ? 'block' : 'none'};
-              }
-              .drug-item { 
-                margin-bottom: 10px; 
-                padding: 5px; 
-                border-bottom: 1px solid #eee;
-              }
-              .notes { 
-                margin-top: 20px; 
-                padding: 10px; 
-                background-color: ${isCustomPaper ? 'transparent' : '#f5f5f5'}; 
-                border-radius: 5px; 
-              }
-              .footer { 
-                margin-top: 30px; 
-                border-top: ${isCustomPaper ? 'none' : '1px solid #ccc'}; 
-                padding-top: 15px; 
-                text-align: center; 
-                font-style: italic; 
-                display: ${printSettings.showFooter ? 'block' : 'none'};
-                position: ${isCustomPaper ? 'absolute' : 'static'};
-                bottom: ${isCustomPaper ? '0' : 'auto'};
-                width: 100%;
-              }
-              h1, h2, h3 { margin: 5px 0; }
-            </style>
-          </head>
-          <body>
-            <div class="receipt">
-              <div class="header">
-                <div class="clinic-info">
-                  ${clinicInfo.length > 0 ? clinicInfo.join('') : '<h2>روشتة طبية</h2>'}
-                </div>
-                ${doctorSettings.receiptHeader ? `<div class="custom-header">${doctorSettings.receiptHeader}</div>` : ''}
+    const printHtml = `
+      <html>
+        <head>
+          <title>Patient Receipt</title>
+          <style>
+            @page {
+              size: ${printSettings.paperSize === 'custom' ? 'auto' : printSettings.paperSize};
+              margin: 0;
+            }
+            html, body { 
+              font-family: Arial, sans-serif; 
+              direction: rtl; 
+              margin: 0; 
+              padding: 0;
+            }
+            .top-spacer {
+              display: block;
+              height: ${((printSettings.marginTop || 0) / 2)}mm;
+              width: 100%;
+            }
+            .receipt { 
+              padding: 0 20px;
+              max-width: 800px; 
+              margin: 0 auto; 
+              width: 100%;
+              box-sizing: border-box;
+            }
+            .header { 
+              text-align: center; 
+              margin-bottom: 20px; 
+              border-bottom: ${isCustomPaper ? 'none' : '1px solid #ccc'}; 
+              padding-bottom: 15px; 
+              display: ${isCustomPaper ? 'none' : 'block'};
+            }
+            .clinic-info { margin-bottom: 15px; }
+            .patient-info { 
+              margin-bottom: 20px; 
+              padding: 10px; 
+              background-color: ${isCustomPaper ? 'transparent' : '#f8f8f8'}; 
+              border-radius: 5px; 
+              display: ${printSettings.showPatientInfo ? 'block' : 'none'};
+            }
+            .drug-item { 
+              margin-bottom: 10px; 
+              padding: 5px; 
+              border-bottom: 1px solid #eee;
+            }
+            .notes { 
+              margin-top: 20px; 
+              padding: 10px; 
+              background-color: ${isCustomPaper ? 'transparent' : '#f5f5f5'}; 
+              border-radius: 5px; 
+            }
+            .footer { 
+              margin-top: 30px; 
+              border-top: ${isCustomPaper ? 'none' : '1px solid #ccc'}; 
+              padding-top: 15px; 
+              text-align: center; 
+              font-style: italic; 
+              display: ${printSettings.showFooter ? 'block' : 'none'};
+            }
+            h1, h2, h3 { margin: 5px 0; }
+          </style>
+        </head>
+        <body>
+          <div class="top-spacer"></div>
+          <div class="receipt">
+            <div class="header">
+              <div class="clinic-info">
+                ${clinicInfo.length > 0 ? clinicInfo.join('') : '<h2>روشتة طبية</h2>'}
               </div>
-              
-              <div class="patient-info">
-                <h3>اسم المريض: ${selectedPatient?.patient_name}</h3>
-                <p>العمر: ${selectedPatient?.age}</p>
-                <p>تاريخ: ${moment(receipt.date).format('YYYY-MM-DD')}</p>
-              </div>
-              
-              <div class="drugs">
-                <h3>الأدوية:</h3>
-                ${receipt.drugs.map((drug, index) => `
-                  <div class="drug-item">
-                    <h4>${index + 1}. ${drug.drug}</h4>
-                    <p>التكرار: ${drug.frequency} | المدة: ${drug.period} | التوقيت: ${formatDrugTiming(drug.timing)}</p>
-                  </div>
-                `).join('')}
-              </div>
-              
-              ${receipt.notes ? `
-                <div class="notes">
-                  <h3>ملاحظات:</h3>
-                  <p>${receipt.notes}</p>
-                </div>
-              ` : ''}
-              
-              ${printSettings.showFooter && doctorSettings.receiptFooter ? `
-                <div class="footer">
-                  ${doctorSettings.receiptFooter}
-                </div>
-              ` : ''}
+              ${doctorSettings.receiptHeader ? `<div class="custom-header">${doctorSettings.receiptHeader}</div>` : ''}
             </div>
-          </body>
-        </html>
-      `);
-      printWindow.document.close();
-      printWindow.print();
+            <div class="patient-info">
+              <h3>اسم المريض: ${selectedPatient?.patient_name}</h3>
+              <p>العمر: ${selectedPatient?.age}</p>
+              <p>تاريخ: ${moment(receipt.date).format('YYYY-MM-DD')}</p>
+            </div>
+            <div class="drugs">
+              <h3>الأدوية:</h3>
+              ${receipt.drugs.map((drug, index) => `
+                <div class="drug-item">
+                  <h4>${index + 1}. ${drug.drug}</h4>
+                  <p>التكرار: ${drug.frequency} | المدة: ${drug.period} | التوقيت: ${formatDrugTiming(drug.timing)}</p>
+                </div>
+              `).join('')}
+            </div>
+            ${receipt.notes ? `
+              <div class="notes">
+                <h3>ملاحظات:</h3>
+                <p>${receipt.notes}</p>
+              </div>
+            ` : ''}
+            ${printSettings.showFooter && doctorSettings.receiptFooter ? `
+              <div class="footer">${doctorSettings.receiptFooter}</div>
+            ` : ''}
+          </div>
+        </body>
+      </html>
+    `;
+
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+    const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (iframeDoc) {
+      iframeDoc.open();
+      iframeDoc.write(printHtml);
+      iframeDoc.close();
+      setTimeout(() => {
+        iframe.contentWindow?.print();
+        setTimeout(() => document.body.removeChild(iframe), 500);
+      }, 500);
     }
   };
 

@@ -376,34 +376,23 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
     const signature = report.signature || '';
     const reportDate = report.date ? moment(report.date).format('DD / MM / YYYY') : moment().format('DD / MM / YYYY');
 
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-
-    printWindow.document.write(`
+    const printHtml = `
       <html>
         <head>
           <title>تقرير طبي</title>
           <style>
             * { box-sizing: border-box; }
-            body { font-family: Arial, sans-serif; direction: rtl; margin: 0; padding: 0; color: #222; }
             @page {
               size: ${printSettings.paperSize === 'custom' ? 'auto' : (printSettings.paperSize || 'a4')};
               margin: 0;
             }
-            .receipt {
-              position: ${isCustomPaper ? 'absolute' : 'static'};
-              top: ${isCustomPaper ? (printSettings.marginTop || 0) + 'mm' : 'auto'};
-              left: 0; right: 0;
-              padding: 0 30px;
-              max-width: 800px;
-              margin: 0 auto;
-              width: 100%;
-            }
+            html, body { font-family: Arial, sans-serif; direction: rtl; margin: 0; padding: 0; color: #222; }
+            .top-spacer { display: block; height: ${((printSettings.marginTop || 0) / 2)}mm; width: 100%; }
+            .receipt { padding: 0 30px; max-width: 800px; margin: 0 auto; width: 100%; }
             .header {
               text-align: center;
               border-bottom: ${isCustomPaper ? 'none' : '2px solid #333'};
-              padding-bottom: 14px;
-              margin-bottom: 20px;
+              padding-bottom: 14px; margin-bottom: 20px;
               display: ${isCustomPaper ? 'none' : 'block'};
             }
             .title { font-size: 20px; font-weight: bold; margin: 16px 0 6px; text-align: center; letter-spacing: 1px; }
@@ -424,14 +413,12 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
               border-top: ${isCustomPaper ? 'none' : '1px solid #ccc'};
               padding-top: 10px; text-align: center; font-style: italic; font-size: 12px; color: #666;
               display: ${printSettings.showFooter ? 'block' : 'none'};
-              position: ${isCustomPaper ? 'absolute' : 'static'};
-              bottom: ${isCustomPaper ? '0' : 'auto'};
-              width: 100%;
             }
             h1, h2, h3 { margin: 5px 0; }
           </style>
         </head>
         <body>
+          <div class="top-spacer"></div>
           <div class="receipt">
             <div class="header">
               ${clinicInfoParts.length > 0 ? clinicInfoParts.join('') : '<h2>عيادة طبية</h2>'}
@@ -454,9 +441,21 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
           </div>
         </body>
       </html>
-    `);
-    printWindow.document.close();
-    printWindow.print();
+    `;
+
+    const iframe = document.createElement('iframe');
+    iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+    document.body.appendChild(iframe);
+    const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (iframeDoc) {
+      iframeDoc.open();
+      iframeDoc.write(printHtml);
+      iframeDoc.close();
+      setTimeout(() => {
+        iframe.contentWindow?.print();
+        setTimeout(() => document.body.removeChild(iframe), 500);
+      }, 500);
+    }
   };
 
   // Function to show visit details modal
@@ -509,9 +508,6 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
       return;
     }
 
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-
     const printSettings = doctorSettings.printSettings || {
       paperSize: 'a4',
       marginTop: 0,
@@ -520,38 +516,22 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
       showPatientInfo: true
     };
 
-    // Same logic as prescription: when showHeader is false, content is positioned on pre-printed paper
     const isCustomPaper = !printSettings.showHeader;
 
-    printWindow.document.write(`
+    const printHtml = `
       <html>
         <head>
           <title>طلب فحوصات</title>
           <style>
-            body {
-              font-family: Arial, sans-serif;
-              direction: rtl;
-              margin: 0;
-              padding: 0;
-            }
             @page {
               size: ${printSettings.paperSize === 'custom' ? 'auto' : printSettings.paperSize};
               margin: 0;
             }
-            .content {
-              position: ${isCustomPaper ? 'absolute' : 'static'};
-              top: ${isCustomPaper ? (printSettings.marginTop || 0) + 'mm' : 'auto'};
-              left: 0;
-              right: 0;
-              padding: 0 20px;
-              max-width: 800px;
-              margin: 0 auto;
-              width: 100%;
-              box-sizing: border-box;
-            }
+            html, body { font-family: Arial, sans-serif; direction: rtl; margin: 0; padding: 0; }
+            .top-spacer { display: block; height: ${((printSettings.marginTop || 0) / 2)}mm; width: 100%; }
+            .content { padding: 0 20px; max-width: 800px; margin: 0 auto; width: 100%; box-sizing: border-box; }
             .patient-info {
-              margin-bottom: 16px;
-              padding: 10px;
+              margin-bottom: 16px; padding: 10px;
               background-color: ${isCustomPaper ? 'transparent' : '#f8f8f8'};
               display: ${printSettings.showPatientInfo ? 'block' : 'none'};
             }
@@ -563,6 +543,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
           </style>
         </head>
         <body>
+          <div class="top-spacer"></div>
           <div class="content">
             <div class="patient-info">
               <p><strong>اسم المريض:</strong> ${selectedPatient?.patient_name || ''}</p>
@@ -570,9 +551,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
               <p><strong>الهاتف:</strong> ${selectedPatient?.patient_phone || ''}</p>
               <p><strong>التاريخ:</strong> ${moment().format('YYYY-MM-DD')}</p>
             </div>
-
             <div class="section-title">Lab & Radiology Orders</div>
-
             ${pendingRequests.map((req, i) => `
               <div class="service-item">
                 <span class="service-num">${i + 1}.</span>
@@ -582,9 +561,21 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
           </div>
         </body>
       </html>
-    `);
-    printWindow.document.close();
-    printWindow.print();
+    `;
+
+    const iframe = document.createElement('iframe');
+    iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+    document.body.appendChild(iframe);
+    const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (iframeDoc) {
+      iframeDoc.open();
+      iframeDoc.write(printHtml);
+      iframeDoc.close();
+      setTimeout(() => {
+        iframe.contentWindow?.print();
+        setTimeout(() => document.body.removeChild(iframe), 500);
+      }, 500);
+    }
   };
 
   if (loading) {
