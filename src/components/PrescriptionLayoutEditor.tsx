@@ -14,18 +14,19 @@ const PrescriptionLayoutEditor: React.FC = () => {
     const [previewSettings, setPreviewSettings] = useState({
         paperSize: settings.printSettings?.paperSize || 'a4',
         marginTop: settings.printSettings?.marginTop || 0,
-        marginLeft: 0, // Not currently saved in context schema but useful for preview
+        marginLeft: settings.printSettings?.marginLeft || 0,
+        marginRight: settings.printSettings?.marginRight || 0,
         showHeader: settings.printSettings?.showHeader !== false,
         showFooter: settings.printSettings?.showFooter !== false,
         showPatientInfo: settings.printSettings?.showPatientInfo !== false,
     });
 
     useEffect(() => {
-        // Sync with context if it updates
         setPreviewSettings({
             paperSize: settings.printSettings?.paperSize || 'a4',
             marginTop: settings.printSettings?.marginTop || 0,
-            marginLeft: 0,
+            marginLeft: settings.printSettings?.marginLeft || 0,
+            marginRight: settings.printSettings?.marginRight || 0,
             showHeader: settings.printSettings?.showHeader !== false,
             showFooter: settings.printSettings?.showFooter !== false,
             showPatientInfo: settings.printSettings?.showPatientInfo !== false,
@@ -46,6 +47,8 @@ const PrescriptionLayoutEditor: React.FC = () => {
             printSettings: {
                 paperSize: previewSettings.paperSize as any,
                 marginTop: previewSettings.marginTop,
+                marginLeft: previewSettings.marginLeft,
+                marginRight: previewSettings.marginRight,
                 showHeader: previewSettings.showHeader,
                 showFooter: previewSettings.showFooter,
                 showPatientInfo: previewSettings.showPatientInfo,
@@ -86,6 +89,26 @@ const PrescriptionLayoutEditor: React.FC = () => {
                                 onChange={(val) => handleSettingChange('marginTop', val)}
                             />
                             <Text type="secondary">Use this to push content down below your logo.</Text>
+                        </Form.Item>
+
+                        <Form.Item label={`Left Margin: ${previewSettings.marginLeft}mm`}>
+                            <Slider
+                                min={0}
+                                max={150}
+                                value={previewSettings.marginLeft}
+                                onChange={(val) => handleSettingChange('marginLeft', val)}
+                            />
+                            <Text type="secondary">Use this to push content away from the left edge.</Text>
+                        </Form.Item>
+
+                        <Form.Item label={`Right Margin: ${previewSettings.marginRight}mm`}>
+                            <Slider
+                                min={0}
+                                max={150}
+                                value={previewSettings.marginRight}
+                                onChange={(val) => handleSettingChange('marginRight', val)}
+                            />
+                            <Text type="secondary">Use this to push content away from the right edge.</Text>
                         </Form.Item>
 
                         <Form.Item label="Show System Header">
@@ -165,8 +188,10 @@ const PrescriptionLayoutEditor: React.FC = () => {
 
                             {/* Content Overlay */}
                             <div style={{
-                                padding: '20px',
-                                paddingTop: `${(previewSettings.marginTop || 0) + 20}px` // +20 for base padding
+                                paddingTop: `${(previewSettings.marginTop || 0) + 20}px`,
+                                paddingLeft: `${(previewSettings.marginLeft || 0) + 20}px`,
+                                paddingRight: `${(previewSettings.marginRight || 0) + 20}px`,
+                                paddingBottom: '20px',
                             }}>
 
                                 {/* Simulated Header */}
@@ -214,18 +239,43 @@ const PrescriptionLayoutEditor: React.FC = () => {
 
                             </div>
 
-                            {/* Guide Lines */}
+                            {/* Top guide line */}
                             <div style={{
                                 position: 'absolute',
                                 top: `${(previewSettings.marginTop / 297 * 100)}%`,
-                                left: 0,
-                                right: 0,
+                                left: 0, right: 0,
                                 borderTop: '2px dashed red',
                                 pointerEvents: 'none',
                                 opacity: 0.5
                             }}>
-                                <span style={{ background: 'red', color: 'white', fontSize: 10, padding: 2 }}>Start of Print</span>
+                                <span style={{ background: 'red', color: 'white', fontSize: 10, padding: 2 }}>Top</span>
                             </div>
+                            {/* Left guide line */}
+                            {previewSettings.marginLeft > 0 && (
+                                <div style={{
+                                    position: 'absolute',
+                                    top: 0, bottom: 0,
+                                    left: `${previewSettings.marginLeft}px`,
+                                    borderLeft: '2px dashed blue',
+                                    pointerEvents: 'none',
+                                    opacity: 0.5
+                                }}>
+                                    <span style={{ background: 'blue', color: 'white', fontSize: 10, padding: 2 }}>L</span>
+                                </div>
+                            )}
+                            {/* Right guide line */}
+                            {previewSettings.marginRight > 0 && (
+                                <div style={{
+                                    position: 'absolute',
+                                    top: 0, bottom: 0,
+                                    right: `${previewSettings.marginRight}px`,
+                                    borderRight: '2px dashed green',
+                                    pointerEvents: 'none',
+                                    opacity: 0.5
+                                }}>
+                                    <span style={{ background: 'green', color: 'white', fontSize: 10, padding: 2, position: 'absolute', right: 0 }}>R</span>
+                                </div>
+                            )}
 
                         </div>
                     </div>

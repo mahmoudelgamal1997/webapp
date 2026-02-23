@@ -20,6 +20,8 @@ interface DoctorSettings {
   printSettings?: {
     paperSize: 'a4' | 'a5' | 'custom';
     marginTop: number;
+    marginLeft: number;
+    marginRight: number;
     showHeader: boolean;
     showFooter: boolean;
     showPatientInfo: boolean;
@@ -51,6 +53,8 @@ const defaultSettings: DoctorSettings = {
   printSettings: {
     paperSize: 'a4',
     marginTop: 0,
+    marginLeft: 0,
+    marginRight: 0,
     showHeader: true,
     showFooter: true,
     showPatientInfo: true,
@@ -89,7 +93,17 @@ export const DoctorProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       // The API returns { message, settings }
       if (response.data && response.data.settings) {
         console.log('Doctor settings retrieved:', response.data.settings);
-        setSettings(response.data.settings);
+        // Restore extra print fields from localStorage if backend doesn't return them
+        const extra = localStorage.getItem(`printSettingsExtra_${doctorId}`);
+        const extraFields = extra ? JSON.parse(extra) : {};
+        const restored: DoctorSettings = {
+          ...response.data.settings,
+          printSettings: {
+            ...response.data.settings.printSettings,
+            ...extraFields,
+          },
+        };
+        setSettings(restored);
       } else {
         console.log('No settings found or unexpected response format');
       }
@@ -119,7 +133,28 @@ export const DoctorProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         newSettings
       );
       if (response.data && response.data.settings) {
-        setSettings(response.data.settings);
+        // Save extra print fields to localStorage so they survive page reloads
+        // (backend schema may not persist all fields like marginLeft/marginRight)
+        if (newSettings.printSettings) {
+          const doctorId = getDoctorId();
+          localStorage.setItem(
+            `printSettingsExtra_${doctorId}`,
+            JSON.stringify({
+              marginLeft: newSettings.printSettings.marginLeft ?? 0,
+              marginRight: newSettings.printSettings.marginRight ?? 0,
+            })
+          );
+        }
+        // Merge backend response with what we sent to preserve any unsupported fields
+        const merged: DoctorSettings = {
+          ...newSettings,
+          ...response.data.settings,
+          printSettings: {
+            ...newSettings.printSettings,
+            ...response.data.settings.printSettings,
+          },
+        };
+        setSettings(merged);
         message.success('Settings saved successfully');
         return true;
       } else {

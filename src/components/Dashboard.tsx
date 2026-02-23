@@ -323,6 +323,8 @@ const Dashboard: React.FC = () => {
     const printSettings = doctorSettings.printSettings || {
       paperSize: 'a4',
       marginTop: 0,
+      marginLeft: 0,
+      marginRight: 0,
       showHeader: true,
       showFooter: true,
       showPatientInfo: true
@@ -345,18 +347,18 @@ const Dashboard: React.FC = () => {
               margin: 0; 
               padding: 0;
             }
-            .top-spacer {
-              display: block;
-              height: ${((printSettings.marginTop || 0) / 2)}mm;
-              width: 100%;
-            }
-            .receipt { 
-              padding: 0 20px;
-              max-width: 800px; 
-              margin: 0 auto; 
-              width: 100%;
-              box-sizing: border-box;
-            }
+              .top-spacer {
+                display: block;
+                height: ${((printSettings.marginTop || 0) / 2)}mm;
+                width: 100%;
+              }
+              .receipt { 
+                padding-top: 0;
+                padding-left: calc(${((printSettings.marginLeft || 0) / 2)}mm + 10px);
+                padding-right: calc(${((printSettings.marginRight || 0) / 2)}mm + 10px);
+                padding-bottom: 0;
+                box-sizing: border-box;
+              }
             .header { 
               text-align: center; 
               margin-bottom: 20px; 
