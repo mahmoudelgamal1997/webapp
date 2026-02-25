@@ -141,7 +141,7 @@ const MedicalReportModal: React.FC<MedicalReportModalProps> = ({
             * { box-sizing: border-box; }
             body {
               font-family: Arial, sans-serif;
-              direction: rtl;
+              direction: ltr;
               margin: 0;
               padding: 0;
               color: #222;
@@ -234,26 +234,26 @@ const MedicalReportModal: React.FC<MedicalReportModalProps> = ({
             <div class="title">تقـريـر طـبـي &nbsp;|&nbsp; Medical Report</div>
 
             <div class="patient-info">
-              <p><strong>اسم المريض:</strong> ${patientName}</p>
-              <p><strong>العمر:</strong> ${patientAge}</p>
-              <p><strong>التاريخ:</strong> ${reportDate}</p>
+              <p><strong>Patient:</strong> ${patientName}</p>
+              <p><strong>Age:</strong> ${patientAge}</p>
+              <p><strong>Date:</strong> ${reportDate}</p>
             </div>
 
             ${diagnosis ? `
             <div class="section">
-              <div class="section-label">التشخيص</div>
+              <div class="section-label">Diagnosis</div>
               <div class="section-content">${diagnosis.replace(/\n/g, '<br/>')}</div>
             </div>` : ''}
 
             ${medicalReportText ? `
             <div class="section">
-              <div class="section-label">التقرير الطبي</div>
+              <div class="section-label">Medical Report</div>
               <div class="section-content">${medicalReportText.replace(/\n/g, '<br/>')}</div>
             </div>` : ''}
 
             <div class="signature-area">
               <div class="signature-box">
-                <div class="signature-line">${signature || 'توقيع الطبيب'}</div>
+                <div class="signature-line">${signature || 'Doctor Signature'}</div>
               </div>
             </div>
 

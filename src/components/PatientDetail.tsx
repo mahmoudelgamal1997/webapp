@@ -14,6 +14,7 @@ import DynamicHistoryForm from './DynamicHistoryForm';
 import MedicalReportModal from './MedicalReportModal';
 import { sendBillingNotificationToAllAssistants } from '../services/notificationService';
 import { useDoctorContext } from './DoctorContext';
+import { useClinicContext } from './ClinicContext';
 
 const { Title, Text } = Typography;
 
@@ -71,6 +72,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
 }) => {
   const { selectedPatient, setSelectedPatient, fetchPatients } = usePatientContext();
   const { settings: doctorSettings } = useDoctorContext();
+  const { selectedClinicId } = useClinicContext();
 
   const [patientHistory, setPatientHistory] = useState<PatientHistoryResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -81,6 +83,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
   const [nextVisitModalVisible, setNextVisitModalVisible] = useState(false);
   const [billingModalVisible, setBillingModalVisible] = useState(false);
   const [discountModalVisible, setDiscountModalVisible] = useState(false);
+  const [discountSubmitting, setDiscountSubmitting] = useState(false);
   const [patientReports, setPatientReports] = useState<any[]>([]);
   const [reportsLoading, setReportsLoading] = useState(false);
   const [imagePreviewVisible, setImagePreviewVisible] = useState(false);
@@ -342,6 +345,17 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
       message.error('Please enter a valid discount amount');
       return;
     }
+    if (discountSubmitting) return;
+    setDiscountSubmitting(true);
+    setDiscountModalVisible(false); // Close immediately on submit
+
+    const patientId = selectedPatient.patient_id || (selectedPatient as any).id || selectedPatient._id;
+    if (!patientId) {
+      message.error('Patient ID not found. Please refresh and try again.');
+      setDiscountSubmitting(false);
+      setDiscountModalVisible(true);
+      return;
+    }
 
     let dateString = selectedPatient.date || '';
     if (dateString.includes('T')) dateString = dateString.split('T')[0];
@@ -354,6 +368,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
       dateString = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
     }
 
+    const billingId = 'discount_' + Date.now();
     const discountService = {
       service_id: 'discount',
       service_name: 'خصم',
@@ -362,31 +377,58 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
       subtotal: amount
     };
 
+    const clinicId = selectedPatient.clinic_id || selectedClinicId || '';
+
     try {
-      await sendBillingNotificationToAllAssistants({
-        doctor_id: doctorId || '',
-        clinic_id: selectedPatient.clinic_id || '',
-        patient_id: selectedPatient.patient_id,
-        date: dateString,
-        patient_name: selectedPatient.patient_name,
-        totalAmount: amount,
-        amountPaid: 0,
-        paymentStatus: 'refund_due',
-        paymentMethod: 'cash',
+      await axios.post(`${API.BASE_URL}${API.ENDPOINTS.BILLING}`, {
+        doctor_id: doctorId,
+        patient_id: patientId,
+        patient_name: selectedPatient.patient_name || 'Unknown',
+        patient_phone: selectedPatient.patient_phone || '',
+        clinic_id: clinicId,
         consultationFee: 0,
         consultationType: 'خصم',
         services: [discountService],
-        servicesTotal: amount,
-        billing_id: 'discount_' + Date.now(),
-        clinic_name: '',
-        doctor_name: '',
-        notes: values.reason || 'خصم على كشف المريض'
+        paymentStatus: 'refund_due',
+        paymentMethod: 'cash',
+        amountPaid: 0,
+        notes: values.reason || 'خصم على كشف المريض',
+        billingDate: dateString,
+        billing_id: billingId
       });
-      message.success(`Discount of ${amount} EGP recorded. Assistant notified to refund.`);
-      setDiscountModalVisible(false);
-    } catch (err) {
+
+      try {
+        await sendBillingNotificationToAllAssistants({
+          doctor_id: doctorId || '',
+          clinic_id: clinicId,
+          patient_id: patientId,
+          date: dateString,
+          patient_name: selectedPatient.patient_name,
+          totalAmount: amount,
+          amountPaid: 0,
+          paymentStatus: 'refund_due',
+          paymentMethod: 'cash',
+          consultationFee: 0,
+          consultationType: 'خصم',
+          services: [discountService],
+          servicesTotal: amount,
+          billing_id: billingId,
+          clinic_name: '',
+          doctor_name: '',
+          notes: values.reason || 'خصم على كشف المريض'
+        });
+        message.success(`Discount of ${amount} EGP recorded. Assistant notified to refund.`);
+      } catch (notifErr) {
+        console.error('Failed to notify assistant:', notifErr);
+        message.warning(`Discount recorded but assistant was not notified. Please notify manually.`);
+      }
+    } catch (err: any) {
       console.error('Failed to apply discount:', err);
-      message.error('Failed to record discount');
+      const errMsg = err?.response?.data?.message || err?.response?.data?.error || err?.message || 'Failed to record discount';
+      message.error(errMsg);
+      setDiscountModalVisible(true);
+    } finally {
+      setDiscountSubmitting(false);
     }
   };
 
@@ -445,7 +487,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
               size: ${printSettings.paperSize === 'custom' ? 'auto' : (printSettings.paperSize || 'a4')};
               margin: 0;
             }
-            html, body { font-family: Arial, sans-serif; direction: rtl; margin: 0; padding: 0; color: #222; }
+            html, body { font-family: Arial, sans-serif; direction: ltr; margin: 0; padding: 0; color: #222; }
             .top-spacer { display: block; height: ${((printSettings.marginTop || 0) / 2)}mm; width: 100%; }
             .receipt {
               padding-top: 0;
@@ -491,15 +533,15 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
             </div>
             <div class="title">تقـريـر طـبـي &nbsp;|&nbsp; Medical Report</div>
             <div class="patient-info">
-              <p><strong>اسم المريض:</strong> ${selectedPatient?.patient_name || ''}</p>
-              <p><strong>العمر:</strong> ${selectedPatient?.age || ''}</p>
-              <p><strong>التاريخ:</strong> ${reportDate}</p>
+              <p><strong>Patient:</strong> ${selectedPatient?.patient_name || ''}</p>
+              <p><strong>Age:</strong> ${selectedPatient?.age || ''}</p>
+              <p><strong>Date:</strong> ${reportDate}</p>
             </div>
-            ${diagnosis ? `<div class="section"><div class="section-label">التشخيص</div><div class="section-content">${diagnosis.replace(/\n/g, '<br/>')}</div></div>` : ''}
-            ${medicalReportText ? `<div class="section"><div class="section-label">التقرير الطبي</div><div class="section-content">${medicalReportText.replace(/\n/g, '<br/>')}</div></div>` : ''}
+            ${diagnosis ? `<div class="section"><div class="section-label">Diagnosis</div><div class="section-content">${diagnosis.replace(/\n/g, '<br/>')}</div></div>` : ''}
+            ${medicalReportText ? `<div class="section"><div class="section-label">Medical Report</div><div class="section-content">${medicalReportText.replace(/\n/g, '<br/>')}</div></div>` : ''}
             <div class="signature-area">
               <div class="signature-box">
-                <div class="signature-line">${signature || 'توقيع الطبيب'}</div>
+                <div class="signature-line">${signature || 'Doctor Signature'}</div>
               </div>
             </div>
             ${printSettings.showFooter && (doctorSettings as any).receiptFooter ? `<div class="footer">${(doctorSettings as any).receiptFooter}</div>` : ''}
@@ -588,7 +630,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
               size: ${printSettings.paperSize === 'custom' ? 'auto' : printSettings.paperSize};
               margin: 0;
             }
-            html, body { font-family: Arial, sans-serif; direction: rtl; margin: 0; padding: 0; }
+            html, body { font-family: Arial, sans-serif; direction: ltr; margin: 0; padding: 0; }
             .top-spacer { display: block; height: ${((printSettings.marginTop || 0) / 2)}mm; width: 100%; }
             .content {
               padding-top: 0;
@@ -613,10 +655,10 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
           <div class="top-spacer"></div>
           <div class="content">
             <div class="patient-info">
-              <p><strong>اسم المريض:</strong> ${selectedPatient?.patient_name || ''}</p>
-              <p><strong>العمر:</strong> ${selectedPatient?.age || ''}</p>
-              <p><strong>الهاتف:</strong> ${selectedPatient?.patient_phone || ''}</p>
-              <p><strong>التاريخ:</strong> ${moment().format('YYYY-MM-DD')}</p>
+              <p><strong>Patient:</strong> ${selectedPatient?.patient_name || ''}</p>
+              <p><strong>Age:</strong> ${selectedPatient?.age || ''}</p>
+              <p><strong>Phone:</strong> ${selectedPatient?.patient_phone || ''}</p>
+              <p><strong>Date:</strong> ${moment().format('DD-MM-YYYY')}</p>
             </div>
             <div class="section-title">Lab & Radiology Orders</div>
             ${pendingRequests.map((req, i) => `
@@ -1283,6 +1325,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
         open={discountModalVisible}
         onCancel={() => setDiscountModalVisible(false)}
         footer={null}
+        destroyOnClose
       >
         <Form
           layout="vertical"
@@ -1300,8 +1343,8 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
           </Form.Item>
           <Form.Item>
             <Space>
-              <Button onClick={() => setDiscountModalVisible(false)}>Cancel</Button>
-              <Button type="primary" htmlType="submit" icon={<PercentageOutlined />}>
+              <Button onClick={() => setDiscountModalVisible(false)} disabled={discountSubmitting}>Cancel</Button>
+              <Button type="primary" htmlType="submit" icon={<PercentageOutlined />} loading={discountSubmitting} disabled={discountSubmitting}>
                 Apply Discount
               </Button>
             </Space>

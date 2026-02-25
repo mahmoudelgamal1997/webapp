@@ -277,23 +277,22 @@ const Dashboard: React.FC = () => {
   // Helper to translate drug timing to Arabic
   const formatDrugTiming = (timing: string) => {
     if (!timing) return '';
-    const map: Record<string, string> = {
-      "After eating": "بعد الأكل",
-      "After meals": "بعد الأكل",
-      "Before eating": "قبل الأكل",
-      "Before meals": "قبل الأكل",
-      "Before sleeping": "قبل النوم",
-      "At bed time": "عند النوم",
-      "Every 8 hours": "كل 8 ساعات",
-      "Every 6 hours": "كل 6 ساعات",
-      "Every 12 hours": "كل 12 ساعة",
-      "Twice a day": "مرتين يومياً",
-      "Once a day": "مرة يومياً",
-      "Three times a day": "3 مرات يومياً",
-      "As needed": "عند اللزوم",
-      "PRN": "عند اللزوم"
+    // Normalize Arabic values stored by Android app back to English
+    const arToEn: Record<string, string> = {
+      "بعد الأكل": "After Eating",
+      "قبل الأكل": "Before Eating",
+      "قبل النوم": "Before Sleeping",
+      "عند النوم": "At Bed Time",
+      "كل 8 ساعات": "Every 8 Hours",
+      "كل 6 ساعات": "Every 6 Hours",
+      "كل 12 ساعة": "Every 12 Hours",
+      "مرتين يومياً": "Twice a Day",
+      "مرة يومياً": "Once a Day",
+      "مرة واحدة": "Once",
+      "3 مرات يومياً": "Three Times a Day",
+      "عند اللزوم": "As Needed",
     };
-    return map[timing] || timing;
+    return arToEn[timing] || timing;
   };
 
   // Handle print receipt with dynamic header
@@ -343,7 +342,7 @@ const Dashboard: React.FC = () => {
             }
             html, body { 
               font-family: Arial, sans-serif; 
-              direction: rtl; 
+              direction: ltr; 
               margin: 0; 
               padding: 0;
             }
@@ -406,22 +405,22 @@ const Dashboard: React.FC = () => {
               ${doctorSettings.receiptHeader ? `<div class="custom-header">${doctorSettings.receiptHeader}</div>` : ''}
             </div>
             <div class="patient-info">
-              <h3>اسم المريض: ${selectedPatient?.patient_name}</h3>
-              <p>العمر: ${selectedPatient?.age}</p>
-              <p>تاريخ: ${moment(receipt.date).format('YYYY-MM-DD')}</p>
+              <h3>Patient: ${selectedPatient?.patient_name}</h3>
+              <p>Age: ${selectedPatient?.age}</p>
+              <p>Date: ${moment(receipt.date).format('DD-MM-YYYY')}</p>
             </div>
             <div class="drugs">
-              <h3>الأدوية:</h3>
+              <h3>Medications:</h3>
               ${receipt.drugs.map((drug, index) => `
                 <div class="drug-item">
                   <h4>${index + 1}. ${drug.drug}</h4>
-                  <p>التكرار: ${drug.frequency} | المدة: ${drug.period} | التوقيت: ${formatDrugTiming(drug.timing)}</p>
+                  <p>Frequency: ${drug.frequency} | Duration: ${drug.period} | Timing: ${formatDrugTiming(drug.timing)}</p>
                 </div>
               `).join('')}
             </div>
             ${receipt.notes ? `
               <div class="notes">
-                <h3>ملاحظات:</h3>
+                <h3>Notes:</h3>
                 <p>${receipt.notes}</p>
               </div>
             ` : ''}
