@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Card, Row, Col, Typography, Button, Divider, Table, Modal, Space, List, Image, Tag, Select, Radio, Input, Form, message } from 'antd';
-import { PlusOutlined, FileTextOutlined, BellOutlined, CalendarOutlined, FileImageOutlined, EyeOutlined, DollarOutlined, ExperimentOutlined, CheckCircleOutlined, ClockCircleOutlined, EditOutlined, WarningOutlined, PrinterOutlined } from '@ant-design/icons';
+import { Card, Row, Col, Typography, Button, Divider, Table, Modal, Space, List, Image, Tag, Select, Radio, Input, InputNumber, Form, message } from 'antd';
+import { PlusOutlined, FileTextOutlined, BellOutlined, CalendarOutlined, FileImageOutlined, EyeOutlined, DollarOutlined, ExperimentOutlined, CheckCircleOutlined, ClockCircleOutlined, EditOutlined, WarningOutlined, PrinterOutlined, PercentageOutlined } from '@ant-design/icons';
 import moment from 'moment';
 import ReceiptsList from './ReceiptsList';
 import { Receipt, Patient, Visit, ExternalService, ExternalServiceRequest } from '../components/type';
@@ -80,6 +80,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
   const [notificationModalVisible, setNotificationModalVisible] = useState(false);
   const [nextVisitModalVisible, setNextVisitModalVisible] = useState(false);
   const [billingModalVisible, setBillingModalVisible] = useState(false);
+  const [discountModalVisible, setDiscountModalVisible] = useState(false);
   const [patientReports, setPatientReports] = useState<any[]>([]);
   const [reportsLoading, setReportsLoading] = useState(false);
   const [imagePreviewVisible, setImagePreviewVisible] = useState(false);
@@ -330,6 +331,62 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
       message.error('Failed to update visit type');
     } finally {
       setSavingVisitType(false);
+    }
+  };
+
+  const handleApplyDiscount = async (values: { amount: number; reason?: string }) => {
+    if (!selectedPatient) return;
+    const doctorId = localStorage.getItem('doctorId');
+    const amount = Number(values.amount) || 0;
+    if (amount <= 0) {
+      message.error('Please enter a valid discount amount');
+      return;
+    }
+
+    let dateString = selectedPatient.date || '';
+    if (dateString.includes('T')) dateString = dateString.split('T')[0];
+    if (dateString && dateString.match(/^\d{4}-\d{1,2}-\d{1,2}$/)) {
+      const parts = dateString.split('-');
+      dateString = `${parts[0]}-${parseInt(parts[1])}-${parseInt(parts[2])}`;
+    }
+    if (!dateString) {
+      const today = new Date();
+      dateString = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
+    }
+
+    const discountService = {
+      service_id: 'discount',
+      service_name: 'خصم',
+      price: amount,
+      quantity: 1,
+      subtotal: amount
+    };
+
+    try {
+      await sendBillingNotificationToAllAssistants({
+        doctor_id: doctorId || '',
+        clinic_id: selectedPatient.clinic_id || '',
+        patient_id: selectedPatient.patient_id,
+        date: dateString,
+        patient_name: selectedPatient.patient_name,
+        totalAmount: amount,
+        amountPaid: 0,
+        paymentStatus: 'refund_due',
+        paymentMethod: 'cash',
+        consultationFee: 0,
+        consultationType: 'خصم',
+        services: [discountService],
+        servicesTotal: amount,
+        billing_id: 'discount_' + Date.now(),
+        clinic_name: '',
+        doctor_name: '',
+        notes: values.reason || 'خصم على كشف المريض'
+      });
+      message.success(`Discount of ${amount} EGP recorded. Assistant notified to refund.`);
+      setDiscountModalVisible(false);
+    } catch (err) {
+      console.error('Failed to apply discount:', err);
+      message.error('Failed to record discount');
     }
   };
 
@@ -605,6 +662,14 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
                   style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
                 >
                   Create Bill
+                </Button>
+                <Button
+                  type="primary"
+                  icon={<PercentageOutlined />}
+                  onClick={() => setDiscountModalVisible(true)}
+                  style={{ backgroundColor: '#fa8c16', borderColor: '#fa8c16' }}
+                >
+                  Discount
                 </Button>
                 <Button
                   type="primary"
@@ -1211,6 +1276,38 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
           setBillingModalVisible(false);
         }}
       />
+
+      {/* Discount Modal */}
+      <Modal
+        title="Apply Discount"
+        open={discountModalVisible}
+        onCancel={() => setDiscountModalVisible(false)}
+        footer={null}
+      >
+        <Form
+          layout="vertical"
+          onFinish={handleApplyDiscount}
+        >
+          <Form.Item
+            name="amount"
+            label="Discount Amount (EGP)"
+            rules={[{ required: true, message: 'Enter discount amount' }, { type: 'number', min: 0.01, message: 'Amount must be greater than 0' }]}
+          >
+            <InputNumber min={0.01} step={1} placeholder="e.g. 50" style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item name="reason" label="Reason (optional)">
+            <Input.TextArea rows={2} placeholder="e.g. خصم لظروف خاصة" />
+          </Form.Item>
+          <Form.Item>
+            <Space>
+              <Button onClick={() => setDiscountModalVisible(false)}>Cancel</Button>
+              <Button type="primary" htmlType="submit" icon={<PercentageOutlined />}>
+                Apply Discount
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
 
       {/* Image Preview Modal */}
       <Modal
