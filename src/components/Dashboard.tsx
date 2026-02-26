@@ -277,37 +277,51 @@ const Dashboard: React.FC = () => {
   // Helpers to translate Arabic drug values to English (for print only)
   const formatDrugTiming = (timing: string) => {
     if (!timing) return '';
+    const s = String(timing).trim();
     const arToEn: Record<string, string> = {
       "بعد الأكل": "After Eating", "قبل الأكل": "Before Eating", "قبل النوم": "Before Sleeping",
       "عند النوم": "At Bed Time", "كل 8 ساعات": "Every 8 Hours", "كل 6 ساعات": "Every 6 Hours",
-      "كل 12 ساعة": "Every 12 Hours", "مرتين يومياً": "Twice a Day", "مرة يومياً": "Once a Day",
-      "مرة واحدة": "Once", "مره واحده": "Once", "3 مرات يومياً": "Three Times a Day",
-      "عند اللزوم": "As Needed",
+      "كل 12 ساعة": "Every 12 Hours", "كل ٨ ساعات": "Every 8 Hours", "كل ٦ ساعات": "Every 6 Hours",
+      "مرتين يومياً": "Twice a Day", "مرة يومياً": "Once a Day", "3 مرات يومياً": "Three Times a Day",
+      "٣ مرات يومياً": "Three Times a Day", "مرة واحدة": "Once", "مره واحده": "Once",
+      "عند اللزوم": "As Needed", "مع الأكل": "With Meals",
     };
-    return arToEn[timing] || timing;
+    return arToEn[s] || timing;
   };
   const formatDrugFrequency = (v: string) => {
     if (!v) return '';
     const s = String(v).trim();
     const arToEn: Record<string, string> = {
       "مرة واحدة": "Once", "مره واحده": "Once", "واحدة مرة": "Once", "واحده مره": "Once",
-      "مرتين يومياً": "Twice a day", "مرة يومياً": "Once a day", "3 مرات يومياً": "3 times a day",
+      "مرتين يومياً": "Twice a day", "مرتين": "Twice a day", "مرة يومياً": "Once a day", "مرة يوميا": "Once a day",
+      "3 مرات يومياً": "3 times a day", "3 مرات": "3 times a day", "٣ مرات يومياً": "3 times a day", "٣ مرات": "3 times a day", "3 مرات يوميا": "3 times a day",
+      "4 مرات يومياً": "4 times a day", "4 مرات": "4 times a day", "٤ مرات يومياً": "4 times a day", "٤ مرات": "4 times a day", "أربع مرات يومياً": "4 times a day", "أربع مرات": "4 times a day",
+      "5 مرات يومياً": "5 times a day", "5 مرات": "5 times a day", "٥ مرات": "5 times a day", "خمس مرات يومياً": "5 times a day", "خمس مرات": "5 times a day",
+      "6 مرات": "6 times a day", "٦ مرات": "6 times a day",
     };
-    return arToEn[s] || v;
+    if (arToEn[s]) return arToEn[s];
+    // Fallback: "N مرات" → "N times a day"
+    const timesMatch = s.match(/^([\d١٢٣٤٥٦٧٨٩٠]+)\s*مرات/);
+    if (timesMatch) return timesMatch[1] + ' times a day';
+    return v;
   };
   const formatDrugPeriod = (v: string) => {
     if (!v) return '';
     const s = String(v).trim();
     const arToEn: Record<string, string> = {
       "يوم": "1 day", "يوم واحد": "1 day", "1 يوم": "1 day", "١ يوم": "1 day", "1يوم": "1 day",
-      "اسبوع": "1 week", "أسبوع": "1 week", "1 اسبوع": "1 week", "١ اسبوع": "1 week",
-      "اسبوعين": "2 weeks", "شهر": "1 month", "شهرين": "2 months",
+      "يومين": "2 days", "2 يوم": "2 days", "٢ يوم": "2 days", "3 أيام": "3 days", "٣ أيام": "3 days",
+      "اسبوع": "1 week", "أسبوع": "1 week", "1 اسبوع": "1 week", "١ اسبوع": "1 week", "اسبوع واحد": "1 week",
+      "اسبوعين": "2 weeks", "أسبوعين": "2 weeks", "2 اسبوع": "2 weeks", "٢ اسبوع": "2 weeks",
+      "شهر": "1 month", "شهر واحد": "1 month", "1 شهر": "1 month", "شهرين": "2 months", "٢ شهر": "2 months",
     };
     if (arToEn[s]) return arToEn[s];
-    const dayMatch = s.match(/^([\d١٢٣٤٥٦٧٨٩٠])\s*يوم$/);
+    const dayMatch = s.match(/^([\d١٢٣٤٥٦٧٨٩٠])\s*يوم/);
     if (dayMatch) return dayMatch[1] + " day" + (dayMatch[1] !== "1" && dayMatch[1] !== "١" ? "s" : "");
     const weekMatch = s.match(/^([\d١٢٣٤٥٦٧٨٩٠])\s*اسبوع/);
     if (weekMatch) return weekMatch[1] + " week" + (weekMatch[1] !== "1" && weekMatch[1] !== "١" ? "s" : "");
+    const monthMatch = s.match(/^([\d١٢٣٤٥٦٧٨٩٠])\s*شهر/);
+    if (monthMatch) return monthMatch[1] + " month" + (monthMatch[1] !== "1" && monthMatch[1] !== "١" ? "s" : "");
     return v;
   };
 
