@@ -274,25 +274,41 @@ const Dashboard: React.FC = () => {
     }
   }, [isMobile]);
 
-  // Helper to translate drug timing to Arabic
+  // Helpers to translate Arabic drug values to English (for print only)
   const formatDrugTiming = (timing: string) => {
     if (!timing) return '';
-    // Normalize Arabic values stored by Android app back to English
     const arToEn: Record<string, string> = {
-      "بعد الأكل": "After Eating",
-      "قبل الأكل": "Before Eating",
-      "قبل النوم": "Before Sleeping",
-      "عند النوم": "At Bed Time",
-      "كل 8 ساعات": "Every 8 Hours",
-      "كل 6 ساعات": "Every 6 Hours",
-      "كل 12 ساعة": "Every 12 Hours",
-      "مرتين يومياً": "Twice a Day",
-      "مرة يومياً": "Once a Day",
-      "مرة واحدة": "Once",
-      "3 مرات يومياً": "Three Times a Day",
+      "بعد الأكل": "After Eating", "قبل الأكل": "Before Eating", "قبل النوم": "Before Sleeping",
+      "عند النوم": "At Bed Time", "كل 8 ساعات": "Every 8 Hours", "كل 6 ساعات": "Every 6 Hours",
+      "كل 12 ساعة": "Every 12 Hours", "مرتين يومياً": "Twice a Day", "مرة يومياً": "Once a Day",
+      "مرة واحدة": "Once", "مره واحده": "Once", "3 مرات يومياً": "Three Times a Day",
       "عند اللزوم": "As Needed",
     };
     return arToEn[timing] || timing;
+  };
+  const formatDrugFrequency = (v: string) => {
+    if (!v) return '';
+    const s = String(v).trim();
+    const arToEn: Record<string, string> = {
+      "مرة واحدة": "Once", "مره واحده": "Once", "واحدة مرة": "Once", "واحده مره": "Once",
+      "مرتين يومياً": "Twice a day", "مرة يومياً": "Once a day", "3 مرات يومياً": "3 times a day",
+    };
+    return arToEn[s] || v;
+  };
+  const formatDrugPeriod = (v: string) => {
+    if (!v) return '';
+    const s = String(v).trim();
+    const arToEn: Record<string, string> = {
+      "يوم": "1 day", "يوم واحد": "1 day", "1 يوم": "1 day", "١ يوم": "1 day", "1يوم": "1 day",
+      "اسبوع": "1 week", "أسبوع": "1 week", "1 اسبوع": "1 week", "١ اسبوع": "1 week",
+      "اسبوعين": "2 weeks", "شهر": "1 month", "شهرين": "2 months",
+    };
+    if (arToEn[s]) return arToEn[s];
+    const dayMatch = s.match(/^([\d١٢٣٤٥٦٧٨٩٠])\s*يوم$/);
+    if (dayMatch) return dayMatch[1] + " day" + (dayMatch[1] !== "1" && dayMatch[1] !== "١" ? "s" : "");
+    const weekMatch = s.match(/^([\d١٢٣٤٥٦٧٨٩٠])\s*اسبوع/);
+    if (weekMatch) return weekMatch[1] + " week" + (weekMatch[1] !== "1" && weekMatch[1] !== "١" ? "s" : "");
+    return v;
   };
 
   // Handle print receipt with dynamic header
@@ -342,7 +358,7 @@ const Dashboard: React.FC = () => {
             }
             html, body { 
               font-family: Arial, sans-serif; 
-              direction: ltr; 
+              direction: ${printSettings.printLocale === 'ar' ? 'rtl' : 'ltr'}; 
               margin: 0; 
               padding: 0;
             }
@@ -405,22 +421,26 @@ const Dashboard: React.FC = () => {
               ${doctorSettings.receiptHeader ? `<div class="custom-header">${doctorSettings.receiptHeader}</div>` : ''}
             </div>
             <div class="patient-info">
-              <h3>Patient: ${selectedPatient?.patient_name}</h3>
-              <p>Age: ${selectedPatient?.age}</p>
-              <p>Date: ${moment(receipt.date).format('DD-MM-YYYY')}</p>
+              ${printSettings.printLocale === 'ar'
+                ? `<h3>اسم المريض: ${selectedPatient?.patient_name}</h3><p>العمر: ${selectedPatient?.age}</p><p>تاريخ: ${moment(receipt.date).format('DD-MM-YYYY')}</p>`
+                : `<h3>Patient: ${selectedPatient?.patient_name}</h3><p>Age: ${selectedPatient?.age}</p><p>Date: ${moment(receipt.date).format('DD-MM-YYYY')}</p>`
+              }
             </div>
             <div class="drugs">
-              <h3>Medications:</h3>
+              <h3>${printSettings.printLocale === 'ar' ? 'الأدوية:' : 'Medications:'}</h3>
               ${receipt.drugs.map((drug, index) => `
                 <div class="drug-item">
                   <h4>${index + 1}. ${drug.drug}</h4>
-                  <p>Frequency: ${drug.frequency} | Duration: ${drug.period} | Timing: ${formatDrugTiming(drug.timing)}</p>
+                  <p>${printSettings.printLocale === 'ar'
+                    ? `التكرار: ${drug.frequency} | المدة: ${drug.period} | التوقيت: ${drug.timing}`
+                    : `Frequency: ${formatDrugFrequency(drug.frequency)} | Duration: ${formatDrugPeriod(drug.period)} | Timing: ${formatDrugTiming(drug.timing)}`
+                  }</p>
                 </div>
               `).join('')}
             </div>
             ${receipt.notes ? `
               <div class="notes">
-                <h3>Notes:</h3>
+                <h3>${printSettings.printLocale === 'ar' ? 'ملاحظات:' : 'Notes:'}</h3>
                 <p>${receipt.notes}</p>
               </div>
             ` : ''}

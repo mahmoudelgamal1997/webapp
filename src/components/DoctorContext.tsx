@@ -27,6 +27,7 @@ interface DoctorSettings {
     showPatientInfo: boolean;
     customPaperWidth?: number;
     customPaperHeight?: number;
+    printLocale?: 'en' | 'ar';
   };
 }
 
@@ -142,6 +143,7 @@ export const DoctorProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             JSON.stringify({
               marginLeft: newSettings.printSettings.marginLeft ?? 0,
               marginRight: newSettings.printSettings.marginRight ?? 0,
+              printLocale: newSettings.printSettings.printLocale ?? 'en',
             })
           );
         }

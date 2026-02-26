@@ -19,6 +19,7 @@ const PrescriptionLayoutEditor: React.FC = () => {
         showHeader: settings.printSettings?.showHeader !== false,
         showFooter: settings.printSettings?.showFooter !== false,
         showPatientInfo: settings.printSettings?.showPatientInfo !== false,
+        printLocale: settings.printSettings?.printLocale || 'en',
     });
 
     useEffect(() => {
@@ -30,6 +31,7 @@ const PrescriptionLayoutEditor: React.FC = () => {
             showHeader: settings.printSettings?.showHeader !== false,
             showFooter: settings.printSettings?.showFooter !== false,
             showPatientInfo: settings.printSettings?.showPatientInfo !== false,
+            printLocale: settings.printSettings?.printLocale || 'en',
         });
     }, [settings]);
 
@@ -52,6 +54,7 @@ const PrescriptionLayoutEditor: React.FC = () => {
                 showHeader: previewSettings.showHeader,
                 showFooter: previewSettings.showFooter,
                 showPatientInfo: previewSettings.showPatientInfo,
+                printLocale: previewSettings.printLocale as 'en' | 'ar',
             }
         });
     };
@@ -138,6 +141,18 @@ const PrescriptionLayoutEditor: React.FC = () => {
                                     onChange={(checked) => handleSettingChange('showPatientInfo', checked)}
                                 />
                                 <Text>{previewSettings.showPatientInfo ? 'Auto (Printed)' : 'Manual (Clean)'}</Text>
+                            </Space>
+                        </Form.Item>
+
+                        <Divider>Print Language</Divider>
+
+                        <Form.Item label="Print Labels Language">
+                            <Space>
+                                <Switch
+                                    checked={previewSettings.printLocale === 'en'}
+                                    onChange={(checked) => handleSettingChange('printLocale', checked ? 'en' : 'ar')}
+                                />
+                                <Text>{previewSettings.printLocale === 'en' ? 'English' : 'Arabic (عربي)'}</Text>
                             </Space>
                         </Form.Item>
 
