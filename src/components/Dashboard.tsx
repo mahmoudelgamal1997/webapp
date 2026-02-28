@@ -439,6 +439,7 @@ const Dashboard: React.FC = () => {
                 ? `<h3>اسم المريض: ${selectedPatient?.patient_name}</h3><p>العمر: ${selectedPatient?.age}</p><p>تاريخ: ${moment(receipt.date).format('DD-MM-YYYY')}</p>`
                 : `<h3>Patient: ${selectedPatient?.patient_name}</h3><p>Age: ${selectedPatient?.age}</p><p>Date: ${moment(receipt.date).format('DD-MM-YYYY')}</p>`
               }
+              <p>File ID: ${selectedPatient?.file_number || ''}</p>
             </div>
             <div class="drugs">
               <h3>${printSettings.printLocale === 'ar' ? 'الأدوية:' : 'Medications:'}</h3>
