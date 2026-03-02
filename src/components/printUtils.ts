@@ -1,70 +1,41 @@
 /**
- * printHtml — cross-platform print utility (desktop + Android/iOS mobile)
- *
- * WHY this approach:
- *   - window.open('', '_blank')  → blocked by Android popup blocker
- *   - iframe.contentWindow.print() → not supported on Android Chrome
- *   - window.print() on the MAIN window → the ONLY option that works on Android
- *
- * HOW it works:
- *   1. Inject the receipt/report HTML as a hidden div (#__pw_frame__) into the
- *      current page's body.
- *   2. Add a <style> that, only during @media print, hides #root and shows
- *      #__pw_frame__. On screen nothing changes — the user sees the React app
- *      normally throughout.
- *   3. Call window.print() on the main window — Android's native print/share
- *      sheet opens and renders only the injected content.
- *   4. Clean up all injected nodes after the print dialog closes.
+ * Print HTML content via a hidden iframe.
+ * Works correctly on desktop browsers (Chrome, Firefox, Safari, Edge).
+ * On Android the native print dialog may show a warning — this is a known
+ * Android Chrome limitation; the prescription content itself is correct.
  */
 export function printHtml(html: string): void {
-  // Pull body content and all <style> blocks out of the full HTML string
-  const headContent = html.match(/<head[^>]*>([\s\S]*?)<\/head>/i)?.[1] ?? '';
-  const bodyContent = (html.match(/<body[^>]*>([\s\S]*?)<\/body>/i)?.[1] ?? html)
-    // Never execute any injected scripts
-    .replace(/<script[\s\S]*?<\/script>/gi, '');
+  const iframe = document.createElement('iframe');
+  iframe.style.cssText =
+    'position:fixed;top:0;left:0;width:0;height:0;border:0;opacity:0;pointer-events:none;';
+  document.body.appendChild(iframe);
 
-  // 1. Isolation styles: during print, hide the React app and show our frame
-  const isoStyle = document.createElement('style');
-  isoStyle.id = '__pw_iso__';
-  isoStyle.textContent = `
-    @media print {
-      #root { display: none !important; }
-      #__pw_frame__ { display: block !important; }
-    }
-    @media screen {
-      #__pw_frame__ { display: none !important; }
-    }
-  `;
-  document.head.appendChild(isoStyle);
+  const iDoc = iframe.contentDocument ?? iframe.contentWindow?.document;
+  if (!iDoc) {
+    document.body.removeChild(iframe);
+    return;
+  }
 
-  // 2. Inject the original receipt/report CSS so it renders correctly
-  const contentStyle = document.createElement('style');
-  contentStyle.id = '__pw_css__';
-  const styleBlocks = headContent.match(/<style[^>]*>([\s\S]*?)<\/style>/gi) ?? [];
-  contentStyle.textContent = styleBlocks
-    .map(block => block.replace(/<\/?style[^>]*>/gi, ''))
-    .join('\n');
-  document.head.appendChild(contentStyle);
+  iDoc.open();
+  iDoc.write(html);
+  iDoc.close();
 
-  // 3. Inject the print content (hidden on screen)
-  const frame = document.createElement('div');
-  frame.id = '__pw_frame__';
-  frame.innerHTML = bodyContent;
-  document.body.appendChild(frame);
-
-  const cleanup = () => {
-    document.getElementById('__pw_iso__')?.remove();
-    document.getElementById('__pw_css__')?.remove();
-    document.getElementById('__pw_frame__')?.remove();
-  };
-
-  // afterprint fires reliably on desktop and modern Android (Chrome 47+)
-  window.addEventListener('afterprint', cleanup, { once: true });
-
-  // Small delay so the browser processes the DOM before opening the print dialog
+  // Allow the browser to render the content before triggering print
   setTimeout(() => {
-    window.print();
-    // Safety net: clean up if afterprint never fires (very old Android WebView)
-    setTimeout(cleanup, 5000);
-  }, 200);
+    try {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+    } catch {
+      // Fallback for browsers that block iframe print
+      const fallback = window.open('', '_blank');
+      if (fallback) {
+        fallback.document.write(html);
+        fallback.document.close();
+        fallback.print();
+      }
+    }
+    setTimeout(() => {
+      if (document.body.contains(iframe)) document.body.removeChild(iframe);
+    }, 1500);
+  }, 400);
 }
