@@ -18,7 +18,8 @@ import {
   Row,
   Col,
   Divider,
-  Spin
+  Spin,
+  Empty
 } from 'antd';
 import {
   PlusOutlined,
@@ -27,7 +28,8 @@ import {
   ArrowLeftOutlined,
   MedicineBoxOutlined,
   DollarOutlined,
-  SaveOutlined
+  SaveOutlined,
+  ScheduleOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -35,6 +37,18 @@ import API from '../config/api';
 import { ClinicService } from './type';
 import DashboardSidebar from './DashboardSidebar';
 import DashboardHeader from './DashboardHeader';
+
+interface CustomVisitType {
+  type_id: string;
+  name: string;
+  name_ar: string;
+  normal_price: number;
+  urgent_price: number;
+  is_active: boolean;
+  order: number;
+}
+
+const STANDARD_TYPE_IDS = ['visit', 'revisit', 'consultation', 'other'];
 
 const { Content } = Layout;
 const { Title, Text } = Typography;
@@ -65,11 +79,19 @@ const ServicesManagement: React.FC = () => {
   const [feesLoading, setFeesLoading] = useState(false);
   const [feesSaving, setFeesSaving] = useState(false);
 
+  // Custom visit types state
+  const [customVisitTypes, setCustomVisitTypes] = useState<CustomVisitType[]>([]);
+  const [allVisitTypes, setAllVisitTypes] = useState<CustomVisitType[]>([]);
+  const [visitTypesLoading, setVisitTypesLoading] = useState(false);
+  const [visitTypeModalVisible, setVisitTypeModalVisible] = useState(false);
+  const [visitTypeForm] = Form.useForm();
+
   const doctorId = localStorage.getItem('doctorId');
 
   useEffect(() => {
     fetchServices();
     fetchConsultationFees();
+    fetchCustomVisitTypes();
   }, []);
 
   const fetchServices = async () => {
@@ -132,6 +154,71 @@ const ServicesManagement: React.FC = () => {
       message.error('Failed to save consultation fees');
     } finally {
       setFeesSaving(false);
+    }
+  };
+
+  // Fetch custom visit types from the VisitTypeConfiguration API
+  const fetchCustomVisitTypes = async () => {
+    if (!doctorId) return;
+    try {
+      setVisitTypesLoading(true);
+      const response = await axios.get(`${API.BASE_URL}${API.ENDPOINTS.VISIT_TYPE_CONFIG(doctorId)}`);
+      if (response.data.success) {
+        const types: CustomVisitType[] = response.data.data.visit_types || [];
+        setAllVisitTypes(types);
+        setCustomVisitTypes(types.filter(t => !STANDARD_TYPE_IDS.includes(t.type_id)));
+      }
+    } catch (error) {
+      console.error('Error fetching custom visit types:', error);
+    } finally {
+      setVisitTypesLoading(false);
+    }
+  };
+
+  const handleAddCustomVisitType = () => {
+    visitTypeForm.resetFields();
+    setVisitTypeModalVisible(true);
+  };
+
+  const handleDeleteCustomVisitType = async (typeId: string) => {
+    if (!doctorId) return;
+    try {
+      const updatedTypes = allVisitTypes.filter(t => t.type_id !== typeId);
+      await axios.post(`${API.BASE_URL}${API.ENDPOINTS.VISIT_TYPE_CONFIG(doctorId)}`, {
+        visit_types: updatedTypes,
+        default_type: 'visit'
+      });
+      message.success('Visit type removed');
+      fetchCustomVisitTypes();
+    } catch (error) {
+      console.error('Error deleting custom visit type:', error);
+      message.error('Failed to remove visit type');
+    }
+  };
+
+  const handleSubmitCustomVisitType = async (values: { name: string; name_ar?: string; price: number }) => {
+    if (!doctorId) return;
+    try {
+      const newType: CustomVisitType = {
+        type_id: `custom_${Date.now()}`,
+        name: values.name,
+        name_ar: values.name_ar || values.name,
+        normal_price: values.price,
+        urgent_price: values.price,
+        is_active: true,
+        order: allVisitTypes.length + 1
+      };
+      const updatedTypes = [...allVisitTypes, newType];
+      await axios.post(`${API.BASE_URL}${API.ENDPOINTS.VISIT_TYPE_CONFIG(doctorId)}`, {
+        visit_types: updatedTypes,
+        default_type: 'visit'
+      });
+      message.success('Visit type added successfully');
+      setVisitTypeModalVisible(false);
+      fetchCustomVisitTypes();
+    } catch (error) {
+      console.error('Error adding custom visit type:', error);
+      message.error('Failed to add visit type');
     }
   };
 
@@ -397,6 +484,133 @@ const ServicesManagement: React.FC = () => {
               </Text>
             </Spin>
           </Card>
+
+          {/* Custom Visit Types Card */}
+          <Card
+            style={{ marginBottom: 24 }}
+            title={
+              <Space>
+                <ScheduleOutlined style={{ color: '#722ed1' }} />
+                <span>Custom Visit Types / أنواع الكشف المخصصة</span>
+              </Space>
+            }
+            extra={
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={handleAddCustomVisitType}
+                style={{ backgroundColor: '#722ed1', borderColor: '#722ed1' }}
+              >
+                Add Visit Type
+              </Button>
+            }
+          >
+            <Spin spinning={visitTypesLoading}>
+              <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
+                Add custom visit types for your clinic (e.g. "Follow-up", "Procedure"). These appear in the assistant app alongside the standard types.
+              </Text>
+              {customVisitTypes.length === 0 ? (
+                <Empty
+                  description="No custom visit types yet. Click 'Add Visit Type' to create one."
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                />
+              ) : (
+                <Table
+                  dataSource={customVisitTypes}
+                  rowKey="type_id"
+                  pagination={false}
+                  size="small"
+                  columns={[
+                    {
+                      title: 'Name',
+                      dataIndex: 'name',
+                      key: 'name',
+                      render: (text: string) => <Text strong>{text}</Text>
+                    },
+                    {
+                      title: 'Arabic Name / الاسم بالعربي',
+                      dataIndex: 'name_ar',
+                      key: 'name_ar'
+                    },
+                    {
+                      title: 'Price (EGP)',
+                      dataIndex: 'normal_price',
+                      key: 'normal_price',
+                      render: (price: number) => (
+                        <Text strong style={{ color: '#52c41a' }}>{price.toLocaleString()} EGP</Text>
+                      )
+                    },
+                    {
+                      title: 'Actions',
+                      key: 'actions',
+                      render: (_: any, record: CustomVisitType) => (
+                        <Popconfirm
+                          title="Remove this visit type?"
+                          onConfirm={() => handleDeleteCustomVisitType(record.type_id)}
+                          okText="Yes"
+                          cancelText="No"
+                        >
+                          <Button type="link" danger icon={<DeleteOutlined />}>
+                            Remove
+                          </Button>
+                        </Popconfirm>
+                      )
+                    }
+                  ]}
+                />
+              )}
+            </Spin>
+          </Card>
+
+          {/* Add Custom Visit Type Modal */}
+          <Modal
+            title="Add Custom Visit Type / إضافة نوع كشف"
+            open={visitTypeModalVisible}
+            onCancel={() => setVisitTypeModalVisible(false)}
+            footer={null}
+            width={480}
+          >
+            <Form form={visitTypeForm} layout="vertical" onFinish={handleSubmitCustomVisitType}>
+              <Form.Item
+                name="name"
+                label="Visit Type Name (English)"
+                rules={[{ required: true, message: 'Please enter the visit type name' }]}
+              >
+                <Input placeholder="e.g. Follow-up, Procedure" />
+              </Form.Item>
+              <Form.Item
+                name="name_ar"
+                label="Visit Type Name (Arabic / اسم النوع بالعربي)"
+              >
+                <Input placeholder="مثال: متابعة، إجراء" dir="rtl" />
+              </Form.Item>
+              <Form.Item
+                name="price"
+                label="Price (EGP)"
+                rules={[
+                  { required: true, message: 'Please enter the price' },
+                  { type: 'number', min: 0, message: 'Price cannot be negative' }
+                ]}
+              >
+                <InputNumber
+                  style={{ width: '100%' }}
+                  placeholder="0"
+                  min={0}
+                  formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                  parser={value => Number(value!.replace(/\$\s?|(,*)/g, '')) as any}
+                  addonAfter="EGP"
+                />
+              </Form.Item>
+              <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
+                <Space>
+                  <Button onClick={() => setVisitTypeModalVisible(false)}>Cancel</Button>
+                  <Button type="primary" htmlType="submit" style={{ backgroundColor: '#722ed1', borderColor: '#722ed1' }}>
+                    Add Visit Type
+                  </Button>
+                </Space>
+              </Form.Item>
+            </Form>
+          </Modal>
 
           {/* Additional Services Card */}
           <Card
