@@ -1,5 +1,6 @@
 // src/components/Dashboard.tsx
 import React, { useState, useEffect, useRef } from 'react';
+import { printHtml as triggerPrint } from './printUtils';
 import { Layout, Card, Typography, Button, Space, Alert, Row, Col, Drawer, Grid } from 'antd';
 import {
   SettingOutlined,
@@ -467,13 +468,7 @@ const Dashboard: React.FC = () => {
       </html>
     `;
 
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(printHtml);
-      printWindow.document.close();
-      printWindow.print();
-      printWindow.close();
-    }
+    triggerPrint(printHtml);
   };
 
   return (

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { printHtml as triggerPrint } from './printUtils';
 import axios from 'axios';
 import { Card, Row, Col, Typography, Button, Divider, Table, Modal, Space, List, Image, Tag, Select, Radio, Input, InputNumber, Form, message } from 'antd';
 import { PlusOutlined, FileTextOutlined, BellOutlined, CalendarOutlined, FileImageOutlined, EyeOutlined, DollarOutlined, ExperimentOutlined, CheckCircleOutlined, ClockCircleOutlined, EditOutlined, WarningOutlined, PrinterOutlined, PercentageOutlined } from '@ant-design/icons';
@@ -550,13 +551,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
       </html>
     `;
 
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(printHtml);
-      printWindow.document.close();
-      printWindow.print();
-      printWindow.close();
-    }
+    triggerPrint(printHtml);
   };
 
   // Function to show visit details modal
@@ -672,13 +667,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
       </html>
     `;
 
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(printHtml);
-      printWindow.document.close();
-      printWindow.print();
-      printWindow.close();
-    }
+    triggerPrint(printHtml);
   };
 
   if (loading) {

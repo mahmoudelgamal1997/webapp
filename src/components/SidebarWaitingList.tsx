@@ -267,7 +267,7 @@ const SidebarWaitingList = forwardRef<{ refreshData: () => Promise<void> }, Side
       const isEstshara = v.toLowerCase() === 'estshara' || v.includes('استشارة') || v.includes('استشاره');
       switch (true) {
         case isEstshara:
-          return <Tag color="purple">استشارة</Tag>;
+          return <Tag color="purple">Consultation</Tag>;
         case v === 'كشف':
           return <Tag color="blue">كشف</Tag>;
         case v === 'إعادة كشف' || v.includes('إعادة') || v.includes('اعادة'):

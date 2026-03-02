@@ -366,7 +366,7 @@ const ServicesManagement: React.FC = () => {
                 </Col>
                 <Col xs={24} sm={12} md={6}>
                   <Text strong style={{ display: 'block', marginBottom: 8 }}>
-                    Estishara Fee / استشارة
+                    Consultation Fee / Consultation
                   </Text>
                   <InputNumber
                     style={{ width: '100%' }}

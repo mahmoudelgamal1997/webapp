@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { printHtml } from './printUtils';
 import {
   Modal, Form, Input, Button, message, Tag, Space, Typography, Divider
 } from 'antd';
@@ -276,10 +277,7 @@ const MedicalReportModal: React.FC<MedicalReportModalProps> = ({
       return;
     }
 
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-
-    printWindow.document.write(buildMedicalReportHtml(
+    printHtml(buildMedicalReportHtml(
       diagnosis,
       medicalReportText,
       signature,
@@ -287,8 +285,6 @@ const MedicalReportModal: React.FC<MedicalReportModalProps> = ({
       patient?.patient_name || '',
       patient?.age || ''
     ));
-    printWindow.document.close();
-    printWindow.print();
   };
 
   return (

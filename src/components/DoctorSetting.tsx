@@ -128,7 +128,7 @@ const DoctorSettings: React.FC = () => {
                   <Form.Item name="revisitFee" label="Re-visit Fee (Eada) / رسوم الإعادة">
                     <Input type="number" suffix="EGP" placeholder="Example: 200" />
                   </Form.Item>
-                  <Form.Item name="estisharaFee" label="Consultation Fee (Estishara) / رسوم الاستشارة">
+                  <Form.Item name="estisharaFee" label="Consultation Fee / Consultation">
                     <Input type="number" suffix="EGP" placeholder="Example: 150" />
                   </Form.Item>
                   <Form.Item name="urgentFee" label="Urgent Fee (Mustajal) / رسوم المستعجل">
