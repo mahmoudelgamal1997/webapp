@@ -84,6 +84,7 @@ const ServicesManagement: React.FC = () => {
   const [allVisitTypes, setAllVisitTypes] = useState<CustomVisitType[]>([]);
   const [visitTypesLoading, setVisitTypesLoading] = useState(false);
   const [visitTypeModalVisible, setVisitTypeModalVisible] = useState(false);
+  const [editingVisitType, setEditingVisitType] = useState<CustomVisitType | null>(null);
   const [visitTypeForm] = Form.useForm();
 
   const doctorId = localStorage.getItem('doctorId');
@@ -176,7 +177,18 @@ const ServicesManagement: React.FC = () => {
   };
 
   const handleAddCustomVisitType = () => {
+    setEditingVisitType(null);
     visitTypeForm.resetFields();
+    setVisitTypeModalVisible(true);
+  };
+
+  const handleEditCustomVisitType = (vt: CustomVisitType) => {
+    setEditingVisitType(vt);
+    visitTypeForm.setFieldsValue({
+      name: vt.name,
+      name_ar: vt.name_ar,
+      price: vt.normal_price
+    });
     setVisitTypeModalVisible(true);
   };
 
@@ -199,26 +211,45 @@ const ServicesManagement: React.FC = () => {
   const handleSubmitCustomVisitType = async (values: { name: string; name_ar?: string; price: number }) => {
     if (!doctorId) return;
     try {
-      const newType: CustomVisitType = {
-        type_id: `custom_${Date.now()}`,
-        name: values.name,
-        name_ar: values.name_ar || values.name,
-        normal_price: values.price,
-        urgent_price: values.price,
-        is_active: true,
-        order: allVisitTypes.length + 1
-      };
-      const updatedTypes = [...allVisitTypes, newType];
+      let updatedTypes: CustomVisitType[];
+
+      if (editingVisitType) {
+        // Update existing visit type in-place, preserving type_id and order
+        updatedTypes = allVisitTypes.map(t =>
+          t.type_id === editingVisitType.type_id
+            ? {
+                ...t,
+                name: values.name,
+                name_ar: values.name_ar || values.name,
+                normal_price: values.price,
+                urgent_price: values.price
+              }
+            : t
+        );
+      } else {
+        const newType: CustomVisitType = {
+          type_id: `custom_${Date.now()}`,
+          name: values.name,
+          name_ar: values.name_ar || values.name,
+          normal_price: values.price,
+          urgent_price: values.price,
+          is_active: true,
+          order: allVisitTypes.length + 1
+        };
+        updatedTypes = [...allVisitTypes, newType];
+      }
+
       await axios.post(`${API.BASE_URL}${API.ENDPOINTS.VISIT_TYPE_CONFIG(doctorId)}`, {
         visit_types: updatedTypes,
         default_type: 'visit'
       });
-      message.success('Visit type added successfully');
+      message.success(editingVisitType ? 'Visit type updated successfully' : 'Visit type added successfully');
       setVisitTypeModalVisible(false);
+      setEditingVisitType(null);
       fetchCustomVisitTypes();
     } catch (error) {
-      console.error('Error adding custom visit type:', error);
-      message.error('Failed to add visit type');
+      console.error('Error saving custom visit type:', error);
+      message.error('Failed to save visit type');
     }
   };
 
@@ -544,16 +575,26 @@ const ServicesManagement: React.FC = () => {
                       title: 'Actions',
                       key: 'actions',
                       render: (_: any, record: CustomVisitType) => (
-                        <Popconfirm
-                          title="Remove this visit type?"
-                          onConfirm={() => handleDeleteCustomVisitType(record.type_id)}
-                          okText="Yes"
-                          cancelText="No"
-                        >
-                          <Button type="link" danger icon={<DeleteOutlined />}>
-                            Remove
+                        <Space>
+                          <Button
+                            type="link"
+                            icon={<EditOutlined />}
+                            onClick={() => handleEditCustomVisitType(record)}
+                            style={{ color: '#722ed1' }}
+                          >
+                            Edit
                           </Button>
-                        </Popconfirm>
+                          <Popconfirm
+                            title="Remove this visit type?"
+                            onConfirm={() => handleDeleteCustomVisitType(record.type_id)}
+                            okText="Yes"
+                            cancelText="No"
+                          >
+                            <Button type="link" danger icon={<DeleteOutlined />}>
+                              Remove
+                            </Button>
+                          </Popconfirm>
+                        </Space>
                       )
                     }
                   ]}
@@ -562,11 +603,11 @@ const ServicesManagement: React.FC = () => {
             </Spin>
           </Card>
 
-          {/* Add Custom Visit Type Modal */}
+          {/* Add / Edit Custom Visit Type Modal */}
           <Modal
-            title="Add Custom Visit Type / إضافة نوع كشف"
+            title={editingVisitType ? 'Edit Visit Type / تعديل نوع الكشف' : 'Add Custom Visit Type / إضافة نوع كشف'}
             open={visitTypeModalVisible}
-            onCancel={() => setVisitTypeModalVisible(false)}
+            onCancel={() => { setVisitTypeModalVisible(false); setEditingVisitType(null); }}
             footer={null}
             width={480}
           >
@@ -603,9 +644,9 @@ const ServicesManagement: React.FC = () => {
               </Form.Item>
               <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
                 <Space>
-                  <Button onClick={() => setVisitTypeModalVisible(false)}>Cancel</Button>
+                  <Button onClick={() => { setVisitTypeModalVisible(false); setEditingVisitType(null); }}>Cancel</Button>
                   <Button type="primary" htmlType="submit" style={{ backgroundColor: '#722ed1', borderColor: '#722ed1' }}>
-                    Add Visit Type
+                    {editingVisitType ? 'Save Changes' : 'Add Visit Type'}
                   </Button>
                 </Space>
               </Form.Item>
