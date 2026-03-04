@@ -500,29 +500,31 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
             .header {
               text-align: center;
               border-bottom: ${isCustomPaper ? 'none' : '2px solid #333'};
-              padding-bottom: 14px; margin-bottom: 20px;
+              padding-bottom: 6px; margin-bottom: 8px;
               display: ${isCustomPaper ? 'none' : 'block'};
             }
-            .title { font-size: 20px; font-weight: bold; margin: 16px 0 6px; text-align: center; letter-spacing: 1px; }
+            .title { font-size: 17px; font-weight: bold; margin: 6px 0 4px; text-align: center; letter-spacing: 1px; }
             .patient-info {
               background: ${isCustomPaper ? 'transparent' : '#f8f8f8'};
-              border-radius: 6px; padding: 12px 16px; margin-bottom: 20px; font-size: 14px;
+              border-radius: 4px; padding: 6px 10px; margin-bottom: 8px; font-size: 13px;
               display: ${printSettings.showPatientInfo ? 'block' : 'none'};
             }
-            .patient-info p { margin: 4px 0; }
-            .section { margin-bottom: 18px; }
-            .section-label { font-weight: bold; font-size: 15px; border-bottom: 1px solid #ccc; padding-bottom: 4px; margin-bottom: 8px; color: #444; }
-            .section-content { font-size: 14px; line-height: 1.8; white-space: pre-wrap; }
-            .signature-area { margin-top: 50px; display: flex; justify-content: flex-end; }
-            .signature-box { text-align: center; min-width: 180px; }
-            .signature-line { border-top: 1px solid #333; margin-top: 40px; padding-top: 6px; font-size: 13px; }
+            .patient-info p { margin: 2px 0; }
+            .section { margin-bottom: 8px; }
+            .section-label { font-weight: bold; font-size: 13px; border-bottom: 1px solid #ccc; padding-bottom: 2px; margin-bottom: 4px; color: #444; }
+            .section-content { font-size: 13px; line-height: 1.5; white-space: pre-wrap; }
+            .signature-area { margin-top: 16px; display: flex; justify-content: flex-end; }
+            .signature-box { text-align: center; min-width: 160px; }
+            .signature-line { border-top: 1px solid #333; margin-top: 20px; padding-top: 4px; font-size: 12px; }
             .footer {
-              margin-top: 30px;
+              margin-top: 10px;
               border-top: ${isCustomPaper ? 'none' : '1px solid #ccc'};
-              padding-top: 10px; text-align: center; font-style: italic; font-size: 12px; color: #666;
+              padding-top: 6px; text-align: center; font-style: italic; font-size: 11px; color: #666;
               display: ${printSettings.showFooter ? 'block' : 'none'};
             }
-            h1, h2, h3 { margin: 5px 0; }
+            h1 { margin: 3px 0; font-size: 18px; }
+            h2 { margin: 3px 0; font-size: 16px; }
+            h3 { margin: 2px 0; font-size: 14px; }
           </style>
         </head>
         <body>
@@ -1385,7 +1387,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
                 const sorted = (res.data.medical_reports || []).slice().reverse();
                 setPatientMedicalReports(sorted);
               }
-            } catch {}
+            } catch { }
           }
         }}
       />

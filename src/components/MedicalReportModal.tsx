@@ -139,7 +139,7 @@ const MedicalReportModal: React.FC<MedicalReportModalProps> = ({
         <head>
           <title>تقرير طبي</title>
           <style>
-            * { box-sizing: border-box; }
+                * { box-sizing: border-box; }
             body {
               font-family: Arial, sans-serif;
               direction: ltr;
@@ -151,81 +151,80 @@ const MedicalReportModal: React.FC<MedicalReportModalProps> = ({
               size: ${printSettings.paperSize === 'custom' ? 'auto' : (printSettings.paperSize || 'a4')};
               margin: 0;
             }
+            .top-spacer { display: block; height: ${((printSettings.marginTop || 0) / 2)}mm; width: 100%; }
             .receipt {
-              position: ${isCustomPaper ? 'absolute' : 'static'};
-              top: ${isCustomPaper ? (printSettings.marginTop || 0) + 'mm' : 'auto'};
-              left: 0; right: 0;
-              padding: 0 30px;
-              max-width: 800px;
-              margin: 0 auto;
-              width: 100%;
+              padding-top: 0;
+              padding-left: calc(${((printSettings.marginLeft || 0) / 2)}mm + 10px);
+              padding-right: calc(${((printSettings.marginRight || 0) / 2)}mm + 10px);
+              padding-bottom: 0;
+              box-sizing: border-box;
             }
             .header {
               text-align: center;
               border-bottom: ${isCustomPaper ? 'none' : '2px solid #333'};
-              padding-bottom: 14px;
-              margin-bottom: 20px;
+              padding-bottom: 6px;
+              margin-bottom: 8px;
               display: ${isCustomPaper ? 'none' : 'block'};
             }
             .title {
-              font-size: 20px;
+              font-size: 17px;
               font-weight: bold;
-              margin: 16px 0 6px;
+              margin: 6px 0 4px;
               text-align: center;
               letter-spacing: 1px;
             }
             .patient-info {
               background: ${isCustomPaper ? 'transparent' : '#f8f8f8'};
-              border-radius: 6px;
-              padding: 12px 16px;
-              margin-bottom: 20px;
-              font-size: 14px;
+              border-radius: 4px;
+              padding: 6px 10px;
+              margin-bottom: 8px;
+              font-size: 13px;
               display: ${printSettings.showPatientInfo ? 'block' : 'none'};
             }
-            .patient-info p { margin: 4px 0; }
-            .section { margin-bottom: 18px; }
+            .patient-info p { margin: 2px 0; }
+            .section { margin-bottom: 8px; }
             .section-label {
               font-weight: bold;
-              font-size: 15px;
+              font-size: 13px;
               border-bottom: 1px solid #ccc;
-              padding-bottom: 4px;
-              margin-bottom: 8px;
+              padding-bottom: 2px;
+              margin-bottom: 4px;
               color: #444;
             }
             .section-content {
-              font-size: 14px;
-              line-height: 1.8;
+              font-size: 13px;
+              line-height: 1.5;
               white-space: pre-wrap;
             }
             .signature-area {
-              margin-top: 50px;
+              margin-top: 16px;
               display: flex;
               justify-content: flex-end;
             }
-            .signature-box { text-align: center; min-width: 180px; }
+            .signature-box { text-align: center; min-width: 160px; }
             .signature-line {
               border-top: 1px solid #333;
-              margin-top: 40px;
-              padding-top: 6px;
-              font-size: 13px;
+              margin-top: 20px;
+              padding-top: 4px;
+              font-size: 12px;
             }
             .footer {
-              margin-top: 30px;
+              margin-top: 10px;
               border-top: ${isCustomPaper ? 'none' : '1px solid #ccc'};
-              padding-top: 10px;
+              padding-top: 6px;
               text-align: center;
               font-style: italic;
-              font-size: 12px;
+              font-size: 11px;
               color: #666;
               display: ${printSettings.showFooter ? 'block' : 'none'};
-              position: ${isCustomPaper ? 'absolute' : 'static'};
-              bottom: ${isCustomPaper ? '0' : 'auto'};
-              width: 100%;
             }
-            h1, h2, h3 { margin: 5px 0; }
+            h1 { margin: 3px 0; font-size: 18px; }
+            h2 { margin: 3px 0; font-size: 16px; }
+            h3 { margin: 2px 0; font-size: 14px; }
           </style>
         </head>
         <body>
+          <div class="top-spacer"></div>
           <div class="receipt">
             <div class="header">
               ${clinicInfoParts.length > 0 ? clinicInfoParts.join('') : '<h2>عيادة طبية</h2>'}
