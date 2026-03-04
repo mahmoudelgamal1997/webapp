@@ -437,9 +437,9 @@ const Dashboard: React.FC = () => {
             </div>
             <div class="patient-info">
               ${printSettings.printLocale === 'ar'
-                ? `<h3>اسم المريض: ${selectedPatient?.patient_name}</h3><p>العمر: ${selectedPatient?.age}</p><p>تاريخ: ${moment(receipt.date).format('DD-MM-YYYY')}</p>`
-                : `<h3>Patient: ${selectedPatient?.patient_name}</h3><p>Age: ${selectedPatient?.age}</p><p>Date: ${moment(receipt.date).format('DD-MM-YYYY')}</p>`
-              }
+        ? `<h3>اسم المريض: ${selectedPatient?.patient_name}</h3><p>العمر: ${selectedPatient?.age}</p><p>تاريخ: ${moment(receipt.date).format('DD-MM-YYYY')}</p>`
+        : `<h3>Patient: ${selectedPatient?.patient_name}</h3><p>Age: ${selectedPatient?.age}</p><p>Date: ${moment(receipt.date).format('DD-MM-YYYY')}</p>`
+      }
               <p>File ID: ${selectedPatient?.file_number || ''}</p>
             </div>
             <div class="drugs">
@@ -448,9 +448,9 @@ const Dashboard: React.FC = () => {
                 <div class="drug-item">
                   <h4>${index + 1}. ${drug.drug}</h4>
                   <p>${printSettings.printLocale === 'ar'
-                    ? `التكرار: ${drug.frequency} | المدة: ${drug.period} | التوقيت: ${drug.timing}`
-                    : `Frequency: ${formatDrugFrequency(drug.frequency)} | Duration: ${formatDrugPeriod(drug.period)} | Timing: ${formatDrugTiming(drug.timing)}`
-                  }</p>
+          ? `التكرار: ${drug.frequency} | المدة: ${drug.period} | التوقيت: ${drug.timing}`
+          : `Frequency: ${formatDrugFrequency(drug.frequency)} | Duration: ${formatDrugPeriod(drug.period)} | Timing: ${formatDrugTiming(drug.timing)}`
+        }</p>
                 </div>
               `).join('')}
             </div>
