@@ -49,6 +49,8 @@ const MedicalReportModal: React.FC<MedicalReportModalProps> = ({
 }) => {
   const [form] = Form.useForm();
   const [isLoading, setIsLoading] = useState(false);
+  // Default to English
+  const [lang, setLang] = useState<'en' | 'ar'>('en');
 
   const { settings: doctorSettings, doctorId } = useDoctorContext();
   const { selectedClinic } = useClinicContext();
@@ -68,6 +70,7 @@ const MedicalReportModal: React.FC<MedicalReportModalProps> = ({
     if (visible) {
       form.resetFields();
       form.setFieldsValue({ signature: doctorDisplayName });
+      setLang('en'); // always reset to EN when opened
     }
   }, [visible, form, doctorDisplayName]);
 
@@ -93,14 +96,14 @@ const MedicalReportModal: React.FC<MedicalReportModalProps> = ({
       );
 
       if (response.data?.success) {
-        message.success('تم حفظ التقرير الطبي بنجاح');
+        message.success(lang === 'ar' ? 'تم حفظ التقرير الطبي بنجاح' : 'Medical report saved successfully');
         onReportSaved?.();
       } else {
-        message.error('فشل حفظ التقرير الطبي');
+        message.error(lang === 'ar' ? 'فشل حفظ التقرير الطبي' : 'Failed to save medical report');
       }
     } catch (error) {
       console.error('Error saving medical report:', error);
-      message.error('فشل حفظ التقرير الطبي');
+      message.error(lang === 'ar' ? 'فشل حفظ التقرير الطبي' : 'Failed to save medical report');
     } finally {
       setIsLoading(false);
     }
@@ -112,8 +115,12 @@ const MedicalReportModal: React.FC<MedicalReportModalProps> = ({
     signature: string,
     reportDate: string,
     patientName: string,
-    patientAge: string
+    patientAge: string,
+    printLang: 'en' | 'ar'
   ): string => {
+    const isAr = printLang === 'ar';
+    const dir = isAr ? 'rtl' : 'ltr';
+
     const printSettings = (doctorSettings as any).printSettings || {
       paperSize: 'a4',
       marginTop: 0,
@@ -125,24 +132,46 @@ const MedicalReportModal: React.FC<MedicalReportModalProps> = ({
 
     const clinicInfoParts: string[] = [];
     if (selectedClinic) {
-      clinicInfoParts.push(`<h1 style="margin:4px 0">${(selectedClinic as any).name || 'عيادة'}</h1>`);
+      clinicInfoParts.push(`<h1 style="margin:4px 0">${(selectedClinic as any).name || (isAr ? 'عيادة' : 'Clinic')}</h1>`);
       if ((selectedClinic as any).address) clinicInfoParts.push(`<p style="margin:2px 0">${(selectedClinic as any).address}</p>`);
-      if ((selectedClinic as any).phone) clinicInfoParts.push(`<p style="margin:2px 0">هاتف: ${(selectedClinic as any).phone}</p>`);
+      if ((selectedClinic as any).phone) clinicInfoParts.push(`<p style="margin:2px 0">${isAr ? 'هاتف' : 'Phone'}: ${(selectedClinic as any).phone}</p>`);
     }
     if (doctorSettings.clinicName) clinicInfoParts.push(`<h1 style="margin:4px 0">${doctorSettings.clinicName}</h1>`);
     if (doctorSettings.doctorTitle) clinicInfoParts.push(`<h3 style="margin:4px 0">${doctorSettings.doctorTitle}</h3>`);
     if (doctorSettings.clinicAddress) clinicInfoParts.push(`<p style="margin:2px 0">${doctorSettings.clinicAddress}</p>`);
-    if (doctorSettings.clinicPhone) clinicInfoParts.push(`<p style="margin:2px 0">هاتف: ${doctorSettings.clinicPhone}</p>`);
+    if (doctorSettings.clinicPhone) clinicInfoParts.push(`<p style="margin:2px 0">${isAr ? 'هاتف' : 'Phone'}: ${doctorSettings.clinicPhone}</p>`);
+
+    const labels = isAr
+      ? {
+        title: 'تقـريـر طـبـي',
+        patient: 'المريض',
+        age: 'العمر',
+        date: 'التاريخ',
+        diagnosis: 'التشخيص',
+        report: 'التقرير الطبي',
+        signature: 'توقيع الطبيب',
+        clinic: 'عيادة طبية',
+      }
+      : {
+        title: 'Medical Report',
+        patient: 'Patient',
+        age: 'Age',
+        date: 'Date',
+        diagnosis: 'Diagnosis',
+        report: 'Medical Report',
+        signature: 'Doctor Signature',
+        clinic: 'Medical Clinic',
+      };
 
     return `
       <html>
         <head>
-          <title>تقرير طبي</title>
+          <title>${labels.title}</title>
           <style>
-                * { box-sizing: border-box; }
+            * { box-sizing: border-box; }
             body {
               font-family: Arial, sans-serif;
-              direction: ltr;
+              direction: ${dir};
               margin: 0;
               padding: 0;
               color: #222;
@@ -227,33 +256,33 @@ const MedicalReportModal: React.FC<MedicalReportModalProps> = ({
           <div class="top-spacer"></div>
           <div class="receipt">
             <div class="header">
-              ${clinicInfoParts.length > 0 ? clinicInfoParts.join('') : '<h2>عيادة طبية</h2>'}
+              ${clinicInfoParts.length > 0 ? clinicInfoParts.join('') : `<h2>${labels.clinic}</h2>`}
               ${doctorSettings.receiptHeader ? `<div class="custom-header">${doctorSettings.receiptHeader}</div>` : ''}
             </div>
 
-            <div class="title">تقـريـر طـبـي &nbsp;|&nbsp; Medical Report</div>
+            <div class="title">${labels.title}</div>
 
             <div class="patient-info">
-              <p><strong>Patient:</strong> ${patientName}</p>
-              <p><strong>Age:</strong> ${patientAge}</p>
-              <p><strong>Date:</strong> ${reportDate}</p>
+              <p><strong>${labels.patient}:</strong> ${patientName}</p>
+              <p><strong>${labels.age}:</strong> ${patientAge}</p>
+              <p><strong>${labels.date}:</strong> ${reportDate}</p>
             </div>
 
             ${diagnosis ? `
             <div class="section">
-              <div class="section-label">Diagnosis</div>
+              <div class="section-label">${labels.diagnosis}</div>
               <div class="section-content">${diagnosis.replace(/\n/g, '<br/>')}</div>
             </div>` : ''}
 
             ${medicalReportText ? `
             <div class="section">
-              <div class="section-label">Medical Report</div>
+              <div class="section-label">${labels.report}</div>
               <div class="section-content">${medicalReportText.replace(/\n/g, '<br/>')}</div>
             </div>` : ''}
 
             <div class="signature-area">
               <div class="signature-box">
-                <div class="signature-line">${signature || 'Doctor Signature'}</div>
+                <div class="signature-line">${signature || labels.signature}</div>
               </div>
             </div>
 
@@ -272,7 +301,7 @@ const MedicalReportModal: React.FC<MedicalReportModalProps> = ({
     const signature = values.signature || '';
 
     if (!medicalReportText && !diagnosis) {
-      message.warning('الرجاء إدخال بيانات التقرير قبل الطباعة');
+      message.warning(lang === 'ar' ? 'الرجاء إدخال بيانات التقرير قبل الطباعة' : 'Please enter report data before printing');
       return;
     }
 
@@ -282,22 +311,46 @@ const MedicalReportModal: React.FC<MedicalReportModalProps> = ({
       signature,
       moment().format('DD / MM / YYYY'),
       patient?.patient_name || '',
-      patient?.age || ''
+      patient?.age || '',
+      lang
     ));
   };
+
+  const isAr = lang === 'ar';
 
   return (
     <Modal
       title={
-        <Space>
-          <MedicineBoxOutlined style={{ color: '#52c41a' }} />
-          <span>تقرير طبي &nbsp;|&nbsp; Medical Report</span>
+        <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+          <Space>
+            <MedicineBoxOutlined style={{ color: '#52c41a' }} />
+            <span>Medical Report {isAr ? '| تقرير طبي' : ''}</span>
+          </Space>
+          {/* Language toggle */}
+          <Space size={4}>
+            <Button
+              size="small"
+              type={!isAr ? 'primary' : 'default'}
+              onClick={() => setLang('en')}
+              style={{ minWidth: 36 }}
+            >
+              EN
+            </Button>
+            <Button
+              size="small"
+              type={isAr ? 'primary' : 'default'}
+              onClick={() => setLang('ar')}
+              style={{ minWidth: 36 }}
+            >
+              AR
+            </Button>
+          </Space>
         </Space>
       }
       open={visible}
       onCancel={onCancel}
       footer={null}
-      style={{ direction: 'rtl', textAlign: 'right' }}
+      style={{ direction: isAr ? 'rtl' : 'ltr', textAlign: isAr ? 'right' : 'left' }}
       width={640}
       destroyOnClose
     >
@@ -305,17 +358,25 @@ const MedicalReportModal: React.FC<MedicalReportModalProps> = ({
         form={form}
         layout="vertical"
         onFinish={handleSave}
+        style={{ direction: isAr ? 'rtl' : 'ltr' }}
       >
         {/* Diagnosis */}
-        <Form.Item name="diagnosis" label="التشخيص / Diagnosis">
-          <TextArea placeholder="أدخل التشخيص" rows={3} />
+        <Form.Item
+          name="diagnosis"
+          label={isAr ? 'التشخيص / Diagnosis' : 'Diagnosis'}
+        >
+          <TextArea
+            placeholder={isAr ? 'أدخل التشخيص' : 'Enter diagnosis'}
+            rows={3}
+            style={{ direction: isAr ? 'rtl' : 'ltr' }}
+          />
         </Form.Item>
 
         {/* Diagnosis suggestions from previous visits */}
         {diagnosisSuggestions.length > 0 && (
           <div style={{ marginTop: -12, marginBottom: 16 }}>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              اقتراحات من الزيارات السابقة — انقر للملء:
+              {isAr ? 'اقتراحات من الزيارات السابقة — انقر للملء:' : 'Suggestions from previous visits — click to fill:'}
             </Text>
             <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {diagnosisSuggestions.map((d, i) => (
@@ -337,30 +398,36 @@ const MedicalReportModal: React.FC<MedicalReportModalProps> = ({
         {/* Medical Report */}
         <Form.Item
           name="medical_report"
-          label="التقرير الطبي / Medical Report"
-          rules={[{ required: true, message: 'الرجاء إدخال التقرير الطبي' }]}
+          label={isAr ? 'التقرير الطبي / Medical Report' : 'Medical Report'}
+          rules={[{ required: true, message: isAr ? 'الرجاء إدخال التقرير الطبي' : 'Please enter the medical report' }]}
         >
           <TextArea
-            placeholder="أدخل التقرير الطبي هنا..."
+            placeholder={isAr ? 'أدخل التقرير الطبي هنا...' : 'Enter medical report here...'}
             rows={6}
-            style={{ fontSize: 14 }}
+            style={{ fontSize: 14, direction: isAr ? 'rtl' : 'ltr' }}
           />
         </Form.Item>
 
         {/* Signature */}
-        <Form.Item name="signature" label="التوقيع / Signature">
-          <Input placeholder="اسم الطبيب / التوقيع" />
+        <Form.Item
+          name="signature"
+          label={isAr ? 'التوقيع / Signature' : 'Signature'}
+        >
+          <Input
+            placeholder={isAr ? 'اسم الطبيب / التوقيع' : 'Doctor name / Signature'}
+            style={{ direction: isAr ? 'rtl' : 'ltr' }}
+          />
         </Form.Item>
 
         {/* Action buttons */}
         <Form.Item style={{ marginBottom: 0 }}>
           <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-            <Button onClick={onCancel}>إلغاء</Button>
+            <Button onClick={onCancel}>{isAr ? 'إلغاء' : 'Cancel'}</Button>
             <Button
               icon={<PrinterOutlined />}
               onClick={handlePrint}
             >
-              طباعة
+              {isAr ? 'طباعة' : 'Print'}
             </Button>
             <Button
               type="primary"
@@ -369,7 +436,7 @@ const MedicalReportModal: React.FC<MedicalReportModalProps> = ({
               loading={isLoading}
               style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
             >
-              حفظ التقرير
+              {isAr ? 'حفظ التقرير' : 'Save Report'}
             </Button>
           </Space>
         </Form.Item>
