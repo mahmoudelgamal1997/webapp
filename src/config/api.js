@@ -49,6 +49,9 @@ const API = {
 
     // Medical Report endpoints
     MEDICAL_REPORTS: (patientId) => `/api/medical-reports/patient/${patientId}`,
+
+    // Referral endpoints
+    REFERRALS: (patientId) => `/api/referrals/patient/${patientId}`,
   }
 };
 

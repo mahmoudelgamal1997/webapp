@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { printHtml as triggerPrint } from './printUtils';
 import axios from 'axios';
 import { Card, Row, Col, Typography, Button, Divider, Table, Modal, Space, List, Image, Tag, Select, Radio, Input, InputNumber, Form, message } from 'antd';
-import { PlusOutlined, FileTextOutlined, BellOutlined, CalendarOutlined, FileImageOutlined, EyeOutlined, DollarOutlined, ExperimentOutlined, CheckCircleOutlined, ClockCircleOutlined, EditOutlined, WarningOutlined, PrinterOutlined, PercentageOutlined } from '@ant-design/icons';
+import { PlusOutlined, FileTextOutlined, BellOutlined, CalendarOutlined, FileImageOutlined, EyeOutlined, DollarOutlined, ExperimentOutlined, CheckCircleOutlined, ClockCircleOutlined, EditOutlined, WarningOutlined, PrinterOutlined, PercentageOutlined, SwapOutlined } from '@ant-design/icons';
 import moment from 'moment';
 import ReceiptsList from './ReceiptsList';
 import { Receipt, Patient, Visit, ExternalService, ExternalServiceRequest } from '../components/type';
@@ -13,6 +13,7 @@ import NextVisitForm from './NextVisitForm';
 import BillingModal from './BillingModal';
 import DynamicHistoryForm from './DynamicHistoryForm';
 import MedicalReportModal from './MedicalReportModal';
+import ReferralModal from './ReferralModal';
 import { sendBillingNotificationToAllAssistants } from '../services/notificationService';
 import { useDoctorContext } from './DoctorContext';
 import { useClinicContext } from './ClinicContext';
@@ -103,6 +104,11 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
   const [medicalReportModalVisible, setMedicalReportModalVisible] = useState(false);
   const [patientMedicalReports, setPatientMedicalReports] = useState<any[]>([]);
   const [medicalReportsLoading, setMedicalReportsLoading] = useState(false);
+
+  // Referral state
+  const [referralModalVisible, setReferralModalVisible] = useState(false);
+  const [patientReferrals, setPatientReferrals] = useState<any[]>([]);
+  const [referralsLoading, setReferralsLoading] = useState(false);
 
   // Visit Type Editing
   const [editingVisitType, setEditingVisitType] = useState(false);
@@ -208,11 +214,30 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
       }
     };
 
+    const fetchReferrals = async () => {
+      if (!selectedPatient?._id) return;
+      try {
+        setReferralsLoading(true);
+        const response = await axios.get(
+          `${API.BASE_URL}${API.ENDPOINTS.REFERRALS(selectedPatient._id)}`
+        );
+        if (response.data?.success) {
+          const sorted = (response.data.referrals || []).slice().reverse();
+          setPatientReferrals(sorted);
+        }
+      } catch (error) {
+        console.error('Error fetching referrals:', error);
+      } finally {
+        setReferralsLoading(false);
+      }
+    };
+
     fetchPatientHistory();
     fetchPatientReports();
     fetchExternalServices();
     fetchExternalRequests();
     fetchMedicalReports();
+    fetchReferrals();
 
     // Reset visit type editing state
     setEditingVisitType(false);
@@ -743,6 +768,14 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
                 >
                   تقرير طبي
                 </Button>
+                <Button
+                  type="primary"
+                  icon={<SwapOutlined />}
+                  onClick={() => setReferralModalVisible(true)}
+                  style={{ backgroundColor: '#08979c', borderColor: '#08979c' }}
+                >
+                  Referral Letter
+                </Button>
                 <Button onClick={onBackToList}>
                   Back to List
                 </Button>
@@ -1197,6 +1230,111 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
           <div style={{ marginBottom: 24, color: '#999' }}>No medical reports yet</div>
         )}
 
+        <Divider />
+
+        {/* Referrals Section */}
+        <Title level={4}>
+          <SwapOutlined style={{ color: '#08979c' }} /> Referral Letters / خطابات الإحالة
+        </Title>
+        {referralsLoading ? (
+          <div style={{ marginBottom: 24, color: '#999' }}>Loading referrals...</div>
+        ) : patientReferrals.length > 0 ? (
+          <div style={{ marginBottom: 24 }}>
+            {patientReferrals.map((ref: any, idx: number) => (
+              <Card
+                key={ref.referral_id || idx}
+                style={{ marginBottom: 12, borderLeft: '4px solid #08979c' }}
+                size="small"
+                extra={
+                  <Button
+                    size="small"
+                    icon={<PrinterOutlined />}
+                    onClick={() => {
+                      const printSettings = (doctorSettings as any).printSettings || { paperSize: 'a4', marginTop: 0, marginLeft: 0, marginRight: 0, showHeader: true, showFooter: true };
+                      const isCustomPaper = !printSettings.showHeader;
+                      const clinicHeaderParts: string[] = [];
+                      if (doctorSettings.clinicName) clinicHeaderParts.push(`<h1 style="margin:4px 0">${doctorSettings.clinicName}</h1>`);
+                      if (doctorSettings.doctorTitle) clinicHeaderParts.push(`<h3 style="margin:4px 0">${doctorSettings.doctorTitle}</h3>`);
+                      if (doctorSettings.clinicAddress) clinicHeaderParts.push(`<p style="margin:2px 0">${doctorSettings.clinicAddress}</p>`);
+                      if (doctorSettings.clinicPhone) clinicHeaderParts.push(`<p style="margin:2px 0">Phone: ${doctorSettings.clinicPhone}</p>`);
+                      const referralDate = ref.referral_date ? moment(ref.referral_date).format('D MMMM YYYY') : moment().format('D MMMM YYYY');
+                      const html = `
+                        <html><head><title>Referral Letter</title>
+                        <style>
+                          * { box-sizing: border-box; }
+                          @page { size: ${printSettings.paperSize === 'custom' ? 'auto' : (printSettings.paperSize || 'a4')}; margin: 0; }
+                          html, body { font-family: Georgia, 'Times New Roman', serif; direction: ltr; margin: 0; padding: 0; color: #1a1a1a; font-size: 13px; line-height: 1.7; }
+                          .top-spacer { display: block; height: ${((printSettings.marginTop || 0) / 2)}mm; width: 100%; }
+                          .page { padding: 0 calc(${((printSettings.marginLeft || 0) / 2)}mm + 20px); }
+                          .header { text-align: center; border-bottom: ${isCustomPaper ? 'none' : '2px solid #1a1a1a'}; padding-bottom: 8px; margin-bottom: 16px; display: ${isCustomPaper ? 'none' : 'block'}; }
+                          h1 { margin: 3px 0; font-size: 18px; } h2 { margin: 3px 0; font-size: 16px; } h3 { margin: 2px 0; font-size: 14px; }
+                          .doc-date { text-align: right; margin-bottom: 20px; }
+                          .letter-block { margin-bottom: 14px; }
+                          .label { font-weight: bold; font-size: 11px; text-transform: uppercase; color: #555; letter-spacing: 0.5px; }
+                          .divider { border: none; border-top: 1px solid #ccc; margin: 14px 0; }
+                          .subject-line { font-size: 14px; font-weight: bold; margin-bottom: 14px; text-decoration: underline; }
+                          .body-text { white-space: pre-wrap; margin-bottom: 20px; }
+                          .sig-line { border-top: 1px solid #333; padding-top: 6px; margin-top: 36px; }
+                          .footer { margin-top: 20px; border-top: ${isCustomPaper ? 'none' : '1px solid #ccc'}; padding-top: 8px; text-align: center; font-style: italic; font-size: 11px; color: #666; display: ${printSettings.showFooter ? 'block' : 'none'}; }
+                        </style></head><body>
+                        <div class="top-spacer"></div>
+                        <div class="page">
+                          <div class="header">${clinicHeaderParts.length > 0 ? clinicHeaderParts.join('') : '<h2>Medical Clinic</h2>'}</div>
+                          <div class="doc-date">Date: ${referralDate}</div>
+                          <div class="letter-block"><div class="label">From:</div><div class="value"><strong>${ref.from_doctor_name || ''}</strong>${ref.from_doctor_title ? `<br/>${ref.from_doctor_title}` : ''}${ref.from_clinic_name ? `<br/>${ref.from_clinic_name}` : ''}</div></div>
+                          <hr class="divider"/>
+                          <div class="letter-block"><div class="label">To:</div><div class="value"><strong>${ref.to_doctor_name || ''}</strong>${ref.to_doctor_title ? `<br/>${ref.to_doctor_title}` : ''}${ref.to_clinic_name ? `<br/>${ref.to_clinic_name}` : ''}</div></div>
+                          <hr class="divider"/>
+                          <div class="subject-line">Subject: ${ref.subject || ''}</div>
+                          <div class="salutation">Dear ${ref.to_doctor_name ? ref.to_doctor_name.split(' ').pop() : 'Doctor'},</div>
+                          <div class="body-text">${(ref.referral_body || '').replace(/\n/g, '<br/>')}</div>
+                          <div>Kind regards,</div>
+                          <div class="sig-line"><strong>${ref.signature || ref.from_doctor_name || ''}</strong>${ref.from_doctor_title ? `<br/><span style="font-size:12px;color:#555">${ref.from_doctor_title}</span>` : ''}${ref.from_doctor_phone ? `<br/><span style="font-size:12px;color:#555">Phone: ${ref.from_doctor_phone}</span>` : ''}</div>
+                          ${printSettings.showFooter && (doctorSettings as any).receiptFooter ? `<div class="footer">${(doctorSettings as any).receiptFooter}</div>` : ''}
+                        </div></body></html>`;
+                      import('./printUtils').then(m => m.printHtml(html));
+                    }}
+                  >
+                    Print
+                  </Button>
+                }
+              >
+                <Row gutter={[16, 8]}>
+                  <Col xs={24} sm={12}>
+                    <Text type="secondary" style={{ fontSize: 12 }}>Date</Text>
+                    <div style={{ fontWeight: 600 }}>
+                      {ref.referral_date ? moment(ref.referral_date).format('DD MMM YYYY') : '—'}
+                    </div>
+                  </Col>
+                  <Col xs={24} sm={12}>
+                    <Text type="secondary" style={{ fontSize: 12 }}>Subject</Text>
+                    <div style={{ fontWeight: 500 }}>{ref.subject || '—'}</div>
+                  </Col>
+                  <Col xs={24} sm={12}>
+                    <Text type="secondary" style={{ fontSize: 12 }}>From</Text>
+                    <div>{ref.from_doctor_name || '—'}{ref.from_doctor_title ? ` · ${ref.from_doctor_title}` : ''}</div>
+                  </Col>
+                  <Col xs={24} sm={12}>
+                    <Text type="secondary" style={{ fontSize: 12 }}>To</Text>
+                    <div>{ref.to_doctor_name || '—'}{ref.to_doctor_title ? ` · ${ref.to_doctor_title}` : ''}</div>
+                    {ref.to_clinic_name && <div style={{ fontSize: 12, color: '#888' }}>{ref.to_clinic_name}</div>}
+                  </Col>
+                  {ref.referral_body && (
+                    <Col xs={24}>
+                      <Text type="secondary" style={{ fontSize: 12 }}>Summary</Text>
+                      <div style={{ marginTop: 4, padding: '8px 12px', background: '#f0faff', borderRadius: 6, fontSize: 13, lineHeight: 1.6, whiteSpace: 'pre-wrap', border: '1px solid #bae0ff', maxHeight: 120, overflow: 'hidden' }}>
+                        {ref.referral_body.length > 300 ? ref.referral_body.slice(0, 300) + '…' : ref.referral_body}
+                      </div>
+                    </Col>
+                  )}
+                </Row>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <div style={{ marginBottom: 24, color: '#999' }}>No referral letters yet</div>
+        )}
+
         {/* Visit Details Modal */}
         <Modal
           title={`Visit Details - ${moment(selectedVisit?.date).format('YYYY-MM-DD HH:mm')}`}
@@ -1386,6 +1524,26 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
               if (res.data?.success) {
                 const sorted = (res.data.medical_reports || []).slice().reverse();
                 setPatientMedicalReports(sorted);
+              }
+            } catch { }
+          }
+        }}
+      />
+
+      {/* Referral Modal */}
+      <ReferralModal
+        visible={referralModalVisible}
+        onCancel={() => setReferralModalVisible(false)}
+        patient={selectedPatient}
+        onReferralSaved={async () => {
+          if (selectedPatient?._id) {
+            try {
+              const res = await axios.get(
+                `${API.BASE_URL}${API.ENDPOINTS.REFERRALS(selectedPatient._id)}`
+              );
+              if (res.data?.success) {
+                const sorted = (res.data.referrals || []).slice().reverse();
+                setPatientReferrals(sorted);
               }
             } catch { }
           }
