@@ -116,13 +116,14 @@ const SidebarWaitingList = forwardRef<{ refreshData: () => Promise<void> }, Side
         // Use the correct Firebase path: clinics/{clinicId}/waiting_list/{date}/patients
         const waitingListRef = collection(db, 'clinics', selectedClinicId, 'waiting_list', currentDate, 'patients');
         
-        console.log('Fetching from path: clinics/' + selectedClinicId + '/waiting_list/' + currentDate + '/patients');
+        console.log('Fetching from path: clinics/' + selectedClinicId + '/waiting_list/' + currentDate + '/patients', doctorId ? `for doctor_id=${doctorId}` : '');
         
-        // Filter to only get WAITING patients
-        const waitingQuery = query(
-          waitingListRef,
-          where('status', '==', 'WAITING')
-        );
+        // Filter to WAITING patients and, when logged in as a doctor (or assistant for one doctor), only this doctor's list
+        const constraints = [where('status', '==', 'WAITING')];
+        if (doctorId) {
+          constraints.push(where('doctor_id', '==', doctorId));
+        }
+        const waitingQuery = query(waitingListRef, ...constraints);
         
         const querySnapshot = await getDocs(waitingQuery);
         console.log(`✅ Found ${querySnapshot.size} WAITING patients in waiting_list for date ${currentDate}`);
@@ -188,7 +189,7 @@ const SidebarWaitingList = forwardRef<{ refreshData: () => Promise<void> }, Side
       }
     };
 
-    // Set up real-time listener for waiting list changes
+    // Set up real-time listener for waiting list changes (filtered by current doctor when logged in)
     useEffect(() => {
       if (!selectedClinicId) {
         return;
@@ -199,16 +200,16 @@ const SidebarWaitingList = forwardRef<{ refreshData: () => Promise<void> }, Side
       // Use the correct Firebase path: clinics/{clinicId}/waiting_list/{date}/patients
       const waitingListRef = collection(db, 'clinics', selectedClinicId, 'waiting_list', currentDate, 'patients');
 
-      console.log('Setting up real-time listener for waiting list - Clinic:', selectedClinicId, 'Date:', currentDate);
-      console.log('Path: clinics/' + selectedClinicId + '/waiting_list/' + currentDate + '/patients');
+      console.log('Setting up real-time listener for waiting list - Clinic:', selectedClinicId, 'Date:', currentDate, doctorId ? `Doctor: ${doctorId}` : '');
       
-      // Filter to only listen to WAITING patients
-      const waitingQuery = query(
-        waitingListRef,
-        where('status', '==', 'WAITING')
-      );
+      // Filter to WAITING patients and, when doctorId is set, only this doctor's list (same as assistant portal)
+      const constraints = [where('status', '==', 'WAITING')];
+      if (doctorId) {
+        constraints.push(where('doctor_id', '==', doctorId));
+      }
+      const waitingQuery = query(waitingListRef, ...constraints);
       
-      // Set up real-time listener on waiting_list collection with WAITING filter
+      // Set up real-time listener on waiting_list collection
       const unsubscribe = onSnapshot(waitingQuery, (snapshot: any) => {
         console.log('Waiting list updated in real-time:', snapshot.size, 'WAITING patients');
         
@@ -241,12 +242,12 @@ const SidebarWaitingList = forwardRef<{ refreshData: () => Promise<void> }, Side
       // Initial fetch
       fetchData();
 
-      // Cleanup listener on unmount or clinic change
+      // Cleanup listener on unmount or clinic/doctor change
       return () => {
         console.log('Cleaning up waiting list listener');
         unsubscribe();
       };
-    }, [selectedClinicId]);
+    }, [selectedClinicId, doctorId]);
 
     // Respond to refreshTrigger changes from parent
     useEffect(() => {
