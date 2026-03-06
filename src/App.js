@@ -8,6 +8,7 @@ import RevenueAnalytics from './components/RevenueAnalytics';
 import { AuthProvider, useAuth } from './components/AuthContext';
 import { PatientProvider } from './components/PatientContext';
 import { DoctorProvider } from './components/DoctorContext';
+import { OwnerProvider, useOwnerContext } from './components/OwnerContext';
 import { NextVisitProvider } from './components/NextVisitContext';
 import { ClinicProvider } from './components/ClinicContext';
 import { InventoryProvider } from './components/InventoryContext';
@@ -31,6 +32,14 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
+// Protects analytics route: only owners (or legacy doctors) can see revenue & analytics
+const AnalyticsRoute = ({ children }) => {
+  const { canSeeRevenueAnalytics, loading } = useOwnerContext();
+  if (loading) return null; // or a small spinner
+  if (!canSeeRevenueAnalytics) return <Navigate to="/dashboard" replace />;
+  return children;
+};
+
 // Public route - redirects to dashboard if already logged in
 const PublicRoute = ({ children }) => {
   const { isLoggedIn } = useAuth();
@@ -48,6 +57,7 @@ function App() {
       <LanguageProvider>
         <AuthProvider>
           <DoctorProvider>
+            <OwnerProvider>
             <ClinicProvider>
               <InventoryProvider>
                 <NextVisitProvider>
@@ -92,7 +102,9 @@ function App() {
                       path="/analytics"
                       element={
                         <ProtectedRoute>
-                          <RevenueAnalytics />
+                          <AnalyticsRoute>
+                            <RevenueAnalytics />
+                          </AnalyticsRoute>
                         </ProtectedRoute>
                       }
                     />
@@ -134,6 +146,7 @@ function App() {
                 </NextVisitProvider>
               </InventoryProvider>
             </ClinicProvider>
+            </OwnerProvider>
           </DoctorProvider>
         </AuthProvider>
       </LanguageProvider>

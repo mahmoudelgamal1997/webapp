@@ -18,6 +18,7 @@ import {
 import { useLanguage } from './LanguageContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
+import { useOwnerContext } from './OwnerContext';
 
 const { Sider } = Layout;
 
@@ -31,6 +32,7 @@ const DashboardSidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) =
   const location = useLocation();
   const { username, logout } = useAuth();
   const { t } = useLanguage();
+  const { canSeeRevenueAnalytics } = useOwnerContext();
 
   const handleLogout = () => {
     logout();
@@ -117,9 +119,11 @@ const DashboardSidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) =
         <Menu.Item key="services" icon={<MedicineBoxOutlined />}>
           {t('services')}
         </Menu.Item>
-        <Menu.Item key="analytics" icon={<BarChartOutlined />}>
-          {t('analytics')}
-        </Menu.Item>
+        {canSeeRevenueAnalytics && (
+          <Menu.Item key="analytics" icon={<BarChartOutlined />}>
+            {t('analytics')}
+          </Menu.Item>
+        )}
         <Menu.Item key="inventory" icon={<InboxOutlined />}>
           {t('inventory')}
         </Menu.Item>
