@@ -224,6 +224,50 @@ export interface ClinicPerformance {
   };
 }
 
+// ============ PACKAGE / OFFER TYPES ============
+
+export interface Package {
+  package_id: string;
+  doctor_id: string;
+  name: string;
+  service_id: string;
+  service_name: string;
+  sessions_count: number;
+  price: number;
+  price_per_session?: number;
+  description?: string;
+  expiry_days?: number | null;
+  isActive?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface PatientPackage {
+  patient_package_id: string;
+  patient_id: string;
+  package_id: string;
+  doctor_id: string;
+  clinic_id?: string;
+  total_sessions: number;
+  remaining_sessions: number;
+  start_date: string;
+  expiry_date?: string | null;
+  status: 'active' | 'finished' | 'expired';
+  package_name?: string;
+  service_id?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface PackageUsage {
+  usage_id: string;
+  patient_package_id: string;
+  visit_id?: string;
+  used_sessions: number;
+  used_at: string;
+  createdAt?: string;
+}
+
 // ============ EXTERNAL SERVICES TYPES ============
 
 // External Service definition (the "menu")

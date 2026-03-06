@@ -52,6 +52,15 @@ const API = {
 
     // Referral endpoints
     REFERRALS: (patientId) => `/api/referrals/patient/${patientId}`,
+
+    // Package / Offer endpoints
+    PACKAGES: '/api/packages',
+    DOCTOR_PACKAGES: (doctorId) => `/api/packages/doctor/${doctorId}`,
+    PACKAGE: (doctorId, packageId) => `/api/packages/doctor/${doctorId}/${packageId}`,
+    PATIENT_PACKAGES: (patientId) => `/api/patient-packages/patient/${patientId}`,
+    PATIENT_ACTIVE_PACKAGES: (patientId) => `/api/patient-packages/patient/${patientId}/active`,
+    ASSIGN_PATIENT_PACKAGE: '/api/patient-packages',
+    USE_PACKAGE_SESSION: (patientPackageId) => `/api/patient-packages/${patientPackageId}/use-session`,
   }
 };
 

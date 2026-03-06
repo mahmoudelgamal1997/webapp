@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { printHtml as triggerPrint } from './printUtils';
 import axios from 'axios';
 import { Card, Row, Col, Typography, Button, Divider, Table, Modal, Space, List, Image, Tag, Select, Radio, Input, InputNumber, Form, message } from 'antd';
-import { PlusOutlined, FileTextOutlined, BellOutlined, CalendarOutlined, FileImageOutlined, EyeOutlined, DollarOutlined, ExperimentOutlined, CheckCircleOutlined, ClockCircleOutlined, EditOutlined, WarningOutlined, PrinterOutlined, PercentageOutlined, SwapOutlined } from '@ant-design/icons';
+import { PlusOutlined, FileTextOutlined, BellOutlined, CalendarOutlined, FileImageOutlined, EyeOutlined, DollarOutlined, ExperimentOutlined, CheckCircleOutlined, ClockCircleOutlined, EditOutlined, WarningOutlined, PrinterOutlined, PercentageOutlined, SwapOutlined, GiftOutlined } from '@ant-design/icons';
 import moment from 'moment';
 import ReceiptsList from './ReceiptsList';
-import { Receipt, Patient, Visit, ExternalService, ExternalServiceRequest } from '../components/type';
+import { Receipt, Patient, Visit, ExternalService, ExternalServiceRequest, PatientPackage } from '../components/type';
 import { usePatientContext } from './PatientContext';
 import API from '../config/api';
 import SendNotification from './SendNotification';
@@ -116,6 +116,15 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
   const [selectedVisitTypeId, setSelectedVisitTypeId] = useState<string>('');
   const [selectedUrgency, setSelectedUrgency] = useState<string>('normal');
   const [savingVisitType, setSavingVisitType] = useState(false);
+
+  // Package state
+  const [activePackages, setActivePackages] = useState<PatientPackage[]>([]);
+  const [allPatientPackages, setAllPatientPackages] = useState<PatientPackage[]>([]);
+  const [activePackagePopupVisible, setActivePackagePopupVisible] = useState(false);
+  const [assignPackageModalVisible, setAssignPackageModalVisible] = useState(false);
+  const [assignPackageSubmitting, setAssignPackageSubmitting] = useState(false);
+  const [doctorPackagesForAssign, setDoctorPackagesForAssign] = useState<any[]>([]);
+  const [selectedPackageToAssign, setSelectedPackageToAssign] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchPatientHistory = async () => {
@@ -232,12 +241,31 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
       }
     };
 
+    const fetchPatientPackages = async () => {
+      if (!selectedPatient?.patient_id) return;
+      const doctorId = localStorage.getItem('doctorId');
+      try {
+        const [activeRes, allRes] = await Promise.all([
+          axios.get(`${API.BASE_URL}${API.ENDPOINTS.PATIENT_ACTIVE_PACKAGES(selectedPatient.patient_id)}`, { params: { doctor_id: doctorId } }),
+          axios.get(`${API.BASE_URL}${API.ENDPOINTS.PATIENT_PACKAGES(selectedPatient.patient_id)}`, { params: { doctor_id: doctorId } })
+        ]);
+        if (activeRes.data?.success) {
+          setActivePackages(activeRes.data.data || []);
+          if ((activeRes.data.data || []).length > 0) setActivePackagePopupVisible(true);
+        }
+        if (allRes.data?.success) setAllPatientPackages(allRes.data.data || []);
+      } catch (error) {
+        console.error('Error fetching patient packages:', error);
+      }
+    };
+
     fetchPatientHistory();
     fetchPatientReports();
     fetchExternalServices();
     fetchExternalRequests();
     fetchMedicalReports();
     fetchReferrals();
+    fetchPatientPackages();
 
     // Reset visit type editing state
     setEditingVisitType(false);
@@ -360,6 +388,43 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
       message.error('Failed to update visit type');
     } finally {
       setSavingVisitType(false);
+    }
+  };
+
+  const handleAssignPackage = async () => {
+    if (!selectedPatient?.patient_id || !selectedPackageToAssign) {
+      message.warning('Please select a package');
+      return;
+    }
+    const doctorId = localStorage.getItem('doctorId');
+    if (!doctorId) return;
+    setAssignPackageSubmitting(true);
+    try {
+      const res = await axios.post(`${API.BASE_URL}${API.ENDPOINTS.ASSIGN_PATIENT_PACKAGE}`, {
+        patient_id: selectedPatient.patient_id,
+        package_id: selectedPackageToAssign,
+        doctor_id: doctorId,
+        clinic_id: selectedClinicId || selectedPatient.clinic_id || '',
+        patient_name: selectedPatient.patient_name
+      });
+      if (res.data?.success) {
+        message.success('Package assigned to patient');
+        setAssignPackageModalVisible(false);
+        setSelectedPackageToAssign(null);
+        const [activeRes, allRes] = await Promise.all([
+          axios.get(`${API.BASE_URL}${API.ENDPOINTS.PATIENT_ACTIVE_PACKAGES(selectedPatient.patient_id)}`, { params: { doctor_id: doctorId } }),
+          axios.get(`${API.BASE_URL}${API.ENDPOINTS.PATIENT_PACKAGES(selectedPatient.patient_id)}`, { params: { doctor_id: doctorId } })
+        ]);
+        if (activeRes.data?.success) {
+          setActivePackages(activeRes.data.data || []);
+          setActivePackagePopupVisible(true);
+        }
+        if (allRes.data?.success) setAllPatientPackages(allRes.data.data || []);
+      }
+    } catch (error: any) {
+      message.error(error.response?.data?.message || 'Failed to assign package');
+    } finally {
+      setAssignPackageSubmitting(false);
     }
   };
 
@@ -723,6 +788,22 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
                 </Button>
                 <Button
                   type="primary"
+                  icon={<GiftOutlined />}
+                  onClick={() => {
+                    setSelectedPackageToAssign(null);
+                    const doctorId = localStorage.getItem('doctorId');
+                    if (doctorId) {
+                      axios.get(`${API.BASE_URL}${API.ENDPOINTS.DOCTOR_PACKAGES(doctorId)}`, { params: { activeOnly: 'true' } })
+                        .then(res => { if (res.data?.success) setDoctorPackagesForAssign(res.data.data || []); });
+                    }
+                    setAssignPackageModalVisible(true);
+                  }}
+                  style={{ backgroundColor: '#722ed1', borderColor: '#722ed1' }}
+                >
+                  Assign Package
+                </Button>
+                <Button
+                  type="primary"
                   icon={<PercentageOutlined />}
                   onClick={() => setDiscountModalVisible(true)}
                   style={{ backgroundColor: '#fa8c16', borderColor: '#fa8c16' }}
@@ -878,6 +959,25 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
             </Row>
           )}
         </Card>
+
+        {/* Package balance */}
+        {(allPatientPackages.length > 0 || activePackages.length > 0) && (
+          <Card size="small" style={{ marginBottom: 16, backgroundColor: '#f0f5ff' }} title={<Space><GiftOutlined /> Package balance</Space>}>
+            <List
+              size="small"
+              dataSource={allPatientPackages.length > 0 ? allPatientPackages : activePackages}
+              renderItem={(pp: PatientPackage) => (
+                <List.Item>
+                  <Space direction="vertical" size={0}>
+                    <Text strong>{pp.package_name}</Text>
+                    <Text type="secondary">Remaining: {pp.remaining_sessions} / {pp.total_sessions} · Status: <Tag color={pp.status === 'active' ? 'green' : pp.status === 'finished' ? 'blue' : 'default'}>{pp.status}</Tag></Text>
+                    {pp.expiry_date && <Text type="secondary">Expires: {moment(pp.expiry_date).format('YYYY-MM-DD')}</Text>}
+                  </Space>
+                </List.Item>
+              )}
+            />
+          </Card>
+        )}
 
         <Divider />
 
@@ -1443,10 +1543,63 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
         visible={billingModalVisible}
         onCancel={() => setBillingModalVisible(false)}
         patient={selectedPatient}
+        visitId={undefined}
         onBillingComplete={() => {
           setBillingModalVisible(false);
+          if (selectedPatient?.patient_id) {
+            const doctorId = localStorage.getItem('doctorId');
+            if (doctorId) {
+              axios.get(`${API.BASE_URL}${API.ENDPOINTS.PATIENT_ACTIVE_PACKAGES(selectedPatient.patient_id)}`, { params: { doctor_id: doctorId } })
+                .then(r => { if (r.data?.success) setActivePackages(r.data.data || []); });
+              axios.get(`${API.BASE_URL}${API.ENDPOINTS.PATIENT_PACKAGES(selectedPatient.patient_id)}`, { params: { doctor_id: doctorId } })
+                .then(r => { if (r.data?.success) setAllPatientPackages(r.data.data || []); });
+            }
+          }
         }}
       />
+
+      {/* Active package popup */}
+      <Modal
+        title="Patient has an active package"
+        open={activePackagePopupVisible && activePackages.length > 0}
+        onCancel={() => setActivePackagePopupVisible(false)}
+        footer={[<Button key="ok" type="primary" onClick={() => setActivePackagePopupVisible(false)}>OK</Button>]}
+      >
+        {activePackages.map(pp => (
+          <div key={pp.patient_package_id} style={{ marginBottom: 12 }}>
+            <Text strong>{pp.package_name}</Text>
+            <br />
+            <Text>Remaining Sessions: {pp.remaining_sessions}</Text>
+            {pp.expiry_date && <><br /><Text type="secondary">Expiry: {moment(pp.expiry_date).format('YYYY-MM-DD')}</Text></>}
+          </div>
+        ))}
+      </Modal>
+
+      {/* Assign Package Modal */}
+      <Modal
+        title="Assign Package to Patient"
+        open={assignPackageModalVisible}
+        onCancel={() => { setAssignPackageModalVisible(false); setSelectedPackageToAssign(null); }}
+        onOk={handleAssignPackage}
+        okText="Assign"
+        confirmLoading={assignPackageSubmitting}
+        okButtonProps={{ disabled: !selectedPackageToAssign }}
+      >
+        <Select
+          placeholder="Select a package"
+          style={{ width: '100%' }}
+          value={selectedPackageToAssign || undefined}
+          onChange={(v) => setSelectedPackageToAssign(v)}
+          showSearch
+          optionFilterProp="children"
+        >
+          {doctorPackagesForAssign.map((p: any) => (
+            <Select.Option key={p.package_id} value={p.package_id}>
+              {p.name} – {p.sessions_count} sessions, {p.price?.toLocaleString()} EGP
+            </Select.Option>
+          ))}
+        </Select>
+      </Modal>
 
       {/* Discount Modal */}
       <Modal

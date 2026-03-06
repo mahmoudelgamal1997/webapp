@@ -17,6 +17,7 @@ import ExternalServiceManagement from './components/ExternalServiceManagement';
 import HistoryTemplateBuilder from './components/HistoryTemplateBuilder';
 import VisitTypeSettings from './components/VisitTypeSettings';
 import ReferralSourcesPage from './components/ReferralSourcesPage';
+import PackagesManagement from './components/PackagesManagement';
 import { LanguageProvider } from './components/LanguageContext';
 
 // Protected route component
@@ -137,6 +138,14 @@ function App() {
                       element={
                         <ProtectedRoute>
                           <ReferralSourcesPage />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/packages"
+                      element={
+                        <ProtectedRoute>
+                          <PackagesManagement />
                         </ProtectedRoute>
                       }
                     />

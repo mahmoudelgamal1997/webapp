@@ -22,11 +22,12 @@ import {
   DeleteOutlined,
   DollarOutlined,
   PercentageOutlined,
-  MedicineBoxOutlined
+  MedicineBoxOutlined,
+  GiftOutlined
 } from '@ant-design/icons';
 import axios from 'axios';
 import API from '../config/api';
-import { ClinicService, Patient, BillingServiceItem } from './type';
+import { ClinicService, Patient, BillingServiceItem, PatientPackage } from './type';
 import { sendBillingNotificationToAllAssistants } from '../services/notificationService';
 import { useClinicContext } from './ClinicContext';
 
@@ -56,6 +57,9 @@ const BillingModal: React.FC<BillingModalProps> = ({
   const [discountType, setDiscountType] = useState<'fixed' | 'percentage'>('fixed');
   const [discountValue, setDiscountValue] = useState(0);
   const [discountReason, setDiscountReason] = useState('');
+  const [activePackages, setActivePackages] = useState<PatientPackage[]>([]);
+  const [loadingActivePackages, setLoadingActivePackages] = useState(false);
+  const [usingPackageSession, setUsingPackageSession] = useState<string | null>(null);
 
   const doctorId = localStorage.getItem('doctorId');
   const { selectedClinicId, selectedClinic } = useClinicContext();
@@ -66,6 +70,20 @@ const BillingModal: React.FC<BillingModalProps> = ({
       resetForm();
     }
   }, [visible]);
+
+  useEffect(() => {
+    if (visible && patient?.patient_id && doctorId) {
+      setLoadingActivePackages(true);
+      axios.get(`${API.BASE_URL}${API.ENDPOINTS.PATIENT_ACTIVE_PACKAGES(patient.patient_id)}`, { params: { doctor_id: doctorId } })
+        .then(res => {
+          if (res.data?.success) setActivePackages(res.data.data || []);
+        })
+        .catch(() => setActivePackages([]))
+        .finally(() => setLoadingActivePackages(false));
+    } else {
+      setActivePackages([]);
+    }
+  }, [visible, patient?.patient_id, doctorId]);
 
   const resetForm = () => {
     form.resetFields();
@@ -92,6 +110,29 @@ const BillingModal: React.FC<BillingModalProps> = ({
       console.error('Error fetching services:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUsePackageSession = async (patientPackageId: string) => {
+    setUsingPackageSession(patientPackageId);
+    try {
+      const res = await axios.post(
+        `${API.BASE_URL}${API.ENDPOINTS.USE_PACKAGE_SESSION(patientPackageId)}`,
+        { visit_id: visitId || '' }
+      );
+      if (res.data?.success) {
+        message.success('Package session used – patient not charged');
+        setActivePackages(prev => {
+          const updated = res.data.data;
+          if (updated.remaining_sessions === 0) return prev.filter(p => p.patient_package_id !== patientPackageId);
+          return prev.map(p => p.patient_package_id === patientPackageId ? { ...p, ...updated } : p);
+        });
+        onBillingComplete?.();
+      }
+    } catch (error: any) {
+      message.error(error.response?.data?.message || 'Failed to use package session');
+    } finally {
+      setUsingPackageSession(null);
     }
   };
 
@@ -342,6 +383,32 @@ const BillingModal: React.FC<BillingModalProps> = ({
         showIcon
         style={{ marginBottom: 16 }}
       />
+
+      {activePackages.length > 0 && (
+        <Card title={<Space><GiftOutlined /> Use package session (no charge)</Space>} size="small" style={{ marginBottom: 16, backgroundColor: '#f6ffed' }}>
+          {loadingActivePackages ? (
+            <Text type="secondary">Loading packages...</Text>
+          ) : (
+            <Space direction="vertical" style={{ width: '100%' }}>
+              {activePackages.map(pp => (
+                <div key={pp.patient_package_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                  <Text>{pp.package_name} – Remaining: {pp.remaining_sessions}</Text>
+                  <Button
+                    type="primary"
+                    size="small"
+                    loading={usingPackageSession === pp.patient_package_id}
+                    disabled={pp.remaining_sessions <= 0}
+                    onClick={() => handleUsePackageSession(pp.patient_package_id)}
+                    style={{ backgroundColor: '#722ed1', borderColor: '#722ed1' }}
+                  >
+                    Use 1 session
+                  </Button>
+                </div>
+              ))}
+            </Space>
+          )}
+        </Card>
+      )}
 
       <Form form={form} layout="vertical">
         {/* Services Selection */}

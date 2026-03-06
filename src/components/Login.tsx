@@ -90,8 +90,15 @@ const LoginPage: React.FC = () => {
       const finalSnapshot = !assistantSnapshot.empty ? assistantSnapshot : assistantSnapshotWithSpace;
       
       if (finalSnapshot && !finalSnapshot.empty) {
-        // Get the first document (assistant should have one assignment)
-        const assistantDoc = finalSnapshot.docs[0];
+        // Sort by clinic_id then doctor_id so the "primary" link matches the assistant portal
+        const sortedDocs = [...finalSnapshot.docs].sort((a, b) => {
+          const da = a.data();
+          const db = b.data();
+          const c = (da.clinic_id || '').localeCompare(db.clinic_id || '');
+          if (c !== 0) return c;
+          return (da.doctor_id || '').localeCompare(db.doctor_id || '');
+        });
+        const assistantDoc = sortedDocs[0];
         const assistantData = assistantDoc.data();
         console.log('Assistant document data:', assistantData);
         
