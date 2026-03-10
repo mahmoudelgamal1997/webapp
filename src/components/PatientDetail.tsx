@@ -742,7 +742,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
       title: language === 'en' ? 'Visit Type' : 'نوع الزيارة',
       dataIndex: 'visit_type',
       key: 'visit_type',
-      render: (vt: string) => resolveVisitTypeName(vt) || '—'
+      render: (vt: string) => resolveVisitTypeName(vt || '') || '—'
     },
     {
       title: language === 'en' ? 'Actions' : 'إجراءات',
@@ -1012,7 +1012,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
             <Row gutter={[16, 16]}>
               <Col span={12}>
                 <Text type="secondary" style={{ display: 'block', fontSize: 12 }}>Visit Type</Text>
-                <Tag color="blue">{resolveVisitTypeName(selectedPatient.visit_type) || 'Regular'}</Tag>
+                <Tag color="blue">{resolveVisitTypeName(selectedPatient.visit_type || '') || 'Regular'}</Tag>
               </Col>
               <Col span={12}>
                 <Text type="secondary" style={{ display: 'block', fontSize: 12 }}>Urgency</Text>
@@ -1589,7 +1589,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
                 </div>
                 <div>
                   <Text strong>Visit Type: </Text>
-                  {resolveVisitTypeName(selectedVisit.visit_type) || 'Not specified'}
+                  {resolveVisitTypeName(selectedVisit.visit_type || '') || 'Not specified'}
                 </div>
                 <div>
                   <Text strong>Complaint: </Text>
