@@ -99,6 +99,10 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
   const [externalRequests, setExternalRequests] = useState<ExternalServiceRequest[]>([]);
   const [externalServicesLoading, setExternalServicesLoading] = useState(false);
   const [assignServiceModalVisible, setAssignServiceModalVisible] = useState(false);
+  const [addServiceFormVisible, setAddServiceFormVisible] = useState(false);
+  const [addServiceLoading, setAddServiceLoading] = useState(false);
+  const [newServiceName, setNewServiceName] = useState('');
+  const [newProviderName, setNewProviderName] = useState('');
 
   // Complaint history add form state
   const [addComplaintVisible, setAddComplaintVisible] = useState(false);
@@ -1241,10 +1245,84 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
         <Modal
           title="Assign External Service"
           open={assignServiceModalVisible}
-          onCancel={() => setAssignServiceModalVisible(false)}
+          onCancel={() => {
+            setAssignServiceModalVisible(false);
+            setAddServiceFormVisible(false);
+            setNewServiceName('');
+            setNewProviderName('');
+          }}
           footer={null}
           width={600}
         >
+          {/* Quick-add new service inline form */}
+          {addServiceFormVisible ? (
+            <div style={{ background: '#f0f9ff', border: '1px solid #91d5ff', borderRadius: 8, padding: 16, marginBottom: 16 }}>
+              <div style={{ fontWeight: 600, marginBottom: 12, color: '#1890ff' }}>
+                <PlusOutlined style={{ marginRight: 6 }} />
+                Add New External Service
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                <Input
+                  placeholder="Service name (e.g. X-Ray, Blood Test)"
+                  value={newServiceName}
+                  onChange={e => setNewServiceName(e.target.value)}
+                  style={{ flex: 1 }}
+                />
+                <Input
+                  placeholder="Provider name (e.g. Lab, Hospital)"
+                  value={newProviderName}
+                  onChange={e => setNewProviderName(e.target.value)}
+                  style={{ flex: 1 }}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <Button
+                  type="primary"
+                  loading={addServiceLoading}
+                  disabled={!newServiceName.trim()}
+                  onClick={async () => {
+                    if (!newServiceName.trim()) return;
+                    const doctorId = selectedPatient.doctor_id || localStorage.getItem('doctorId');
+                    try {
+                      setAddServiceLoading(true);
+                      await axios.post(`${API.BASE_URL}${API.ENDPOINTS.EXTERNAL_SERVICES}`, {
+                        service_name: newServiceName.trim(),
+                        provider_name: newProviderName.trim(),
+                        doctor_id: doctorId
+                      });
+                      // Refresh the services list inside the modal
+                      const res = await axios.get(`${API.BASE_URL}${API.ENDPOINTS.DOCTOR_EXTERNAL_SERVICES(doctorId)}`);
+                      if (res.data.success) setExternalServices(res.data.data || []);
+                      setNewServiceName('');
+                      setNewProviderName('');
+                      setAddServiceFormVisible(false);
+                    } catch (err) {
+                      console.error('Error creating service:', err);
+                    } finally {
+                      setAddServiceLoading(false);
+                    }
+                  }}
+                >
+                  Save Service
+                </Button>
+                <Button onClick={() => { setAddServiceFormVisible(false); setNewServiceName(''); setNewProviderName(''); }}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ marginBottom: 12 }}>
+              <Button
+                icon={<PlusOutlined />}
+                type="dashed"
+                onClick={() => setAddServiceFormVisible(true)}
+                style={{ width: '100%', color: '#13c2c2', borderColor: '#13c2c2' }}
+              >
+                Add New External Service
+              </Button>
+            </div>
+          )}
+
           <List
             dataSource={externalServices.filter(s => s.isActive !== false)}
             renderItem={(service) => (
@@ -1264,6 +1342,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
                           provider_name: service.provider_name
                         });
                         setAssignServiceModalVisible(false);
+                        setAddServiceFormVisible(false);
                         // Refresh the requests list
                         const response = await axios.get(
                           `${API.BASE_URL}${API.ENDPOINTS.PATIENT_EXTERNAL_REQUESTS(selectedPatient.patient_id)}`,
@@ -1288,9 +1367,9 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
               </List.Item>
             )}
           />
-          {externalServices.filter(s => s.isActive !== false).length === 0 && (
+          {externalServices.filter(s => s.isActive !== false).length === 0 && !addServiceFormVisible && (
             <div style={{ textAlign: 'center', padding: 20, color: '#999' }}>
-              No active external services available. Please add services in External Services Management.
+              No services yet. Use the button above to add your first external service.
             </div>
           )}
         </Modal>
