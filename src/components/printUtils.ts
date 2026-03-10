@@ -26,12 +26,13 @@ export function printHtml(html: string): void {
       iframe.contentWindow?.focus();
       iframe.contentWindow?.print();
     } catch {
-      // Fallback for browsers that block iframe print
+      // Fallback for browsers that block iframe print (e.g. iOS Safari on tablet)
       const fallback = window.open('', '_blank');
       if (fallback) {
         fallback.document.write(html);
         fallback.document.close();
-        fallback.print();
+        // Wait for content to render before triggering print dialog
+        setTimeout(() => fallback.print(), 800);
       }
     }
     setTimeout(() => {

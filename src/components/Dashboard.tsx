@@ -331,24 +331,17 @@ const Dashboard: React.FC = () => {
     console.log('Printing receipt:', receipt);
 
     // Format the clinic information for the header
+    // Use doctorSettings as primary source, selectedClinic as fallback only (never both)
     const clinicInfo = [];
+    const clinicName = doctorSettings.clinicName || selectedClinic?.name || '';
+    const clinicTitle = doctorSettings.doctorTitle || '';
+    const clinicAddress = doctorSettings.clinicAddress || selectedClinic?.address || '';
+    const clinicPhone = doctorSettings.clinicPhone || selectedClinic?.phone || '';
 
-    // First try to use clinic from context if available
-    if (selectedClinic) {
-      clinicInfo.push(`<h1>${selectedClinic.name || 'عيادة'}</h1>`);
-      if (selectedClinic.address) {
-        clinicInfo.push(`<p>${selectedClinic.address}</p>`);
-      }
-      if (selectedClinic.phone) {
-        clinicInfo.push(`<p>هاتف: ${selectedClinic.phone}</p>`);
-      }
-    }
-
-    // Then override with doctor settings if available
-    if (doctorSettings.clinicName) clinicInfo.push(`<h1>${doctorSettings.clinicName}</h1>`);
-    if (doctorSettings.doctorTitle) clinicInfo.push(`<h3>${doctorSettings.doctorTitle}</h3>`);
-    if (doctorSettings.clinicAddress) clinicInfo.push(`<p>${doctorSettings.clinicAddress}</p>`);
-    if (doctorSettings.clinicPhone) clinicInfo.push(`<p>هاتف: ${doctorSettings.clinicPhone}</p>`);
+    if (clinicName) clinicInfo.push(`<h1>${clinicName}</h1>`);
+    if (clinicTitle) clinicInfo.push(`<h3>${clinicTitle}</h3>`);
+    if (clinicAddress) clinicInfo.push(`<p>${clinicAddress}</p>`);
+    if (clinicPhone) clinicInfo.push(`<p>هاتف: ${clinicPhone}</p>`);
 
     const printSettings = doctorSettings.printSettings || {
       paperSize: 'a4',
