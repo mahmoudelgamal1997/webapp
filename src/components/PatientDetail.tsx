@@ -64,6 +64,7 @@ interface PatientHistoryResponse {
     totalVisits: number;
   };
   visits: Visit[];
+  complaint_history?: { _id?: string; date: string; complaint: string; diagnosis: string; }[];
 }
 
 const PatientDetail: React.FC<PatientDetailProps> = ({
@@ -96,6 +97,12 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
   const [externalRequests, setExternalRequests] = useState<ExternalServiceRequest[]>([]);
   const [externalServicesLoading, setExternalServicesLoading] = useState(false);
   const [assignServiceModalVisible, setAssignServiceModalVisible] = useState(false);
+
+  // Complaint history add form state
+  const [addComplaintVisible, setAddComplaintVisible] = useState(false);
+  const [newComplaint, setNewComplaint] = useState('');
+  const [newDiagnosis, setNewDiagnosis] = useState('');
+  const [addComplaintLoading, setAddComplaintLoading] = useState(false);
 
   // Medical History state
   const [medicalHistoryModalVisible, setMedicalHistoryModalVisible] = useState(false);
@@ -136,7 +143,9 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
           const response = await axios.get<PatientHistoryResponse>(`${API.BASE_URL}/api/patients/visits`, {
             params: {
               patient_id: selectedPatient.patient_id,
-              doctor_id: selectedPatient.doctor_id
+              doctor_id: selectedPatient.doctor_id,
+              page: 1,
+              limit: 9999
             }
           });
 
@@ -539,7 +548,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
   const allReceipts = patientHistory?.visits.flatMap((visit: Visit) =>
     visit.receipts?.map(receipt => ({
       ...receipt,
-      visit_type: visit.visit_type // Add visit_type to each receipt for display
+      visit_type: visit.visit_type,
     })) || []
   ) || [];
 
@@ -1260,75 +1269,142 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
 
         <Divider />
 
-        {/* Medical Reports Section */}
+        {/* Complaint & Diagnosis history */}
         <Title level={4}>
-          <FileTextOutlined style={{ color: '#52c41a' }} /> Medical Reports / التقارير الطبية
+          <FileTextOutlined style={{ color: '#52c41a' }} /> Complaint & Diagnosis / الشكوى والتشخيص
         </Title>
-        {medicalReportsLoading ? (
-          <div style={{ marginBottom: 24, color: '#999' }}>Loading reports...</div>
-        ) : patientMedicalReports.length > 0 ? (
-          <div style={{ marginBottom: 24 }}>
-            {patientMedicalReports.map((report: any, idx: number) => (
-              <Card
-                key={report.report_id || idx}
-                style={{ marginBottom: 12, borderLeft: '4px solid #52c41a' }}
-                size="small"
-                extra={
-                  <Button
-                    size="small"
-                    icon={<PrinterOutlined />}
-                    onClick={() => handlePrintSavedMedicalReport(report)}
-                  >
-                    Print
-                  </Button>
-                }
-              >
-                <Row gutter={[16, 8]}>
-                  <Col xs={24} sm={12}>
-                    <Text type="secondary" style={{ fontSize: 12 }}>Date</Text>
-                    <div style={{ fontWeight: 600, marginBottom: 4 }}>
-                      {report.date ? moment(report.date).format('DD MMM YYYY, HH:mm') : '—'}
-                    </div>
-                    {report.doctor_name && (
-                      <div style={{ fontSize: 12, color: '#888' }}>Dr. {report.doctor_name}</div>
-                    )}
-                  </Col>
-                  {report.diagnosis && (
-                    <Col xs={24} sm={12}>
-                      <Text type="secondary" style={{ fontSize: 12 }}>Diagnosis / التشخيص</Text>
-                      <div style={{ marginTop: 2 }}>{report.diagnosis}</div>
-                    </Col>
-                  )}
-                  <Col xs={24}>
-                    <Text type="secondary" style={{ fontSize: 12 }}>Medical Report / التقرير الطبي</Text>
-                    <div
-                      style={{
-                        marginTop: 4,
-                        padding: '8px 12px',
-                        background: '#f8fff8',
-                        borderRadius: 6,
-                        fontSize: 14,
-                        lineHeight: 1.7,
-                        whiteSpace: 'pre-wrap',
-                        border: '1px solid #e8f5e9',
-                      }}
-                    >
-                      {report.medical_report}
-                    </div>
-                  </Col>
-                  {report.signature && (
-                    <Col xs={24}>
-                      <Text type="secondary" style={{ fontSize: 12 }}>Signature / التوقيع</Text>
-                      <div style={{ marginTop: 2, fontStyle: 'italic' }}>{report.signature}</div>
-                    </Col>
-                  )}
-                </Row>
-              </Card>
-            ))}
+
+        {/* Add new entry form */}
+        {addComplaintVisible ? (
+          <div style={{ background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 8, padding: 16, marginBottom: 16 }}>
+            <Row gutter={[12, 12]}>
+              <Col xs={24} sm={12}>
+                <div style={{ marginBottom: 4, fontWeight: 500 }}>Complaint / الشكوى</div>
+                <textarea
+                  rows={3}
+                  style={{ width: '100%', padding: 8, borderRadius: 6, border: '1px solid #d9d9d9', fontSize: 14, resize: 'vertical' }}
+                  value={newComplaint}
+                  onChange={e => setNewComplaint(e.target.value)}
+                  placeholder="Enter complaint..."
+                />
+              </Col>
+              <Col xs={24} sm={12}>
+                <div style={{ marginBottom: 4, fontWeight: 500 }}>Diagnosis / التشخيص</div>
+                <textarea
+                  rows={3}
+                  style={{ width: '100%', padding: 8, borderRadius: 6, border: '1px solid #d9d9d9', fontSize: 14, resize: 'vertical' }}
+                  value={newDiagnosis}
+                  onChange={e => setNewDiagnosis(e.target.value)}
+                  placeholder="Enter diagnosis..."
+                />
+              </Col>
+              <Col xs={24}>
+                <Button
+                  type="primary"
+                  loading={addComplaintLoading}
+                  style={{ marginRight: 8, backgroundColor: '#52c41a', borderColor: '#52c41a' }}
+                  onClick={async () => {
+                    if (!newComplaint.trim() && !newDiagnosis.trim()) return;
+                    try {
+                      setAddComplaintLoading(true);
+                      const doctorId = selectedPatient?.doctor_id || localStorage.getItem('doctorId');
+                      await axios.post(`${API.BASE_URL}/api/patients/complaint-history`, {
+                        patient_id: selectedPatient?.patient_id,
+                        doctor_id: doctorId,
+                        complaint: newComplaint.trim(),
+                        diagnosis: newDiagnosis.trim(),
+                      });
+                      setNewComplaint('');
+                      setNewDiagnosis('');
+                      setAddComplaintVisible(false);
+                      // Refresh history
+                      const response = await axios.get<PatientHistoryResponse>(`${API.BASE_URL}/api/patients/visits`, {
+                        params: { patient_id: selectedPatient?.patient_id, doctor_id: doctorId, page: 1, limit: 9999 }
+                      });
+                      setPatientHistory(response.data);
+                    } catch (err) {
+                      console.error('Failed to add complaint entry', err);
+                    } finally {
+                      setAddComplaintLoading(false);
+                    }
+                  }}
+                >
+                  Save
+                </Button>
+                <Button onClick={() => { setAddComplaintVisible(false); setNewComplaint(''); setNewDiagnosis(''); }}>
+                  Cancel
+                </Button>
+              </Col>
+            </Row>
           </div>
         ) : (
-          <div style={{ marginBottom: 24, color: '#999' }}>No medical reports yet</div>
+          <Button
+            icon={<PlusOutlined />}
+            style={{ marginBottom: 12 }}
+            onClick={() => setAddComplaintVisible(true)}
+          >
+            Add Complaint & Diagnosis
+          </Button>
         )}
+
+        <div style={{ overflowX: 'auto', marginBottom: 24 }}>
+          <Table
+            size="small"
+            dataSource={(() => {
+              // Combine complaint_history entries + visit-level entries, dedupe, sort newest first
+              const fromHistory = (patientHistory?.complaint_history || []).map((e: any) => ({
+                _key: e._id || e.date,
+                date: e.date,
+                complaint: e.complaint,
+                diagnosis: e.diagnosis,
+                source: 'history'
+              }));
+              const fromVisits = (patientHistory?.visits || [])
+                .filter((v: Visit) => v.complaint || v.diagnosis)
+                .map((v: Visit) => ({
+                  _key: v.visit_id || v._id,
+                  date: v.date,
+                  complaint: v.complaint,
+                  diagnosis: v.diagnosis,
+                  source: 'visit'   // date only — v.time is queue time, not complaint time
+                }));
+              return [...fromHistory, ...fromVisits].sort((a, b) => moment(b.date).valueOf() - moment(a.date).valueOf());
+            })()}
+            rowKey={(r: any) => r._key || r.date}
+            pagination={{ pageSize: 10, hideOnSinglePage: true }}
+            locale={{ emptyText: 'No complaint or diagnosis recorded yet' }}
+            columns={[
+              {
+                title: 'Date / التاريخ',
+                dataIndex: 'date',
+                key: 'date',
+                width: 160,
+                render: (date: string, record: any) =>
+                  date
+                    ? record.source === 'history'
+                      ? moment(date).format('DD MMM YYYY · HH:mm')  // accurate — saved by button
+                      : moment(date).format('DD MMM YYYY')           // visit date only — time is queue time, not complaint time
+                    : '—'
+              },
+              {
+                title: 'Complaint / الشكوى',
+                dataIndex: 'complaint',
+                key: 'complaint',
+                render: (text: string) => text
+                  ? <span style={{ whiteSpace: 'pre-wrap' }}>{text}</span>
+                  : <span style={{ color: '#bbb' }}>—</span>
+              },
+              {
+                title: 'Diagnosis / التشخيص',
+                dataIndex: 'diagnosis',
+                key: 'diagnosis',
+                render: (text: string) => text
+                  ? <span style={{ whiteSpace: 'pre-wrap' }}>{text}</span>
+                  : <span style={{ color: '#bbb' }}>—</span>
+              }
+            ]}
+          />
+        </div>
 
         <Divider />
 
