@@ -17,6 +17,7 @@ import ReferralModal from './ReferralModal';
 import { sendBillingNotificationToAllAssistants } from '../services/notificationService';
 import { useDoctorContext } from './DoctorContext';
 import { useClinicContext } from './ClinicContext';
+import { useLanguage } from './LanguageContext';
 
 const { Title, Text } = Typography;
 
@@ -76,6 +77,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
   const { selectedPatient, setSelectedPatient, fetchPatients } = usePatientContext();
   const { settings: doctorSettings } = useDoctorContext();
   const { selectedClinicId } = useClinicContext();
+  const { language } = useLanguage();
 
   const [patientHistory, setPatientHistory] = useState<PatientHistoryResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -661,38 +663,93 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
     setVisitDetailsVisible(true);
   };
 
+  const resolveVisitTypeName = (rawValue: string): string => {
+    if (!rawValue) return '';
+    const byId = availableVisitTypes.find(t => t.type_id === rawValue);
+    if (byId) return language === 'en' ? (byId.name || rawValue) : (byId.name_ar || rawValue);
+    const byNameAr = availableVisitTypes.find(t => t.name_ar === rawValue);
+    if (byNameAr) return language === 'en' ? (byNameAr.name || rawValue) : (byNameAr.name_ar || rawValue);
+    const byName = availableVisitTypes.find(t => t.name === rawValue);
+    if (byName) return language === 'en' ? (byName.name || rawValue) : (byName.name_ar || rawValue);
+    return rawValue;
+  };
+
+  const frequencyMap: Record<string, string> = {
+    'مرة واحدة': 'Once',
+    'مرتين': 'Twice',
+    '3 مرات': '3 times',
+    '4 مرات': '4 times',
+    'يومياً': 'Daily',
+  };
+
+  const periodMap: Record<string, string> = {
+    'يوميًا': 'Daily',
+    'يومياً': 'Daily',
+    '1 يوم': '1 day',
+    '2 يوم': '2 days',
+    '3 يوم': '3 days',
+    '4 يوم': '4 days',
+    '5 يوم': '5 days',
+    '6 يوم': '6 days',
+    'أسبوع': 'Week',
+    'أسبوعين': '2 weeks',
+    '3 اسابيع': '3 weeks',
+    'شهر': 'Month',
+  };
+
+  const timingMap: Record<string, string> = {
+    'قبل النوم': 'Before sleep',
+    'بعد الأكل': 'After meals',
+    'قبل الأكل': 'Before meals',
+  };
+
+  const translateDrugField = (value: string, map: Record<string, string>): string => {
+    if (language === 'en' && value && map[value]) return map[value];
+    return value || '';
+  };
+
   // Column definitions for the receipts table
   const receiptsColumns = [
     {
-      title: 'Date',
+      title: language === 'en' ? 'Date' : 'التاريخ',
       dataIndex: 'date',
       key: 'date',
       render: (date: string) => moment(date).format('YYYY-MM-DD HH:mm')
     },
     {
-      title: 'Drugs',
+      title: language === 'en' ? 'Drugs' : 'الأدوية',
       dataIndex: 'drugs',
       key: 'drugs',
       render: (drugs: any[]) => drugs && drugs.length > 0 ?
-        drugs.map(drug => `${drug.drug} - ${drug.frequency}`).join(', ') :
-        'No drugs'
+        drugs.map(drug => {
+          const freq = translateDrugField(drug.frequency, frequencyMap);
+          const parts = [drug.drug];
+          if (freq && freq !== '_') parts.push(freq);
+          const period = translateDrugField(drug.period, periodMap);
+          if (period && period !== '_') parts.push(period);
+          const timing = translateDrugField(drug.timing, timingMap);
+          if (timing && timing !== '_') parts.push(timing);
+          return parts.join(' - ');
+        }).join(', ') :
+        (language === 'en' ? 'No drugs' : 'لا توجد أدوية')
     },
     {
-      title: 'Notes',
+      title: language === 'en' ? 'Notes' : 'ملاحظات',
       dataIndex: 'notes',
       key: 'notes'
     },
     {
-      title: 'Visit Type',
+      title: language === 'en' ? 'Visit Type' : 'نوع الزيارة',
       dataIndex: 'visit_type',
-      key: 'visit_type'
+      key: 'visit_type',
+      render: (vt: string) => resolveVisitTypeName(vt) || '—'
     },
     {
-      title: 'Actions',
+      title: language === 'en' ? 'Actions' : 'إجراءات',
       key: 'actions',
       render: (_: any, record: Receipt) => (
         <Button type="link" onClick={() => onPrintReceipt(record)}>
-          Print
+          {language === 'en' ? 'Print' : 'طباعة'}
         </Button>
       )
     }
@@ -955,7 +1012,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
             <Row gutter={[16, 16]}>
               <Col span={12}>
                 <Text type="secondary" style={{ display: 'block', fontSize: 12 }}>Visit Type</Text>
-                <Tag color="blue">{selectedPatient.visit_type || 'Regular'}</Tag>
+                <Tag color="blue">{resolveVisitTypeName(selectedPatient.visit_type) || 'Regular'}</Tag>
               </Col>
               <Col span={12}>
                 <Text type="secondary" style={{ display: 'block', fontSize: 12 }}>Urgency</Text>
@@ -1241,7 +1298,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
         <Divider />
 
         {/* Prescription History */}
-        <Title level={4}>Prescription History</Title>
+        <Title level={4}>{language === 'en' ? 'Prescription History' : 'سجل الروشتات'}</Title>
         <div style={{ overflowX: 'auto' }}>
           <Table
             dataSource={allReceipts}
@@ -1532,7 +1589,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
                 </div>
                 <div>
                   <Text strong>Visit Type: </Text>
-                  {selectedVisit.visit_type || 'Not specified'}
+                  {resolveVisitTypeName(selectedVisit.visit_type) || 'Not specified'}
                 </div>
                 <div>
                   <Text strong>Complaint: </Text>

@@ -390,12 +390,17 @@ const Dashboard: React.FC = () => {
               display: ${isCustomPaper ? 'none' : 'block'};
             }
             .clinic-info { margin-bottom: 15px; }
+            .patient-name-block {
+              margin-bottom: 8px;
+              padding: 6px 10px;
+            }
+            .patient-name-block h3 { margin: 0; }
             .patient-info { 
               margin-bottom: 20px; 
               padding: 10px; 
               background-color: ${isCustomPaper ? 'transparent' : '#f8f8f8'}; 
               border-radius: 5px; 
-              display: ${printSettings.showPatientInfo ? 'block' : 'none'};
+              display: ${printSettings.showPatientInfo !== false ? 'block' : 'none'};
             }
             .drug-item { 
               margin-bottom: 10px; 
@@ -428,12 +433,18 @@ const Dashboard: React.FC = () => {
               </div>
               ${doctorSettings.receiptHeader ? `<div class="custom-header">${doctorSettings.receiptHeader}</div>` : ''}
             </div>
+            <div class="patient-name-block">
+              ${printSettings.printLocale === 'ar'
+        ? `<h3>اسم المريض: ${selectedPatient?.patient_name || ''}</h3>`
+        : `<h3>Patient: ${selectedPatient?.patient_name || ''}</h3>`
+      }
+            </div>
             <div class="patient-info">
               ${printSettings.printLocale === 'ar'
-        ? `<h3>اسم المريض: ${selectedPatient?.patient_name}</h3><p>العمر: ${selectedPatient?.age}</p><p>تاريخ: ${moment(receipt.date).format('DD-MM-YYYY')}</p>`
-        : `<h3>Patient: ${selectedPatient?.patient_name}</h3><p>Age: ${selectedPatient?.age}</p><p>Date: ${moment(receipt.date).format('DD-MM-YYYY')}</p>`
+        ? `<p>العمر: ${selectedPatient?.age || ''}</p><p>تاريخ: ${moment(receipt.date).format('DD-MM-YYYY')}</p>`
+        : `<p>Age: ${selectedPatient?.age || ''}</p><p>Date: ${moment(receipt.date).format('DD-MM-YYYY')}</p>`
       }
-              <p>File ID: ${selectedPatient?.file_number || ''}</p>
+              ${selectedPatient?.file_number ? `<p>File ID: ${selectedPatient.file_number}</p>` : ''}
             </div>
             <div class="drugs">
               <h3>${printSettings.printLocale === 'ar' ? 'الأدوية:' : 'Medications:'}</h3>

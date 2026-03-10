@@ -1,10 +1,31 @@
 /**
  * Print HTML content via a hidden iframe.
  * Works correctly on desktop browsers (Chrome, Firefox, Safari, Edge).
- * On Android the native print dialog may show a warning — this is a known
- * Android Chrome limitation; the prescription content itself is correct.
+ *
+ * On Android (including Samsung tablets) the iframe approach is unreliable:
+ * some devices silently print the parent document instead of the iframe content.
+ * For Android we skip the iframe entirely and open a new tab to print from there.
  */
 export function printHtml(html: string): void {
+  const isAndroid = /Android/i.test(navigator.userAgent);
+
+  if (isAndroid) {
+    const popup = window.open('', '_blank');
+    if (popup) {
+      popup.document.write(html);
+      popup.document.close();
+      popup.focus();
+      setTimeout(() => {
+        popup.print();
+        // Give the print dialog time to open before closing the tab
+        setTimeout(() => {
+          try { popup.close(); } catch { /* ignored */ }
+        }, 2000);
+      }, 400);
+    }
+    return;
+  }
+
   const iframe = document.createElement('iframe');
   iframe.style.cssText =
     'position:fixed;top:0;left:0;width:0;height:0;border:0;opacity:0;pointer-events:none;';
@@ -31,7 +52,6 @@ export function printHtml(html: string): void {
       if (fallback) {
         fallback.document.write(html);
         fallback.document.close();
-        // Wait for content to render before triggering print dialog
         setTimeout(() => fallback.print(), 800);
       }
     }
