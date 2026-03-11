@@ -9,6 +9,10 @@ interface Clinic {
   clinic_id?: string;
   address?: string;
   phone?: string;
+  /** Optional: ID of the parent center clinic. Present only for branch clinics. */
+  parent_clinic_id?: string | null;
+  /** Optional: when true (on a center clinic), patient files are shared across all branches. */
+  sharedPatientFile?: boolean;
 }
 
 interface ClinicContextType {
@@ -18,6 +22,12 @@ interface ClinicContextType {
   setSelectedClinicId: (clinicId: string) => void;
   fetchClinics: () => Promise<Clinic[]>;
   loading: boolean;
+  /**
+   * When non-null, the selected clinic has shared patient file enabled.
+   * Contains the center clinic_id plus all branch clinic_ids that should be queried together.
+   * When null, use normal single-doctor behavior (no shared scope).
+   */
+  clinicScopeIds: string[] | null;
 }
 
 const ClinicContext = createContext<ClinicContextType | undefined>(undefined);
@@ -29,6 +39,8 @@ export const ClinicProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   );
   const [selectedClinic, setSelectedClinic] = useState<Clinic | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
+  // null = no shared scope (single-doctor mode); string[] = IDs to query together
+  const [clinicScopeIds, setClinicScopeIds] = useState<string[] | null>(null);
 
   // Fetch clinics for the logged in user (doctor or assistant)
   const fetchClinics = async (): Promise<Clinic[]> => {
@@ -57,7 +69,9 @@ export const ClinicProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             _id: doc.id,
             name: doc.data().location_ar || doc.data().name || 'Unnamed Clinic',
             address: doc.data().address,
-            phone: doc.data().phone
+            phone: doc.data().phone,
+            parent_clinic_id: doc.data().parent_clinic_id || null,
+            sharedPatientFile: !!doc.data().sharedPatientFile
           });
         });
       }
@@ -121,7 +135,9 @@ export const ClinicProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 _id: clinicDocSnap.id,
                 name: clinicDocSnap.data().location_ar || clinicDocSnap.data().name || 'Unnamed Clinic',
                 address: clinicDocSnap.data().address,
-                phone: clinicDocSnap.data().phone
+                phone: clinicDocSnap.data().phone,
+                parent_clinic_id: clinicDocSnap.data().parent_clinic_id || null,
+                sharedPatientFile: !!clinicDocSnap.data().sharedPatientFile
               });
             }
           }
@@ -174,6 +190,66 @@ export const ClinicProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }
   }, [selectedClinicId, clinics]);
 
+  /**
+   * Compute clinicScopeIds whenever the selected clinic changes.
+   * - Center with sharedPatientFile=true → [centerId, ...branchIds]
+   * - Branch whose center has sharedPatientFile=true → [centerId, ...branchIds]
+   * - Everything else → null (existing single-doctor behavior, no change)
+   */
+  useEffect(() => {
+    if (!selectedClinicId) {
+      setClinicScopeIds(null);
+      return;
+    }
+
+    const resolveScope = async () => {
+      try {
+        const db = getFirestore();
+        const clinicsRef = collection(db, 'clinics');
+
+        const selectedData = clinics.find(c => c._id === selectedClinicId);
+        const parentId = selectedData?.parent_clinic_id || null;
+
+        let centerId: string = '';
+        let centerHasSharedFile = false;
+
+        if (!parentId) {
+          // Selected clinic is a center (or standalone). Check its own sharedPatientFile flag.
+          centerId = selectedClinicId as string; // guarded by the early return above
+          centerHasSharedFile = !!selectedData?.sharedPatientFile;
+        } else {
+          // Selected clinic is a branch. Look up the parent center's sharedPatientFile flag.
+          centerId = parentId;
+          try {
+            const centerDocSnap = await getDoc(doc(db, 'clinics', centerId));
+            centerHasSharedFile = centerDocSnap.exists() ? !!centerDocSnap.data()?.sharedPatientFile : false;
+          } catch (_err) {
+            centerHasSharedFile = false;
+          }
+        }
+
+        if (!centerHasSharedFile || !centerId) {
+          // Feature not enabled — keep existing single-clinic behavior unchanged
+          setClinicScopeIds(null);
+          return;
+        }
+
+        // Fetch all branch clinics under this center
+        const branchesSnap = await getDocs(query(clinicsRef, where('parent_clinic_id', '==', centerId)));
+        const branchIds = branchesSnap.docs.map(d => d.id);
+
+        // Scope = center + all branches
+        const scopeIds = [centerId, ...branchIds.filter(id => id !== centerId)];
+        setClinicScopeIds(scopeIds);
+      } catch (err) {
+        console.error('Error resolving clinic scope:', err);
+        setClinicScopeIds(null);
+      }
+    };
+
+    resolveScope();
+  }, [selectedClinicId, clinics]);
+
   // Load clinics on initial mount and when doctorId/assistantId changes
   useEffect(() => {
     const doctorId = localStorage.getItem('doctorId');
@@ -212,7 +288,8 @@ export const ClinicProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     selectedClinic,
     setSelectedClinicId,
     fetchClinics,
-    loading
+    loading,
+    clinicScopeIds
   };
 
   return (

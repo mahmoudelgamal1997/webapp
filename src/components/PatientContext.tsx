@@ -69,7 +69,7 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
   // Note: The Firebase UID is the assistant_id, but we need doctor_id for API calls
   // Make it reactive so it updates when doctorId changes in localStorage
   const [userId, setUserId] = useState<string | null>(localStorage.getItem('doctorId'));
-  const { selectedClinicId } = useClinicContext();
+  const { selectedClinicId, clinicScopeIds } = useClinicContext();
   
   // Listen for changes to doctorId in localStorage (e.g., after login)
   useEffect(() => {
@@ -182,6 +182,13 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
       }
       
       params.doctor_id = userId;
+
+      // CLINIC SCOPE: When enabled, send clinic_ids + use_clinic_scope so the backend
+      // merges patients across all branches. Falls back to single-doctor behavior when null.
+      if (clinicScopeIds && clinicScopeIds.length > 0) {
+        params.clinic_ids = clinicScopeIds.join(',');
+        params.use_clinic_scope = 'true';
+      }
       
       if (options?.page) {
         params.page = options.page;
@@ -376,6 +383,13 @@ export const PatientProvider: React.FC<{ children: ReactNode }> = ({ children })
     loadData();
   }, [userId]); // Re-fetch when doctorId changes (e.g., after login)
   
+  // Re-fetch when clinicScopeIds changes (e.g., after shared patient file scope is resolved)
+  // This triggers when a clinic with sharedPatientFile=true is selected and its branches are loaded.
+  useEffect(() => {
+    if (!userId) return;
+    fetchPatients({ page: 1, limit: 20, sortBy: 'created_at', sortOrder: 'desc' });
+  }, [clinicScopeIds]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // When searchTerm changes, fetch from API so all patients are searched (not just the loaded page)
   useEffect(() => {
     if (!userId) return;

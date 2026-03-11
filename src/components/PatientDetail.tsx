@@ -76,7 +76,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
 }) => {
   const { selectedPatient, setSelectedPatient, fetchPatients } = usePatientContext();
   const { settings: doctorSettings } = useDoctorContext();
-  const { selectedClinicId } = useClinicContext();
+  const { selectedClinicId, clinicScopeIds } = useClinicContext();
   const { language } = useLanguage();
 
   const [patientHistory, setPatientHistory] = useState<PatientHistoryResponse | null>(null);
@@ -146,13 +146,21 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
           setLoading(true);
           setError(null);
 
+          // CLINIC SCOPE: When enabled, pass clinic_ids + use_clinic_scope so the backend
+          // merges visit history from all doctors/branches in the center.
+          const visitParams: Record<string, any> = {
+            patient_id: selectedPatient.patient_id,
+            doctor_id: selectedPatient.doctor_id,
+            page: 1,
+            limit: 9999
+          };
+          if (clinicScopeIds && clinicScopeIds.length > 0) {
+            visitParams.clinic_ids = clinicScopeIds.join(',');
+            visitParams.use_clinic_scope = 'true';
+          }
+
           const response = await axios.get<PatientHistoryResponse>(`${API.BASE_URL}/api/patients/visits`, {
-            params: {
-              patient_id: selectedPatient.patient_id,
-              doctor_id: selectedPatient.doctor_id,
-              page: 1,
-              limit: 9999
-            }
+            params: visitParams
           });
 
           setPatientHistory(response.data);
@@ -1453,9 +1461,19 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
                       setNewComplaint('');
                       setNewDiagnosis('');
                       setAddComplaintVisible(false);
-                      // Refresh history
+                      // Refresh history (with clinic scope if enabled)
+                      const refreshParams: Record<string, any> = {
+                        patient_id: selectedPatient?.patient_id,
+                        doctor_id: doctorId,
+                        page: 1,
+                        limit: 9999
+                      };
+                      if (clinicScopeIds && clinicScopeIds.length > 0) {
+                        refreshParams.clinic_ids = clinicScopeIds.join(',');
+                        refreshParams.use_clinic_scope = 'true';
+                      }
                       const response = await axios.get<PatientHistoryResponse>(`${API.BASE_URL}/api/patients/visits`, {
-                        params: { patient_id: selectedPatient?.patient_id, doctor_id: doctorId, page: 1, limit: 9999 }
+                        params: refreshParams
                       });
                       setPatientHistory(response.data);
                     } catch (err) {
