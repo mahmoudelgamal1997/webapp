@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 
-const DIAGNOSES_KEY = (doctorId: string) => `rx_diag_${doctorId}`;
-const DRUGS_KEY    = (doctorId: string) => `rx_drug_${doctorId}`;
+const DIAGNOSES_KEY  = (doctorId: string) => `rx_diag_${doctorId}`;
+const DRUGS_KEY      = (doctorId: string) => `rx_drug_${doctorId}`;
+const COMPLAINTS_KEY = (doctorId: string) => `rx_comp_${doctorId}`;
 
 const MAX_ITEMS = 300;
 
@@ -32,18 +33,19 @@ export interface SuggestionOption {
 }
 
 export function useDoctorSuggestions(doctorId: string) {
-  const [diagnoses, setDiagnoses] = useState<string[]>([]);
-  const [drugs, setDrugs]         = useState<string[]>([]);
+  const [diagnoses,  setDiagnoses]  = useState<string[]>([]);
+  const [drugs,      setDrugs]      = useState<string[]>([]);
+  const [complaints, setComplaints] = useState<string[]>([]);
 
   useEffect(() => {
     if (!doctorId) return;
     setDiagnoses(loadList(DIAGNOSES_KEY(doctorId)));
     setDrugs(loadList(DRUGS_KEY(doctorId)));
+    setComplaints(loadList(COMPLAINTS_KEY(doctorId)));
   }, [doctorId]);
 
   const saveDiagnosis = useCallback((value: string) => {
     if (!value?.trim() || !doctorId) return;
-    // Write to localStorage immediately — do NOT put inside setState
     const current = loadList(DIAGNOSES_KEY(doctorId));
     const updated = addUnique(current, value);
     saveList(DIAGNOSES_KEY(doctorId), updated);
@@ -52,11 +54,18 @@ export function useDoctorSuggestions(doctorId: string) {
 
   const saveDrug = useCallback((value: string) => {
     if (!value?.trim() || !doctorId) return;
-    // Write to localStorage immediately — do NOT put inside setState
     const current = loadList(DRUGS_KEY(doctorId));
     const updated = addUnique(current, value);
     saveList(DRUGS_KEY(doctorId), updated);
     setDrugs(updated);
+  }, [doctorId]);
+
+  const saveComplaint = useCallback((value: string) => {
+    if (!value?.trim() || !doctorId) return;
+    const current = loadList(COMPLAINTS_KEY(doctorId));
+    const updated = addUnique(current, value);
+    saveList(COMPLAINTS_KEY(doctorId), updated);
+    setComplaints(updated);
   }, [doctorId]);
 
   const filterDiagnoses = useCallback((input: string): SuggestionOption[] => {
@@ -75,5 +84,13 @@ export function useDoctorSuggestions(doctorId: string) {
     return [...startsWith, ...contains].slice(0, 10).map(s => ({ value: s }));
   }, [drugs]);
 
-  return { saveDiagnosis, saveDrug, filterDiagnoses, filterDrugs };
+  const filterComplaints = useCallback((input: string): SuggestionOption[] => {
+    if (!input) return [];
+    const lower = input.toLowerCase();
+    const startsWith = complaints.filter(s => s.toLowerCase().startsWith(lower));
+    const contains   = complaints.filter(s => !s.toLowerCase().startsWith(lower) && s.toLowerCase().includes(lower));
+    return [...startsWith, ...contains].slice(0, 10).map(s => ({ value: s }));
+  }, [complaints]);
+
+  return { saveDiagnosis, saveDrug, saveComplaint, filterDiagnoses, filterDrugs, filterComplaints };
 }

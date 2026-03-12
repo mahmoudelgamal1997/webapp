@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { printHtml as triggerPrint } from './printUtils';
 import axios from 'axios';
-import { Card, Row, Col, Typography, Button, Divider, Table, Modal, Space, List, Image, Tag, Select, Radio, Input, InputNumber, Form, message } from 'antd';
-import { PlusOutlined, FileTextOutlined, BellOutlined, CalendarOutlined, FileImageOutlined, EyeOutlined, DollarOutlined, ExperimentOutlined, CheckCircleOutlined, ClockCircleOutlined, EditOutlined, WarningOutlined, PrinterOutlined, PercentageOutlined, SwapOutlined, GiftOutlined } from '@ant-design/icons';
+import { Card, Row, Col, Typography, Button, Divider, Table, Modal, Space, List, Image, Tag, Select, Radio, Input, InputNumber, Form, message, AutoComplete } from 'antd';
+import { PlusOutlined, FileTextOutlined, BellOutlined, CalendarOutlined, FileImageOutlined, EyeOutlined, DollarOutlined, ExperimentOutlined, CheckCircleOutlined, ClockCircleOutlined, EditOutlined, WarningOutlined, PrinterOutlined, PercentageOutlined, SwapOutlined, GiftOutlined, UploadOutlined } from '@ant-design/icons';
 import moment from 'moment';
 import ReceiptsList from './ReceiptsList';
 import { Receipt, Patient, Visit, ExternalService, ExternalServiceRequest, PatientPackage } from '../components/type';
@@ -18,6 +18,8 @@ import { sendBillingNotificationToAllAssistants } from '../services/notification
 import { useDoctorContext } from './DoctorContext';
 import { useClinicContext } from './ClinicContext';
 import { useLanguage } from './LanguageContext';
+import { useDoctorSuggestions } from '../hooks/useDoctorSuggestions';
+import UploadReportModal from './UploadReportModal';
 
 const { Title, Text } = Typography;
 
@@ -79,6 +81,12 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
   const { selectedClinicId, clinicScopeIds } = useClinicContext();
   const { language } = useLanguage();
 
+  const _suggestionDoctorId = localStorage.getItem('doctorId') || '';
+  const { saveDiagnosis: saveDiagnosisSuggestion, saveComplaint: saveComplaintSuggestion, filterDiagnoses: filterDiagnosesSuggestion, filterComplaints: filterComplaintsSuggestion } = useDoctorSuggestions(_suggestionDoctorId);
+  // Track typed complaint/diagnosis to pass to AutoComplete filterOption
+  const [complaintInput, setComplaintInput] = useState('');
+  const [diagnosisInput, setDiagnosisInput] = useState('');
+
   const [patientHistory, setPatientHistory] = useState<PatientHistoryResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -120,6 +128,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
 
   // Referral state
   const [referralModalVisible, setReferralModalVisible] = useState(false);
+  const [uploadReportModalVisible, setUploadReportModalVisible] = useState(false);
   const [patientReferrals, setPatientReferrals] = useState<any[]>([]);
   const [referralsLoading, setReferralsLoading] = useState(false);
 
@@ -996,6 +1005,14 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
                 >
                   Referral Letter
                 </Button>
+                <Button
+                  type="primary"
+                  icon={<UploadOutlined />}
+                  onClick={() => setUploadReportModalVisible(true)}
+                  style={{ backgroundColor: '#13c2c2', borderColor: '#13c2c2' }}
+                >
+                  Upload Report
+                </Button>
                 <Button onClick={onBackToList}>
                   Back to List
                 </Button>
@@ -1037,23 +1054,37 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
             <Row gutter={[12, 12]}>
               <Col xs={24} sm={12}>
                 <div style={{ marginBottom: 4, fontWeight: 500 }}>Complaint / الشكوى</div>
-                <textarea
-                  rows={3}
-                  style={{ width: '100%', padding: 8, borderRadius: 6, border: '1px solid #d9d9d9', fontSize: 14, resize: 'vertical' }}
+                <AutoComplete
                   value={newComplaint}
-                  onChange={e => setNewComplaint(e.target.value)}
-                  placeholder="Enter complaint..."
-                />
+                  options={filterComplaintsSuggestion(complaintInput)}
+                  filterOption={false}
+                  style={{ width: '100%' }}
+                  onChange={(val) => { setNewComplaint(val); setComplaintInput(val); }}
+                  onSelect={(val) => { setNewComplaint(val); setComplaintInput(val); }}
+                >
+                  <Input.TextArea
+                    rows={3}
+                    placeholder="Enter complaint..."
+                    style={{ fontSize: 14 }}
+                  />
+                </AutoComplete>
               </Col>
               <Col xs={24} sm={12}>
                 <div style={{ marginBottom: 4, fontWeight: 500 }}>Diagnosis / التشخيص</div>
-                <textarea
-                  rows={3}
-                  style={{ width: '100%', padding: 8, borderRadius: 6, border: '1px solid #d9d9d9', fontSize: 14, resize: 'vertical' }}
+                <AutoComplete
                   value={newDiagnosis}
-                  onChange={e => setNewDiagnosis(e.target.value)}
-                  placeholder="Enter diagnosis..."
-                />
+                  options={filterDiagnosesSuggestion(diagnosisInput)}
+                  filterOption={false}
+                  style={{ width: '100%' }}
+                  onChange={(val) => { setNewDiagnosis(val); setDiagnosisInput(val); }}
+                  onSelect={(val) => { setNewDiagnosis(val); setDiagnosisInput(val); }}
+                >
+                  <Input.TextArea
+                    rows={3}
+                    placeholder="Enter diagnosis..."
+                    style={{ fontSize: 14 }}
+                  />
+                </AutoComplete>
               </Col>
               <Col xs={24}>
                 <Button
@@ -1071,8 +1102,12 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
                         complaint: newComplaint.trim(),
                         diagnosis: newDiagnosis.trim(),
                       });
+                      if (newComplaint.trim()) saveComplaintSuggestion(newComplaint.trim());
+                      if (newDiagnosis.trim()) saveDiagnosisSuggestion(newDiagnosis.trim());
                       setNewComplaint('');
                       setNewDiagnosis('');
+                      setComplaintInput('');
+                      setDiagnosisInput('');
                       setAddComplaintVisible(false);
                       // Refresh history (with clinic scope if enabled)
                       const refreshParams: Record<string, any> = {
@@ -1098,7 +1133,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
                 >
                   Save
                 </Button>
-                <Button onClick={() => { setAddComplaintVisible(false); setNewComplaint(''); setNewDiagnosis(''); }}>
+                <Button onClick={() => { setAddComplaintVisible(false); setNewComplaint(''); setNewDiagnosis(''); setComplaintInput(''); setDiagnosisInput(''); }}>
                   Cancel
                 </Button>
               </Col>
@@ -1170,6 +1205,35 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
                   : <span style={{ color: '#bbb' }}>—</span>
               }
             ]}
+          />
+        </div>
+
+        <Divider />
+
+        {/* Prescription History */}
+        <Title level={4}>{language === 'en' ? 'Prescription History' : 'سجل الروشتات'}</Title>
+        <div style={{ overflowX: 'auto' }}>
+          <Table
+            dataSource={allReceipts}
+            columns={receiptsColumns}
+            rowKey="receipt_id"
+            scroll={{ x: 'max-content' }}
+            onRow={(record) => {
+              return {
+                onClick: () => {
+                  const visit = patientHistory?.visits.find(v =>
+                    v.receipts?.some(r => r._id === record._id)
+                  );
+                  if (visit) {
+                    showVisitDetails(visit);
+                  }
+                }
+              };
+            }}
+            pagination={{
+              pageSize: 10,
+              responsive: true
+            }}
           />
         </div>
 
@@ -1497,35 +1561,6 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
             </div>
           )}
         </Modal>
-
-        <Divider />
-
-        {/* Prescription History */}
-        <Title level={4}>{language === 'en' ? 'Prescription History' : 'سجل الروشتات'}</Title>
-        <div style={{ overflowX: 'auto' }}>
-          <Table
-            dataSource={allReceipts}
-            columns={receiptsColumns}
-            rowKey="receipt_id"
-            scroll={{ x: 'max-content' }}
-            onRow={(record) => {
-              return {
-                onClick: () => {
-                  const visit = patientHistory?.visits.find(v =>
-                    v.receipts?.some(r => r._id === record._id)
-                  );
-                  if (visit) {
-                    showVisitDetails(visit);
-                  }
-                }
-              };
-            }}
-            pagination={{
-              pageSize: 10,
-              responsive: true
-            }}
-          />
-        </div>
 
         <Divider />
 
@@ -1896,6 +1931,31 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
                 setPatientReferrals(sorted);
               }
             } catch { }
+          }
+        }}
+      />
+
+      {/* Upload Report Modal */}
+      <UploadReportModal
+        visible={uploadReportModalVisible}
+        onCancel={() => setUploadReportModalVisible(false)}
+        patient={selectedPatient}
+        assistantId={localStorage.getItem('doctorId') || undefined}
+        onSuccess={async () => {
+          if (selectedPatient) {
+            try {
+              setReportsLoading(true);
+              const res = await axios.get(`${API.BASE_URL}/api/patients/reports`, {
+                params: {
+                  patient_id: selectedPatient.patient_id,
+                  patient_phone: selectedPatient.patient_phone,
+                  doctor_id: selectedPatient.doctor_id
+                }
+              });
+              if (res.data.success) setPatientReports(res.data.data || []);
+            } catch { } finally {
+              setReportsLoading(false);
+            }
           }
         }}
       />
