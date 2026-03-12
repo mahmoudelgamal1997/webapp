@@ -35,6 +35,7 @@ interface DoctorContextType {
   settings: DoctorSettings;
   loading: boolean;
   doctorId: string | null;
+  doctorName: string;
   fetchSettings: () => Promise<void>;
   updateSettings: (settings: DoctorSettings) => Promise<boolean>;
 }
@@ -73,6 +74,7 @@ let endpoint = `${API.BASE_URL}${API.ENDPOINTS.DOCTOR_SETTINGS}`;
 export const DoctorProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [settings, setSettings] = useState<DoctorSettings>(defaultSettings);
   const [loading, setLoading] = useState<boolean>(false);
+  const [doctorName, setDoctorName] = useState<string>('');
 
   // Always read fresh from localStorage so we never use a stale closure value
   const getDoctorId = () => localStorage.getItem('doctorId');
@@ -91,9 +93,12 @@ export const DoctorProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       console.log(`Fetching doctor settings for ${doctorId}`);
       const response = await axios.get(`${API.BASE_URL}${API.ENDPOINTS.DOCTOR_SETTINGS(doctorId!)}`);
 
-      // The API returns { message, settings }
+      // The API returns { message, doctor_name, settings }
       if (response.data && response.data.settings) {
         console.log('Doctor settings retrieved:', response.data.settings);
+        if (response.data.doctor_name) {
+          setDoctorName(response.data.doctor_name);
+        }
         // Restore extra print fields from localStorage if backend doesn't return them
         const extra = localStorage.getItem(`printSettingsExtra_${doctorId}`);
         const extraFields = extra ? JSON.parse(extra) : {};
@@ -180,6 +185,7 @@ export const DoctorProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     settings,
     loading,
     doctorId,
+    doctorName,
     fetchSettings,
     updateSettings
   };

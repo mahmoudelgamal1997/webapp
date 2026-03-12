@@ -77,7 +77,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
   onBackToList
 }) => {
   const { selectedPatient, setSelectedPatient, fetchPatients } = usePatientContext();
-  const { settings: doctorSettings } = useDoctorContext();
+  const { settings: doctorSettings, doctorName } = useDoctorContext();
   const { selectedClinicId, clinicScopeIds } = useClinicContext();
   const { language } = useLanguage();
 
@@ -572,6 +572,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
     visit.receipts?.map(receipt => ({
       ...receipt,
       visit_type: visit.visit_type,
+      doctor_name: (visit as any).doctor_name || '',
     })) || []
   ) || [];
 
@@ -764,6 +765,12 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
       dataIndex: 'visit_type',
       key: 'visit_type',
       render: (vt: string) => resolveVisitTypeName(vt || '') || '—'
+    },
+    {
+      title: language === 'en' ? 'Doctor / الطبيب' : 'الطبيب',
+      dataIndex: 'doctor_name',
+      key: 'doctor_name',
+      render: (name: string) => name ? `د. ${name}` : <span style={{ color: '#bbb' }}>—</span>
     },
     {
       title: language === 'en' ? 'Actions' : 'إجراءات',
@@ -1096,11 +1103,13 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
                     try {
                       setAddComplaintLoading(true);
                       const doctorId = selectedPatient?.doctor_id || localStorage.getItem('doctorId');
+                      const resolvedDoctorName = doctorName || selectedPatient?.doctor_name || doctorSettings.doctorTitle || '';
                       await axios.post(`${API.BASE_URL}/api/patients/complaint-history`, {
                         patient_id: selectedPatient?.patient_id,
                         doctor_id: doctorId,
                         complaint: newComplaint.trim(),
                         diagnosis: newDiagnosis.trim(),
+                        doctor_name: resolvedDoctorName,
                       });
                       if (newComplaint.trim()) saveComplaintSuggestion(newComplaint.trim());
                       if (newDiagnosis.trim()) saveDiagnosisSuggestion(newDiagnosis.trim());
@@ -1159,6 +1168,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
                 date: e.date,
                 complaint: e.complaint,
                 diagnosis: e.diagnosis,
+                doctor_name: e.doctor_name || '',
                 source: 'history'
               }));
               const fromVisits = (patientHistory?.visits || [])
@@ -1168,7 +1178,8 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
                   date: v.date,
                   complaint: v.complaint,
                   diagnosis: v.diagnosis,
-                  source: 'visit'   // date only — v.time is queue time, not complaint time
+                  doctor_name: (v as any).doctor_name || '',
+                  source: 'visit'
                 }));
               return [...fromHistory, ...fromVisits].sort((a, b) => moment(b.date).valueOf() - moment(a.date).valueOf());
             })()}
@@ -1184,8 +1195,8 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
                 render: (date: string, record: any) =>
                   date
                     ? record.source === 'history'
-                      ? moment(date).format('DD MMM YYYY · HH:mm')  // accurate — saved by button
-                      : moment(date).format('DD MMM YYYY')           // visit date only — time is queue time, not complaint time
+                      ? moment(date).format('DD MMM YYYY · HH:mm')
+                      : moment(date).format('DD MMM YYYY')
                     : '—'
               },
               {
@@ -1202,6 +1213,15 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
                 key: 'diagnosis',
                 render: (text: string) => text
                   ? <span style={{ whiteSpace: 'pre-wrap' }}>{text}</span>
+                  : <span style={{ color: '#bbb' }}>—</span>
+              },
+              {
+                title: 'Doctor / الطبيب',
+                dataIndex: 'doctor_name',
+                key: 'doctor_name',
+                width: 150,
+                render: (name: string) => name
+                  ? <span style={{ color: '#1677ff' }}>د. {name}</span>
                   : <span style={{ color: '#bbb' }}>—</span>
               }
             ]}
