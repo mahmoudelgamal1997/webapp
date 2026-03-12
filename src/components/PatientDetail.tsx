@@ -1103,7 +1103,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
                     try {
                       setAddComplaintLoading(true);
                       const doctorId = selectedPatient?.doctor_id || localStorage.getItem('doctorId');
-                      const resolvedDoctorName = doctorName || selectedPatient?.doctor_name || doctorSettings.doctorTitle || '';
+                      const resolvedDoctorName = doctorName || doctorSettings.doctorTitle || '';
                       await axios.post(`${API.BASE_URL}/api/patients/complaint-history`, {
                         patient_id: selectedPatient?.patient_id,
                         doctor_id: doctorId,
