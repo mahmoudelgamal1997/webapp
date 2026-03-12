@@ -15,13 +15,14 @@ export function printHtml(html: string): void {
       popup.document.write(html);
       popup.document.close();
       popup.focus();
+      // Wait longer on Android/Samsung for the content to fully render before printing
       setTimeout(() => {
         popup.print();
-        // Give the print dialog time to open before closing the tab
+        // Give Samsung's print dialog enough time to complete before closing the tab
         setTimeout(() => {
           try { popup.close(); } catch { /* ignored */ }
-        }, 2000);
-      }, 400);
+        }, 10000);
+      }, 800);
     }
     return;
   }

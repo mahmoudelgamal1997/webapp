@@ -55,6 +55,27 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
   const { t } = useLanguage();
 
   const [loading, setLoading] = useState(false);
+  const [availableVisitTypes, setAvailableVisitTypes] = useState<any[]>([]);
+
+  useEffect(() => {
+    const doctorId = localStorage.getItem('doctorId');
+    if (doctorId) {
+      axios.get(`${API.BASE_URL}${API.ENDPOINTS.VISIT_TYPE_CONFIG(doctorId)}`)
+        .then(res => { if (res.data.success) setAvailableVisitTypes(res.data.data.visit_types || []); })
+        .catch(() => {});
+    }
+  }, []);
+
+  const resolveVisitTypeName = (rawValue: string): string => {
+    if (!rawValue) return '';
+    const byId = availableVisitTypes.find((t: any) => t.type_id === rawValue);
+    if (byId) return byId.name || rawValue;
+    const byNameAr = availableVisitTypes.find((t: any) => t.name_ar === rawValue);
+    if (byNameAr) return byNameAr.name || rawValue;
+    const byName = availableVisitTypes.find((t: any) => t.name === rawValue);
+    if (byName) return byName.name || rawValue;
+    return rawValue;
+  };
   const [visitsToDisplay, setVisitsToDisplay] = useState<VisitWithPatientInfo[]>([]);
   const [pagination, setPagination] = useState({
     current: 1,
@@ -402,7 +423,7 @@ const PatientsList: React.FC<PatientsListProps> = ({ refreshTrigger = 0 }) => {
       key: 'visit_type',
       render: (record: VisitWithPatientInfo) => (
         <Space direction="vertical" size={2}>
-          <Tag color="blue">{record.visit_type || 'Regular'}</Tag>
+          <Tag color="blue">{resolveVisitTypeName(record.visit_type) || 'Regular'}</Tag>
           {record.visit_urgency === 'urgent' && (
             <Tag color="volcano" style={{ fontSize: '11px' }}>Urgent</Tag>
           )}

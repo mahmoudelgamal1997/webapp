@@ -852,10 +852,71 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
     <>
       <Card
         title={
-          <Row justify="space-between" align="middle" gutter={[8, 8]}>
-            <Col xs={24} sm={12}>Patient Details: {selectedPatient.patient_name}</Col>
-            <Col xs={24} sm={12} style={{ textAlign: 'right' }}>
-              <Space wrap>
+          <div>
+            <Row align="middle" gutter={[16, 8]} wrap>
+              <Col flex="none">
+                <Text strong>Patient Details: {selectedPatient.patient_name}</Text>
+              </Col>
+              {selectedPatient.file_number && (
+                <Col flex="none">
+                  <Tag color="gold" style={{ margin: 0 }}>
+                    {language === 'en' ? 'File ID' : 'رقم ملف'}: {selectedPatient.file_number}
+                  </Tag>
+                </Col>
+              )}
+              <Col flex="none">
+                {editingVisitType ? (
+                  <Space size="small" wrap>
+                    <Select
+                      value={selectedVisitTypeId}
+                      onChange={setSelectedVisitTypeId}
+                      style={{ minWidth: 140 }}
+                      size="small"
+                    >
+                      {availableVisitTypes.map(type => (
+                        <Select.Option key={type.type_id} value={type.type_id}>
+                          {type.name} ({type.name_ar})
+                        </Select.Option>
+                      ))}
+                      {selectedVisitTypeId && !availableVisitTypes.find(t => t.type_id === selectedVisitTypeId) && (
+                        <Select.Option key={selectedVisitTypeId} value={selectedVisitTypeId}>
+                          {selectedVisitTypeId}
+                        </Select.Option>
+                      )}
+                    </Select>
+                    <Radio.Group
+                      value={selectedUrgency}
+                      onChange={(e) => setSelectedUrgency(e.target.value)}
+                      buttonStyle="solid"
+                      size="small"
+                    >
+                      <Radio.Button value="normal">Normal</Radio.Button>
+                      <Radio.Button value="urgent">Urgent</Radio.Button>
+                    </Radio.Group>
+                    <Button size="small" onClick={() => setEditingVisitType(false)}>Cancel</Button>
+                    <Button type="primary" size="small" loading={savingVisitType} onClick={handleUpdateVisitType}>
+                      Save
+                    </Button>
+                  </Space>
+                ) : (
+                  <Space size="small">
+                    <Tag color="blue">{resolveVisitTypeName(selectedPatient.visit_type || '') || 'Regular'}</Tag>
+                    <Button type="link" size="small" icon={<EditOutlined />} onClick={() => setEditingVisitType(true)}>
+                      Change Type
+                    </Button>
+                    {(selectedPatient as any).visit_urgency === 'urgent' ? (
+                      <Tag color="red" style={{ margin: 0 }}>Urgent</Tag>
+                    ) : (
+                      <Tag color="green" style={{ margin: 0 }}>Normal</Tag>
+                    )}
+                  </Space>
+                )}
+              </Col>
+            </Row>
+            <div style={{ borderBottom: '1px solid #f0f0f0', marginTop: 10, marginBottom: 10 }} />
+            <Row align="middle" gutter={[8, 8]} wrap>
+              <Col xs={24} sm={24} md="auto">
+              <Space wrap size="small">
                 <Button
                   type="primary"
                   icon={<DollarOutlined />}
@@ -939,105 +1000,11 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
                   Back to List
                 </Button>
               </Space>
-            </Col>
-          </Row>
-        }
-      >
-        {/* Personal Information Section */}
-        <Title level={4}>Personal Information</Title>
-
-        {/* File Number */}
-        {selectedPatient.file_number && (
-          <div style={{ marginBottom: 16 }}>
-            <Tag color="gold" style={{ fontSize: 15, padding: '4px 14px', fontWeight: 700, letterSpacing: 1 }}>
-              رقم ملف: {selectedPatient.file_number}
-            </Tag>
-          </div>
-        )}
-
-        <Card size="small" style={{ marginBottom: 16, backgroundColor: '#f9f9f9' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <Text strong>Current Visit Information</Text>
-            {!editingVisitType && (
-              <Button
-                type="link"
-                icon={<EditOutlined />}
-                onClick={() => setEditingVisitType(true)}
-              >
-                Change Type
-              </Button>
-            )}
-          </div>
-
-          {editingVisitType ? (
-            <div style={{ padding: 12, backgroundColor: '#fff', borderRadius: 4, border: '1px solid #d9d9d9' }}>
-              <Form layout="vertical">
-                <Row gutter={16}>
-                  <Col span={12}>
-                    <Form.Item label="Visit Type" style={{ marginBottom: 12 }}>
-                      <Select
-                        value={selectedVisitTypeId}
-                        onChange={setSelectedVisitTypeId}
-                        style={{ width: '100%' }}
-                      >
-                        {availableVisitTypes.map(type => (
-                          <Select.Option key={type.type_id} value={type.type_id}>
-                            {type.name} ({type.name_ar})
-                          </Select.Option>
-                        ))}
-                        {/* Add current type if not in list (legacy support) */}
-                        {selectedVisitTypeId && !availableVisitTypes.find(t => t.type_id === selectedVisitTypeId) && (
-                          <Select.Option key={selectedVisitTypeId} value={selectedVisitTypeId}>
-                            {selectedVisitTypeId}
-                          </Select.Option>
-                        )}
-                      </Select>
-                    </Form.Item>
-                  </Col>
-                  <Col span={12}>
-                    <Form.Item label="Urgency" style={{ marginBottom: 12 }}>
-                      <Radio.Group
-                        value={selectedUrgency}
-                        onChange={(e) => setSelectedUrgency(e.target.value)}
-                        buttonStyle="solid"
-                      >
-                        <Radio.Button value="normal">Normal</Radio.Button>
-                        <Radio.Button value="urgent">Urgent</Radio.Button>
-                      </Radio.Group>
-                    </Form.Item>
-                  </Col>
-                </Row>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-                  <Button size="small" onClick={() => setEditingVisitType(false)}>Cancel</Button>
-                  <Button
-                    type="primary"
-                    size="small"
-                    loading={savingVisitType}
-                    onClick={handleUpdateVisitType}
-                  >
-                    Save Changes
-                  </Button>
-                </div>
-              </Form>
-            </div>
-          ) : (
-            <Row gutter={[16, 16]}>
-              <Col span={12}>
-                <Text type="secondary" style={{ display: 'block', fontSize: 12 }}>Visit Type</Text>
-                <Tag color="blue">{resolveVisitTypeName(selectedPatient.visit_type || '') || 'Regular'}</Tag>
-              </Col>
-              <Col span={12}>
-                <Text type="secondary" style={{ display: 'block', fontSize: 12 }}>Urgency</Text>
-                {(selectedPatient as any).visit_urgency === 'urgent' ? (
-                  <Tag color="red" icon={<WarningOutlined />}>Urgent / عاجل</Tag>
-                ) : (
-                  <Tag color="green">Normal / عادي</Tag>
-                )}
               </Col>
             </Row>
-          )}
-        </Card>
-
+          </div>
+        }
+      >
         {/* Package balance */}
         {(allPatientPackages.length > 0 || activePackages.length > 0) && (
           <Card size="small" style={{ marginBottom: 16, backgroundColor: '#f0f5ff' }} title={<Space><GiftOutlined /> Package balance</Space>}>
@@ -1056,6 +1023,155 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
             />
           </Card>
         )}
+
+        <Divider />
+
+        {/* Complaint & Diagnosis history */}
+        <Title level={4}>
+          <FileTextOutlined style={{ color: '#52c41a' }} /> Complaint & Diagnosis / الشكوى والتشخيص
+        </Title>
+
+        {/* Add new entry form */}
+        {addComplaintVisible ? (
+          <div style={{ background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 8, padding: 16, marginBottom: 16 }}>
+            <Row gutter={[12, 12]}>
+              <Col xs={24} sm={12}>
+                <div style={{ marginBottom: 4, fontWeight: 500 }}>Complaint / الشكوى</div>
+                <textarea
+                  rows={3}
+                  style={{ width: '100%', padding: 8, borderRadius: 6, border: '1px solid #d9d9d9', fontSize: 14, resize: 'vertical' }}
+                  value={newComplaint}
+                  onChange={e => setNewComplaint(e.target.value)}
+                  placeholder="Enter complaint..."
+                />
+              </Col>
+              <Col xs={24} sm={12}>
+                <div style={{ marginBottom: 4, fontWeight: 500 }}>Diagnosis / التشخيص</div>
+                <textarea
+                  rows={3}
+                  style={{ width: '100%', padding: 8, borderRadius: 6, border: '1px solid #d9d9d9', fontSize: 14, resize: 'vertical' }}
+                  value={newDiagnosis}
+                  onChange={e => setNewDiagnosis(e.target.value)}
+                  placeholder="Enter diagnosis..."
+                />
+              </Col>
+              <Col xs={24}>
+                <Button
+                  type="primary"
+                  loading={addComplaintLoading}
+                  style={{ marginRight: 8, backgroundColor: '#52c41a', borderColor: '#52c41a' }}
+                  onClick={async () => {
+                    if (!newComplaint.trim() && !newDiagnosis.trim()) return;
+                    try {
+                      setAddComplaintLoading(true);
+                      const doctorId = selectedPatient?.doctor_id || localStorage.getItem('doctorId');
+                      await axios.post(`${API.BASE_URL}/api/patients/complaint-history`, {
+                        patient_id: selectedPatient?.patient_id,
+                        doctor_id: doctorId,
+                        complaint: newComplaint.trim(),
+                        diagnosis: newDiagnosis.trim(),
+                      });
+                      setNewComplaint('');
+                      setNewDiagnosis('');
+                      setAddComplaintVisible(false);
+                      // Refresh history (with clinic scope if enabled)
+                      const refreshParams: Record<string, any> = {
+                        patient_id: selectedPatient?.patient_id,
+                        doctor_id: doctorId,
+                        page: 1,
+                        limit: 9999
+                      };
+                      if (clinicScopeIds && clinicScopeIds.length > 0) {
+                        refreshParams.clinic_ids = clinicScopeIds.join(',');
+                        refreshParams.use_clinic_scope = 'true';
+                      }
+                      const response = await axios.get<PatientHistoryResponse>(`${API.BASE_URL}/api/patients/visits`, {
+                        params: refreshParams
+                      });
+                      setPatientHistory(response.data);
+                    } catch (err) {
+                      console.error('Failed to add complaint entry', err);
+                    } finally {
+                      setAddComplaintLoading(false);
+                    }
+                  }}
+                >
+                  Save
+                </Button>
+                <Button onClick={() => { setAddComplaintVisible(false); setNewComplaint(''); setNewDiagnosis(''); }}>
+                  Cancel
+                </Button>
+              </Col>
+            </Row>
+          </div>
+        ) : (
+          <Button
+            icon={<PlusOutlined />}
+            style={{ marginBottom: 12 }}
+            onClick={() => setAddComplaintVisible(true)}
+          >
+            Add Complaint & Diagnosis
+          </Button>
+        )}
+
+        <div style={{ overflowX: 'auto', marginBottom: 24 }}>
+          <Table
+            size="small"
+            dataSource={(() => {
+              // Combine complaint_history entries + visit-level entries, dedupe, sort newest first
+              const fromHistory = (patientHistory?.complaint_history || []).map((e: any) => ({
+                _key: e._id || e.date,
+                date: e.date,
+                complaint: e.complaint,
+                diagnosis: e.diagnosis,
+                source: 'history'
+              }));
+              const fromVisits = (patientHistory?.visits || [])
+                .filter((v: Visit) => v.complaint || v.diagnosis)
+                .map((v: Visit) => ({
+                  _key: v.visit_id || v._id,
+                  date: v.date,
+                  complaint: v.complaint,
+                  diagnosis: v.diagnosis,
+                  source: 'visit'   // date only — v.time is queue time, not complaint time
+                }));
+              return [...fromHistory, ...fromVisits].sort((a, b) => moment(b.date).valueOf() - moment(a.date).valueOf());
+            })()}
+            rowKey={(r: any) => r._key || r.date}
+            pagination={{ pageSize: 10, hideOnSinglePage: true }}
+            locale={{ emptyText: 'No complaint or diagnosis recorded yet' }}
+            columns={[
+              {
+                title: 'Date / التاريخ',
+                dataIndex: 'date',
+                key: 'date',
+                width: 160,
+                render: (date: string, record: any) =>
+                  date
+                    ? record.source === 'history'
+                      ? moment(date).format('DD MMM YYYY · HH:mm')  // accurate — saved by button
+                      : moment(date).format('DD MMM YYYY')           // visit date only — time is queue time, not complaint time
+                    : '—'
+              },
+              {
+                title: 'Complaint / الشكوى',
+                dataIndex: 'complaint',
+                key: 'complaint',
+                render: (text: string) => text
+                  ? <span style={{ whiteSpace: 'pre-wrap' }}>{text}</span>
+                  : <span style={{ color: '#bbb' }}>—</span>
+              },
+              {
+                title: 'Diagnosis / التشخيص',
+                dataIndex: 'diagnosis',
+                key: 'diagnosis',
+                render: (text: string) => text
+                  ? <span style={{ whiteSpace: 'pre-wrap' }}>{text}</span>
+                  : <span style={{ color: '#bbb' }}>—</span>
+              }
+            ]}
+          />
+        </div>
 
         <Divider />
 
@@ -1413,155 +1529,6 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
 
         <Divider />
 
-        {/* Complaint & Diagnosis history */}
-        <Title level={4}>
-          <FileTextOutlined style={{ color: '#52c41a' }} /> Complaint & Diagnosis / الشكوى والتشخيص
-        </Title>
-
-        {/* Add new entry form */}
-        {addComplaintVisible ? (
-          <div style={{ background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 8, padding: 16, marginBottom: 16 }}>
-            <Row gutter={[12, 12]}>
-              <Col xs={24} sm={12}>
-                <div style={{ marginBottom: 4, fontWeight: 500 }}>Complaint / الشكوى</div>
-                <textarea
-                  rows={3}
-                  style={{ width: '100%', padding: 8, borderRadius: 6, border: '1px solid #d9d9d9', fontSize: 14, resize: 'vertical' }}
-                  value={newComplaint}
-                  onChange={e => setNewComplaint(e.target.value)}
-                  placeholder="Enter complaint..."
-                />
-              </Col>
-              <Col xs={24} sm={12}>
-                <div style={{ marginBottom: 4, fontWeight: 500 }}>Diagnosis / التشخيص</div>
-                <textarea
-                  rows={3}
-                  style={{ width: '100%', padding: 8, borderRadius: 6, border: '1px solid #d9d9d9', fontSize: 14, resize: 'vertical' }}
-                  value={newDiagnosis}
-                  onChange={e => setNewDiagnosis(e.target.value)}
-                  placeholder="Enter diagnosis..."
-                />
-              </Col>
-              <Col xs={24}>
-                <Button
-                  type="primary"
-                  loading={addComplaintLoading}
-                  style={{ marginRight: 8, backgroundColor: '#52c41a', borderColor: '#52c41a' }}
-                  onClick={async () => {
-                    if (!newComplaint.trim() && !newDiagnosis.trim()) return;
-                    try {
-                      setAddComplaintLoading(true);
-                      const doctorId = selectedPatient?.doctor_id || localStorage.getItem('doctorId');
-                      await axios.post(`${API.BASE_URL}/api/patients/complaint-history`, {
-                        patient_id: selectedPatient?.patient_id,
-                        doctor_id: doctorId,
-                        complaint: newComplaint.trim(),
-                        diagnosis: newDiagnosis.trim(),
-                      });
-                      setNewComplaint('');
-                      setNewDiagnosis('');
-                      setAddComplaintVisible(false);
-                      // Refresh history (with clinic scope if enabled)
-                      const refreshParams: Record<string, any> = {
-                        patient_id: selectedPatient?.patient_id,
-                        doctor_id: doctorId,
-                        page: 1,
-                        limit: 9999
-                      };
-                      if (clinicScopeIds && clinicScopeIds.length > 0) {
-                        refreshParams.clinic_ids = clinicScopeIds.join(',');
-                        refreshParams.use_clinic_scope = 'true';
-                      }
-                      const response = await axios.get<PatientHistoryResponse>(`${API.BASE_URL}/api/patients/visits`, {
-                        params: refreshParams
-                      });
-                      setPatientHistory(response.data);
-                    } catch (err) {
-                      console.error('Failed to add complaint entry', err);
-                    } finally {
-                      setAddComplaintLoading(false);
-                    }
-                  }}
-                >
-                  Save
-                </Button>
-                <Button onClick={() => { setAddComplaintVisible(false); setNewComplaint(''); setNewDiagnosis(''); }}>
-                  Cancel
-                </Button>
-              </Col>
-            </Row>
-          </div>
-        ) : (
-          <Button
-            icon={<PlusOutlined />}
-            style={{ marginBottom: 12 }}
-            onClick={() => setAddComplaintVisible(true)}
-          >
-            Add Complaint & Diagnosis
-          </Button>
-        )}
-
-        <div style={{ overflowX: 'auto', marginBottom: 24 }}>
-          <Table
-            size="small"
-            dataSource={(() => {
-              // Combine complaint_history entries + visit-level entries, dedupe, sort newest first
-              const fromHistory = (patientHistory?.complaint_history || []).map((e: any) => ({
-                _key: e._id || e.date,
-                date: e.date,
-                complaint: e.complaint,
-                diagnosis: e.diagnosis,
-                source: 'history'
-              }));
-              const fromVisits = (patientHistory?.visits || [])
-                .filter((v: Visit) => v.complaint || v.diagnosis)
-                .map((v: Visit) => ({
-                  _key: v.visit_id || v._id,
-                  date: v.date,
-                  complaint: v.complaint,
-                  diagnosis: v.diagnosis,
-                  source: 'visit'   // date only — v.time is queue time, not complaint time
-                }));
-              return [...fromHistory, ...fromVisits].sort((a, b) => moment(b.date).valueOf() - moment(a.date).valueOf());
-            })()}
-            rowKey={(r: any) => r._key || r.date}
-            pagination={{ pageSize: 10, hideOnSinglePage: true }}
-            locale={{ emptyText: 'No complaint or diagnosis recorded yet' }}
-            columns={[
-              {
-                title: 'Date / التاريخ',
-                dataIndex: 'date',
-                key: 'date',
-                width: 160,
-                render: (date: string, record: any) =>
-                  date
-                    ? record.source === 'history'
-                      ? moment(date).format('DD MMM YYYY · HH:mm')  // accurate — saved by button
-                      : moment(date).format('DD MMM YYYY')           // visit date only — time is queue time, not complaint time
-                    : '—'
-              },
-              {
-                title: 'Complaint / الشكوى',
-                dataIndex: 'complaint',
-                key: 'complaint',
-                render: (text: string) => text
-                  ? <span style={{ whiteSpace: 'pre-wrap' }}>{text}</span>
-                  : <span style={{ color: '#bbb' }}>—</span>
-              },
-              {
-                title: 'Diagnosis / التشخيص',
-                dataIndex: 'diagnosis',
-                key: 'diagnosis',
-                render: (text: string) => text
-                  ? <span style={{ whiteSpace: 'pre-wrap' }}>{text}</span>
-                  : <span style={{ color: '#bbb' }}>—</span>
-              }
-            ]}
-          />
-        </div>
-
-        <Divider />
-
         {/* Referrals Section */}
         <Title level={4}>
           <SwapOutlined style={{ color: '#08979c' }} /> Referral Letters / خطابات الإحالة
@@ -1726,7 +1693,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
                               dataSource={receipt.drugs}
                               renderItem={(drug) => (
                                 <List.Item>
-                                  <Text strong>{drug.drug}</Text> - {drug.frequency}, {drug.period}, {drug.timing}
+                                  <Text strong>{drug.drug}</Text> - {translateDrugField(drug.frequency, frequencyMap)}, {translateDrugField(drug.period, periodMap)}, {translateDrugField(drug.timing, timingMap)}
                                 </List.Item>
                               )}
                             />
