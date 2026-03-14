@@ -83,7 +83,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
   const { selectedClinicId, clinicScopeIds } = useClinicContext();
   const { language } = useLanguage();
 
-  const _suggestionDoctorId = localStorage.getItem('doctorId') || '';
+  const _suggestionDoctorId = selectedPatient?.doctor_id || localStorage.getItem('doctorId') || '';
   const { diagnoses, complaints, saveDiagnosis: saveDiagnosisSuggestion, saveComplaint: saveComplaintSuggestion, filterDiagnoses: filterDiagnosesSuggestion, filterComplaints: filterComplaintsSuggestion } = useDoctorSuggestions(_suggestionDoctorId);
   const CHIP_LIMIT = 15;
   // Track typed complaint/diagnosis to pass to AutoComplete filterOption
@@ -278,7 +278,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
 
     const fetchPatientPackages = async () => {
       if (!selectedPatient?.patient_id) return;
-      const doctorId = localStorage.getItem('doctorId');
+      const doctorId = selectedPatient.doctor_id || localStorage.getItem('doctorId');
       try {
         const [activeRes, allRes] = await Promise.all([
           axios.get(`${API.BASE_URL}${API.ENDPOINTS.PATIENT_ACTIVE_PACKAGES(selectedPatient.patient_id)}`, { params: { doctor_id: doctorId } }),
@@ -333,7 +333,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
 
     try {
       setSavingVisitType(true);
-      const doctorId = localStorage.getItem('doctorId');
+      const doctorId = selectedPatient.doctor_id || localStorage.getItem('doctorId');
 
       const response = await axios.put(`${API.BASE_URL}${API.ENDPOINTS.UPDATE_VISIT_TYPE(selectedPatient.patient_id)}`, {
         visit_type: selectedVisitTypeId,
@@ -431,7 +431,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
       message.warning('Please select a package');
       return;
     }
-    const doctorId = localStorage.getItem('doctorId');
+    const doctorId = selectedPatient.doctor_id || localStorage.getItem('doctorId');
     if (!doctorId) return;
     setAssignPackageSubmitting(true);
     try {

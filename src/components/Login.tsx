@@ -90,19 +90,39 @@ const LoginPage: React.FC = () => {
       const finalSnapshot = !assistantSnapshot.empty ? assistantSnapshot : assistantSnapshotWithSpace;
       
       if (finalSnapshot && !finalSnapshot.empty) {
-        // Sort by clinic_id then doctor_id so the "primary" link matches the assistant portal
-        const sortedDocs = [...finalSnapshot.docs].sort((a, b) => {
+        const storedClinicId = localStorage.getItem('clinicId');
+        let sortedDocs = [...finalSnapshot.docs].sort((a, b) => {
           const da = a.data();
           const db = b.data();
+          if (storedClinicId) {
+            const aMatch = (da.clinic_id || '') === storedClinicId;
+            const bMatch = (db.clinic_id || '') === storedClinicId;
+            if (aMatch !== bMatch) return aMatch ? -1 : 1;
+          }
           const c = (da.clinic_id || '').localeCompare(db.clinic_id || '');
           if (c !== 0) return c;
           return (da.doctor_id || '').localeCompare(db.doctor_id || '');
         });
-        const assistantDoc = sortedDocs[0];
-        const assistantData = assistantDoc.data();
-        console.log('Assistant document data:', assistantData);
+        let assistantDoc = sortedDocs[0];
+        let assistantData = assistantDoc.data();
+
+        if (sortedDocs.length > 1) {
+          const firstClinicId = assistantData.clinic_id;
+          const sameClinicDocs = sortedDocs.filter(d => (d.data().clinic_id || '') === (firstClinicId || ''));
+          for (const d of sameClinicDocs) {
+            const did = d.data().doctor_id?.trim() || d.data().doctor_id;
+            if (!did) continue;
+            const doctorSnap = await getDoc(doc(db, 'doctors', did));
+            const isOwner = doctorSnap.exists() ? doctorSnap.data()?.is_owner : undefined;
+            if (isOwner === true || isOwner === undefined) {
+              assistantDoc = d;
+              assistantData = d.data();
+              break;
+            }
+          }
+        }
+        console.log('Assistant document data (prefer owner):', assistantData);
         
-        // Extract doctor_id and clinic_id from the document (trim any whitespace)
         doctorId = assistantData.doctor_id?.trim() || assistantData.doctor_id;
         clinicId = assistantData.clinic_id?.trim() || assistantData.clinic_id;
       } else {

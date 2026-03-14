@@ -191,6 +191,75 @@ export const ClinicProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   }, [selectedClinicId, clinics]);
 
   /**
+   * FIX: When an assistant selects a clinic, resolve the correct doctor_id from
+   * doctor_clinic_assistant. Assistants can work with multiple doctors at the same
+   * or different clinics - login only stored the first one. Updating here ensures
+   * the API receives the correct doctor_id for the selected clinic.
+   */
+  useEffect(() => {
+    const assistantId = localStorage.getItem('assistantId');
+    if (!assistantId || !selectedClinicId) return;
+
+    const resolveDoctorForClinic = async () => {
+      try {
+        const db = getFirestore();
+        const doctorClinicAssistantRef = collection(db, 'doctor_clinic_assistant');
+
+        // Clinics to match: selected clinic + parent (if branch with shared file)
+        const selectedData = clinics.find(c => c._id === selectedClinicId);
+        const parentId = selectedData?.parent_clinic_id || null;
+        const clinicIdsToMatch = [selectedClinicId];
+        if (parentId) clinicIdsToMatch.push(parentId);
+
+        // Query all assignments for this assistant
+        let q = query(doctorClinicAssistantRef, where('assistant_id', '==', assistantId));
+        let snapshot = await getDocs(q);
+        if (snapshot.empty) {
+          q = query(doctorClinicAssistantRef, where('assistant_id', '==', assistantId + ' '));
+          snapshot = await getDocs(q);
+        }
+
+        if (!snapshot.empty) {
+          const matchingDocs = snapshot.docs.filter(d => clinicIdsToMatch.includes(d.data().clinic_id));
+          const candidates = matchingDocs.length > 0 ? matchingDocs : snapshot.docs;
+
+          let doctorId: string | null = null;
+          if (candidates.length === 1) {
+            doctorId = candidates[0].data().doctor_id?.trim() || candidates[0].data().doctor_id;
+          } else {
+            for (const d of candidates) {
+              const did = d.data().doctor_id?.trim() || d.data().doctor_id;
+              if (!did) continue;
+              const doctorSnap = await getDoc(doc(db, 'doctors', did));
+              const isOwner = doctorSnap.exists() ? doctorSnap.data()?.is_owner : undefined;
+              if (isOwner === true || isOwner === undefined) {
+                doctorId = did;
+                break;
+              }
+            }
+            if (!doctorId && candidates.length > 0) {
+              doctorId = candidates[0].data().doctor_id?.trim() || candidates[0].data().doctor_id;
+            }
+          }
+
+          if (doctorId) {
+            const currentStored = localStorage.getItem('doctorId');
+            if (currentStored !== doctorId) {
+              localStorage.setItem('doctorId', doctorId);
+              window.dispatchEvent(new Event('doctorIdChanged'));
+              console.log('Updated doctorId for selected clinic (prefer owner):', doctorId);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error resolving doctor for clinic:', err);
+      }
+    };
+
+    resolveDoctorForClinic();
+  }, [selectedClinicId, clinics]);
+
+  /**
    * Compute clinicScopeIds whenever the selected clinic changes.
    * - Center with sharedPatientFile=true → [centerId, ...branchIds]
    * - Branch whose center has sharedPatientFile=true → [centerId, ...branchIds]
