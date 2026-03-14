@@ -92,5 +92,15 @@ export function useDoctorSuggestions(doctorId: string) {
     return [...startsWith, ...contains].slice(0, 10).map(s => ({ value: s }));
   }, [complaints]);
 
-  return { saveDiagnosis, saveDrug, saveComplaint, filterDiagnoses, filterDrugs, filterComplaints };
+  return {
+    diagnoses,
+    complaints,
+    drugs,
+    saveDiagnosis,
+    saveDrug,
+    saveComplaint,
+    filterDiagnoses,
+    filterDrugs,
+    filterComplaints
+  };
 }

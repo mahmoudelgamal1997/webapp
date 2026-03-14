@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Form, Input, Button, Modal, Select, message, Card, AutoComplete } from 'antd';
+import { Form, Input, Button, Modal, Select, message, Card, AutoComplete, Tag } from 'antd';
 import axios from 'axios';
 import API from '../config/api';
 import dayjs from 'dayjs';
@@ -70,8 +70,10 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
   const [selectedInventoryItems, setSelectedInventoryItems] = useState<InventoryUsageItem[]>([]);
 
   // Suggestions
-  const { saveDiagnosis, saveDrug, filterDiagnoses, filterDrugs } = useDoctorSuggestions(doctorId);
+  const { diagnoses, complaints, saveDiagnosis, saveDrug, saveComplaint, filterDiagnoses, filterDrugs } = useDoctorSuggestions(doctorId);
   const watchedDiagnosis = Form.useWatch('diagnosis', form) as string | undefined;
+
+  const CHIP_LIMIT = 15;
 
   // Drug names tracked outside the form entirely — this is the source of truth
   const [drugInputs, setDrugInputs] = useState<Record<number, string>>({});
@@ -99,6 +101,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
 
     // Capture what to save BEFORE async
     const diagToSave = values.diagnosis?.trim() || '';
+    const complaintToSave = values.complaint?.trim() || '';
     const drugNamesToSave = Object.values(drugInputs).filter((v): v is string => !!v?.trim());
 
     try {
@@ -152,6 +155,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
 
       // Save suggestions
       if (diagToSave) saveDiagnosis(diagToSave);
+      if (complaintToSave) saveComplaint(complaintToSave);
       drugNamesToSave.forEach(name => saveDrug(name.trim()));
 
       form.resetFields();
@@ -239,27 +243,57 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
         </Form.Item>
 
         {/* Complaint Field */}
-        <Form.Item
-          name="complaint"
-          label={t('complaint')}
-        >
-          <TextArea
-            placeholder={t('complaintPlaceholder')}
-            rows={2}
-          />
+        <Form.Item label={t('complaint')}>
+          <Form.Item
+            name="complaint"
+            noStyle
+          >
+            <TextArea
+              placeholder={t('complaintPlaceholder')}
+              rows={2}
+            />
+          </Form.Item>
+          {complaints.slice(0, CHIP_LIMIT).length > 0 && (
+            <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {complaints.slice(0, CHIP_LIMIT).map((c) => (
+                <Tag
+                  key={c}
+                  style={{ cursor: 'pointer', marginBottom: 0 }}
+                  onClick={() => form.setFieldsValue({ complaint: c })}
+                >
+                  {c}
+                </Tag>
+              ))}
+            </div>
+          )}
         </Form.Item>
 
-        {/* Diagnosis Field — same pattern: AutoComplete + Form.useWatch */}
-        <Form.Item
-          name="diagnosis"
-          label={t('diagnosis')}
-        >
-          <AutoComplete
-            options={filterDiagnoses(watchedDiagnosis || '')}
-            filterOption={false}
-            placeholder={t('diagnosisPlaceholder')}
-            style={{ width: '100%' }}
-          />
+        {/* Diagnosis Field */}
+        <Form.Item label={t('diagnosis')}>
+          <Form.Item
+            name="diagnosis"
+            noStyle
+          >
+            <AutoComplete
+              options={filterDiagnoses(watchedDiagnosis || '')}
+              filterOption={false}
+              placeholder={t('diagnosisPlaceholder')}
+              style={{ width: '100%' }}
+            />
+          </Form.Item>
+          {diagnoses.slice(0, CHIP_LIMIT).length > 0 && (
+            <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {diagnoses.slice(0, CHIP_LIMIT).map((d) => (
+                <Tag
+                  key={d}
+                  style={{ cursor: 'pointer', marginBottom: 0 }}
+                  onClick={() => form.setFieldsValue({ diagnosis: d })}
+                >
+                  {d}
+                </Tag>
+              ))}
+            </div>
+          )}
         </Form.Item>
 
         {/* Drug Details Section */}

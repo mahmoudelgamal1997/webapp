@@ -7,6 +7,7 @@ import moment from 'moment';
 import ReceiptsList from './ReceiptsList';
 import { Receipt, Patient, Visit, ExternalService, ExternalServiceRequest, PatientPackage } from '../components/type';
 import { usePatientContext } from './PatientContext';
+import { useAuth } from './AuthContext';
 import API from '../config/api';
 import SendNotification from './SendNotification';
 import NextVisitForm from './NextVisitForm';
@@ -77,12 +78,14 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
   onBackToList
 }) => {
   const { selectedPatient, setSelectedPatient, fetchPatients } = usePatientContext();
+  const { username } = useAuth();
   const { settings: doctorSettings, doctorName } = useDoctorContext();
   const { selectedClinicId, clinicScopeIds } = useClinicContext();
   const { language } = useLanguage();
 
   const _suggestionDoctorId = localStorage.getItem('doctorId') || '';
-  const { saveDiagnosis: saveDiagnosisSuggestion, saveComplaint: saveComplaintSuggestion, filterDiagnoses: filterDiagnosesSuggestion, filterComplaints: filterComplaintsSuggestion } = useDoctorSuggestions(_suggestionDoctorId);
+  const { diagnoses, complaints, saveDiagnosis: saveDiagnosisSuggestion, saveComplaint: saveComplaintSuggestion, filterDiagnoses: filterDiagnosesSuggestion, filterComplaints: filterComplaintsSuggestion } = useDoctorSuggestions(_suggestionDoctorId);
+  const CHIP_LIMIT = 15;
   // Track typed complaint/diagnosis to pass to AutoComplete filterOption
   const [complaintInput, setComplaintInput] = useState('');
   const [diagnosisInput, setDiagnosisInput] = useState('');
@@ -1075,6 +1078,19 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
                     style={{ fontSize: 14 }}
                   />
                 </AutoComplete>
+                {complaints.slice(0, CHIP_LIMIT).length > 0 && (
+                  <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {complaints.slice(0, CHIP_LIMIT).map((c) => (
+                      <Tag
+                        key={c}
+                        style={{ cursor: 'pointer', marginBottom: 0 }}
+                        onClick={() => { setNewComplaint(c); setComplaintInput(c); }}
+                      >
+                        {c}
+                      </Tag>
+                    ))}
+                  </div>
+                )}
               </Col>
               <Col xs={24} sm={12}>
                 <div style={{ marginBottom: 4, fontWeight: 500 }}>Diagnosis / التشخيص</div>
@@ -1092,6 +1108,19 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
                     style={{ fontSize: 14 }}
                   />
                 </AutoComplete>
+                {diagnoses.slice(0, CHIP_LIMIT).length > 0 && (
+                  <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {diagnoses.slice(0, CHIP_LIMIT).map((d) => (
+                      <Tag
+                        key={d}
+                        style={{ cursor: 'pointer', marginBottom: 0 }}
+                        onClick={() => { setNewDiagnosis(d); setDiagnosisInput(d); }}
+                      >
+                        {d}
+                      </Tag>
+                    ))}
+                  </div>
+                )}
               </Col>
               <Col xs={24}>
                 <Button
@@ -1104,7 +1133,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
                       setAddComplaintLoading(true);
                       const doctorId = selectedPatient?.doctor_id || localStorage.getItem('doctorId');
                       const currentUserId = localStorage.getItem('doctorId');
-                      const resolvedDoctorName = doctorName || doctorSettings.doctorTitle || '';
+                      const resolvedDoctorName = username || doctorName || doctorSettings.doctorTitle || '';
                       await axios.post(`${API.BASE_URL}/api/patients/complaint-history`, {
                         patient_id: selectedPatient?.patient_id,
                         doctor_id: doctorId,
